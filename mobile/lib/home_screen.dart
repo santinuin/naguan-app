@@ -35,7 +35,12 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('NAGUAN')),
+      appBar: AppBar(
+        title: const Text(
+          'NAGUAN',
+          style: TextStyle(fontFamily: 'ArchivoBlack'),
+        ),
+      ),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
