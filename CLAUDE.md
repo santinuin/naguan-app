@@ -21,9 +21,30 @@ a la hora de asistir en el desarrollo:
 
 ## Estado del proyecto
 
-- Fase actual: definición de stack y modelado de datos (aún no hay código).
-- Próximo paso: diseñar el modelo de datos en Postgres a partir de la documentación de
-  ejercicios/planes en Excel que tengo que normalizar.
+- Fase actual: esqueleto de punta a punta (paso 2 de la hoja de ruta). Entorno de desarrollo
+  listo y verificado: Go 1.27.1, Flutter 3.47.5 / Dart 3.13.4, Android SDK y emulador `pixel8`.
+- Hecho: backend Go mínimo con `GET /health` (con tests); app Flutter generada, corriendo en
+  el emulador (todavía es el contador de ejemplo).
+- En curso: cliente Flutter que llama a `/health`. **Lo escribe el usuario a mano, guiado
+  paso a paso** (ver "Forma de trabajo" abajo).
+- Próximos pasos (hoja de ruta):
+  1. Modelo de datos en Postgres a partir de los Excel de ejercicios/planes (pendiente: el
+     usuario tiene que pasar los archivos; no están en el repo).
+  2. Supabase: base de datos, migraciones, elegir sqlc vs squirrel.
+  3. Auth con Supabase y validación del JWT en Go.
+  4. Funcionalidades: catálogo de ejercicios, rutinas, ejecución de sesión (timers),
+     historial.
+
+## Forma de trabajo
+
+- **Dart/Flutter lo escribe el usuario**; Claude guía con explicaciones, fragmentos cortos y
+  el porqué de cada decisión, y revisa lo que el usuario escribe. Es su primer contacto con
+  Dart y con desarrollo móvil, y el fin didáctico manda sobre la velocidad.
+- **Go**: el usuario ya lo conoce, así que Claude puede escribir el código y explicar solo
+  las decisiones no obvias.
+- El usuario hace sus propios `git commit` y `git push`; Claude no commitea.
+- Cada paso nuevo de tooling o de Flutter se acompaña de instrucciones para probarlo.
+- Guía de entorno, emulador y comandos útiles: `mobile/README.md`.
 
 ## Stack decidido
 
@@ -92,7 +113,29 @@ _Pendiente: definir el modelo completo una vez normalizados los Excel de ejercic
   separadas. Se prefirió sobre repos independientes porque el desarrollo es de una sola
   persona tocando ambos lados a la vez; separar en repos distintos es trivial más adelante
   si hiciera falta.
-- Estilo de código, testing, CI/CD: pendiente.
+- Identificadores: paquete Dart `workout_app` (nombre provisorio, renombrable) y
+  `applicationId` Android `com.santinuin.workout_app` (difícil de cambiar una vez que hay
+  instalaciones).
+- Backend Go: `net/http` estándar (mux de Go 1.22+ con `"GET /ruta"`) por ahora, sin
+  framework. Layout: `cmd/api` (arranque) e `internal/httpapi` (router y handlers). El puerto
+  viene de `PORT` (Cloud Run), 8080 por defecto. Módulo:
+  `github.com/santinuin/workout-app/backend`.
+- Testing: backend con `httptest`; mobile con `flutter test`. Linter mobile: `flutter analyze`.
+- Al elegir paquetes de Dart, verificar en pub.dev que soporten iOS además de Android, para
+  no cerrar esa puerta (agregar iOS después es `flutter create --platforms=ios .`, pero
+  compilarlo requiere una Mac o CI en la nube, p. ej. Codemagic).
+- En el emulador Android, la PC host se alcanza en `10.0.2.2` (no `localhost`); HTTP sin
+  cifrar está bloqueado por defecto en Android y hay que habilitarlo solo en desarrollo.
+- Estilo de código (más allá de gofmt / dart format), CI/CD: pendiente.
+
+## Particularidades del entorno de desarrollo
+
+- Android Studio se congela al abrir *Create Virtual Device* en esta máquina (Skiko no crea
+  el contexto OpenGL: dos GPU, X11). El emulador se crea y arranca por CLI; ver
+  `mobile/README.md`.
+- Asegurarse de que haya un único `adb` (el del SDK en `~/Android/Sdk/platform-tools`) para
+  evitar conflictos de versión del servidor.
+- El warning `sdkmanager is deprecated` durante `flutter run` es inofensivo.
 
 ## Decisiones descartadas (y por qué)
 
