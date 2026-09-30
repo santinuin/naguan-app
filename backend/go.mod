@@ -1,3 +1,3 @@
-module github.com/santinuin/workout-app/backend
+module github.com/santinuin/naguan-app/backend
 
 go 1.27.1

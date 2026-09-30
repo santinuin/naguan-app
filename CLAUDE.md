@@ -1,4 +1,4 @@
-# Workout App (nombre a definir)
+# Naguan App (FORJA DEL NAGUAN)
 
 App móvil de calistenia estilo "Mammoth Hunters" (app que ya no existe), de uso personal
 (yo + eventualmente algunos amigos). Prioridad: robustez y buenas prácticas sin sobre-ingeniería
@@ -18,6 +18,24 @@ a la hora de asistir en el desarrollo:
   cuando el objetivo es entender el porqué.
 - Preferir explicar el razonamiento detrás de decisiones de Go y Flutter (por qué esta estructura,
   por qué este patrón de concurrencia, por qué este widget) en vez de solo entregar el resultado.
+
+## Identidad y diseño
+
+- **Nombre completo:** FORJA DEL NAGUAN. **Nombre corto:** NAGUAN (bajo el ícono, notificaciones,
+  espacios de menos de 12 caracteres). Repo y paquetes: `naguan-app` / `naguan_app`.
+- **Tagline:** «El título se gana. Serie a serie.» Naguan: palabra comechingona para *cacique*
+  (un título que se gana por prestigio); la forja es donde se vuelve fuerte.
+- **Sistema de diseño** (fuente de verdad: colores, tipografías, espaciados, voz, ícono):
+  https://claude.ai/artifact/7JVK77PHuu8nn3TNCnJjGP — leer `project/README.md` y
+  `project/tokens.json` antes de hacer UI. Resumen: neo-brutalista de serigrafía; tema oscuro
+  **Hierro** (principal) y claro **Hueso**; un solo acento rosa óxido `#E0708C`; Archivo Black /
+  Archivo / Space Mono; bordes gruesos de 3px, sombra dura sin blur, sin degradados ni emojis.
+- **Voz:** imperativa, corta, voseo, títulos en MAYÚSCULAS. Vocabulario propio (Fragua = sesión,
+  Senda = plan, Golpe = serie, Enfriá = descanso, Templado = sesión completada, Brasa = racha,
+  Mojón = récord, Kamiare = comunidad). Usar solo palabras documentadas; nada de iconografía
+  estereotipada (ver "Origen y respeto" en el README del sistema de diseño).
+- **Ícono:** perfil de las sierras de Córdoba que forma una N. Oficial: variante C (sierra en
+  tinta sobre rosa); alternativa aprobada: A. Android usa capas adaptativas (primer plano al 66%).
 
 ## Estado del proyecto
 
@@ -113,13 +131,13 @@ _Pendiente: definir el modelo completo una vez normalizados los Excel de ejercic
   separadas. Se prefirió sobre repos independientes porque el desarrollo es de una sola
   persona tocando ambos lados a la vez; separar en repos distintos es trivial más adelante
   si hiciera falta.
-- Identificadores: paquete Dart `workout_app` (nombre provisorio, renombrable) y
-  `applicationId` Android `com.santinuin.workout_app` (difícil de cambiar una vez que hay
-  instalaciones).
+- Identificadores: paquete Dart `naguan_app` y `applicationId` Android
+  `com.santinuin.naguan_app` (difícil de cambiar una vez que hay instalaciones). Nombre en
+  pantalla (label de Android): `Naguan`.
 - Backend Go: `net/http` estándar (mux de Go 1.22+ con `"GET /ruta"`) por ahora, sin
   framework. Layout: `cmd/api` (arranque) e `internal/httpapi` (router y handlers). El puerto
   viene de `PORT` (Cloud Run), 8080 por defecto. Módulo:
-  `github.com/santinuin/workout-app/backend`.
+  `github.com/santinuin/naguan-app/backend`.
 - Testing: backend con `httptest`; mobile con `flutter test`. Linter mobile: `flutter analyze`.
 - Al elegir paquetes de Dart, verificar en pub.dev que soporten iOS además de Android, para
   no cerrar esa puerta (agregar iOS después es `flutter create --platforms=ios .`, pero

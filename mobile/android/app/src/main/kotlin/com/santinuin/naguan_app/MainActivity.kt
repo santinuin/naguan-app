@@ -1,4 +1,4 @@
-package com.santinuin.workout_app
+package com.santinuin.naguan_app
 
 import io.flutter.embedding.android.FlutterActivity
 

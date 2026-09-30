@@ -8,7 +8,7 @@ completo de arquitectura y decisiones.
 Go no está instalado en este entorno todavía. Cuando esté disponible:
 
 ```
-go mod init github.com/<usuario>/workout-app/backend
+go mod init github.com/<usuario>/naguan-app/backend
 ```
 
 ## Estado

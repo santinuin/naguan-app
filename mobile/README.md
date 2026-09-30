@@ -3,9 +3,10 @@
 App móvil de calistenia. Ver `/CLAUDE.md` en la raíz del repo para el contexto completo
 de arquitectura y decisiones.
 
-- **Paquete Dart:** `workout_app` (nombre técnico provisorio; renombrarlo es fácil).
-- **applicationId Android:** `com.santinuin.workout_app` (este es más incómodo de cambiar
-  una vez que hay instalaciones, así que conviene no tocarlo a la ligera).
+- **Nombre:** FORJA DEL NAGUAN (corto: NAGUAN). Ver `/CLAUDE.md` para identidad y diseño.
+- **Paquete Dart:** `naguan_app`.
+- **applicationId Android:** `com.santinuin.naguan_app` (incómodo de cambiar una vez que hay
+  instalaciones, así que conviene no tocarlo a la ligera).
 - **Plataformas:** solo Android. iOS queda pendiente (requiere Apple Developer, USD 99/año).
 
 ## Estado
@@ -165,7 +166,7 @@ imprime `flutter run`, o con `dart devtools`.
 | `go test ./...` | `flutter test` |
 | `go build` | `flutter build apk` |
 | `package main` + `func main()` | `lib/main.dart` con `void main()` |
-| Un paquete = un directorio | Un archivo = una librería; se importa con `package:workout_app/...` |
+| Un paquete = un directorio | Un archivo = una librería; se importa con `package:naguan_app/...` |
 | Recompilar y reiniciar el servidor | Hot reload (`r`) |
 
 ## Estructura del proyecto

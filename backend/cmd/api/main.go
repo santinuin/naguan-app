@@ -11,7 +11,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/santinuin/workout-app/backend/internal/httpapi"
+	"github.com/santinuin/naguan-app/backend/internal/httpapi"
 )
 
 func main() {

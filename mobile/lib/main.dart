@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:workout_app/home_screen.dart';
+import 'package:naguan_app/home_screen.dart';
 
 void main() {
-  runApp(const WorkoutApp());
+  runApp(const NaguanApp());
 }
 
-class WorkoutApp extends StatelessWidget {
-  const WorkoutApp({super.key});
+class NaguanApp extends StatelessWidget {
+  const NaguanApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Workout App',
+      title: 'FORJA DEL NAGUAN',
       theme: ThemeData(colorSchemeSeed: Colors.deepOrange),
       home: const HomeScreen()
     );

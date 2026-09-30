@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:workout_app/health_client.dart';
+import 'package:naguan_app/health_client.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -35,7 +35,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Workout App')),
+      appBar: AppBar(title: const Text('NAGUAN')),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
