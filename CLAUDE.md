@@ -41,10 +41,13 @@ a la hora de asistir en el desarrollo:
 
 - Fase actual: esqueleto de punta a punta (paso 2 de la hoja de ruta). Entorno de desarrollo
   listo y verificado: Go 1.27.1, Flutter 3.47.5 / Dart 3.13.4, Android SDK y emulador `pixel8`.
-- Hecho: backend Go mínimo con `GET /health` (con tests); app Flutter generada, corriendo en
-  el emulador (todavía es el contador de ejemplo).
-- En curso: cliente Flutter que llama a `/health`. **Lo escribe el usuario a mano, guiado
+- Hecho: backend Go mínimo con `GET /health` (con tests); app Flutter con `HealthClient` y
+  `HomeScreen` que consulta `/health` desde el emulador; renombre completo a `naguan-app`.
+- En curso: tema de Forja en Flutter (`ThemeData` Hierro/Hueso, fuentes empaquetadas en el
+  APK en vez de `google_fonts`, ícono adaptativo). **Lo escribe el usuario a mano, guiado
   paso a paso** (ver "Forma de trabajo" abajo).
+- Deuda conocida: `mobile/test/widget_test.dart` sigue siendo el test del contador (referencia
+  `MyApp`, que ya no existe) y rompe `flutter analyze`; reemplazarlo por un widget test propio.
 - Próximos pasos (hoja de ruta):
   1. Modelo de datos en Postgres a partir de los Excel de ejercicios/planes (pendiente: el
      usuario tiene que pasar los archivos; no están en el repo).
