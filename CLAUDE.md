@@ -8,7 +8,8 @@ por adelantado.
 ## Fin del proyecto
 
 Además del fin productivo (tener la app funcionando), este proyecto tiene un **fin didáctico
-explícito**: afianzar conocimientos de Go y aprender Flutter/Dart desde cero. Esto es relevante
+explícito**: aprender Go, Supabase y Flutter/Dart (el usuario viene de Java/Spring WebFlux;
+Dart y móvil son nuevos para él). Esto es relevante
 a la hora de asistir en el desarrollo:
 
 - Priorizar explicaciones y patrones idiomáticos de cada lenguaje/framework por sobre soluciones
@@ -39,7 +40,7 @@ a la hora de asistir en el desarrollo:
 
 ## Estado del proyecto
 
-- Fase actual: conectar el backend Go a la base (local) y exponer el catálogo. Entorno de
+- Fase actual: API del catálogo (backend Go sobre la base local). Entorno de
   desarrollo listo y verificado: Go 1.27.1, Flutter 3.47.5 / Dart 3.13.4, Android SDK y
   emulador `pixel8`, Docker Desktop y Supabase local (ver "Particularidades del entorno").
 - Hecho: backend Go mínimo con `GET /health` (con tests); app Flutter con `HealthClient` y
@@ -51,12 +52,13 @@ a la hora de asistir en el desarrollo:
   licencias OFL de las fuentes con `LicenseRegistry` antes de compartir el APK.
 - Hecho (datos): esquema del catálogo y el importador `backend/cmd/seed` del nivel A
   (470 ejercicios, 209 progresiones, 5 programas, 191 sesiones), cargado en Supabase
-  local (Postgres 17). Pendiente (más adelante, lo hace el usuario): auditar ejercicio por
+  local (Postgres 17). API de lectura: `GET /programs`, `GET /programs/{slug}`,
+  `GET /sessions/{id}` (sesión con bloques e ítems), con tests. Pendiente (más adelante, lo hace el usuario): auditar ejercicio por
   ejercicio en `backend/seed/exercise_names.csv`, incluidas las variantes numeradas
   ("Flexión anillas 1/2/3"), que según el caso son niveles o ejercicios distintos.
 - Próximos pasos (hoja de ruta):
-  1. Acceso a datos desde Go: elegir sqlc vs squirrel, conectar a la base local y
-     exponer los primeros endpoints del catálogo.
+  1. Más endpoints del catálogo (ejercicios: detalle, videos, músculos, progresiones) y
+     consumirlos desde la app Flutter.
   2. Supabase en la nube: crear el proyecto y aplicar migración y seed.
   3. Datos: niveles B y C (ver "Datos fuente").
   4. Auth con Supabase y validación del JWT en Go.
@@ -70,8 +72,12 @@ a la hora de asistir en el desarrollo:
   fragmentos cortos y el porqué de cada decisión, y revisa lo que el usuario escribe. Si el
   usuario lo pide, Claude escribe el código y lo acompaña de una explicación detallada de
   los conceptos de Dart/Flutter que aparecen, para que el usuario lo lea y aprenda.
-- **Go**: el usuario ya lo conoce, así que Claude puede escribir el código y explicar solo
-  las decisiones no obvias.
+- **Go y Supabase**: el usuario viene de **Java / Spring WebFlux** y usa el proyecto para
+  aprender Go y Supabase (además de Flutter). Claude escribe el código Go, pero de forma
+  pedagógica: explica los conceptos y el idioma de Go, con analogías a Java/Spring cuando
+  ayudan (goroutines vs Mono/Flux, sqlc/pgx vs Spring Data/R2DBC, constructores explícitos
+  vs inyección de Spring) y marcando dónde la intuición de Spring lleva a código no
+  idiomático en Go.
 - El usuario hace sus propios `git commit` y `git push`; Claude no commitea.
 - Cada paso nuevo de tooling o de Flutter se acompaña de instrucciones para probarlo.
 - Guía de entorno, emulador y comandos útiles: `mobile/README.md`.
@@ -96,7 +102,9 @@ a la hora de asistir en el desarrollo:
   superset/tabata/pirámide, sets, usuarios, historial de sesiones) — encaja mejor con SQL
   que con un modelo de documentos (Mongo se descartó: sin ventajas reales en reactividad,
   performance o concurrencia para este caso, y peor ajuste al modelo de datos).
-- ORM: a definir (candidato: sqlc o un query builder tipo squirrel, dado que el backend es Go).
+- Acceso a datos: **pgx v5** (driver + `pgxpool`) y **sqlc** (consultas en SQL → código Go
+  tipado, validado contra las migraciones). Se descartó GORM (magia, esconde el SQL);
+  squirrel queda como opción puntual si aparece una consulta muy dinámica.
 
 ### Autenticación
 - Supabase Auth. Login simple (email/password o magic link) para mí y algunos amigos.
@@ -181,10 +189,21 @@ calistenia, pero también fuerza con barra (Barra Libre) y movilidad ("flexifuer
 - Identificadores: paquete Dart `naguan_app` y `applicationId` Android
   `com.santinuin.naguan_app` (difícil de cambiar una vez que hay instalaciones). Nombre en
   pantalla (label de Android): `Naguan`.
-- Backend Go: `net/http` estándar (mux de Go 1.22+ con `"GET /ruta"`) por ahora, sin
-  framework. Layout: `cmd/api` (arranque) e `internal/httpapi` (router y handlers). El puerto
-  viene de `PORT` (Cloud Run), 8080 por defecto. Módulo:
-  `github.com/santinuin/naguan-app/backend`.
+- Backend Go: `net/http` estándar (mux de Go 1.22+ con `"GET /ruta"`), sin framework.
+  Módulo `github.com/santinuin/naguan-app/backend`. Layout:
+  - `cmd/api`: arranque; arma las dependencias a mano (pool → `db.Queries` →
+    `catalog.Service` → router). `PORT` (8080 por defecto) y `DATABASE_URL` (por defecto el
+    Postgres de `supabase start`).
+  - `internal/httpapi`: router y handlers; define las interfaces que consume (`Catalog`) y
+    traduce errores a status (`catalog.ErrNotFound` → 404; el resto, 500 sin detalle).
+  - `internal/catalog`: tipos de respuesta JSON (separados de las filas de la base) y
+    armado (p. ej. agrupar los ítems planos en bloques).
+  - `internal/db`: **generado por sqlc** (`sqlc generate` desde `backend/`, config en
+    `sqlc.yaml`); las consultas viven en `internal/db/queries/*.sql`. No editar el `.go`.
+  - `cmd/seed` + `internal/mhimport`: importador de los programas (ver `backend/README.md`).
+  - Interfaces chicas y del lado del consumidor; nada de interfaz + `Impl` por servicio.
+- Notas de Go para quien viene de Spring: `docs/go-para-devs-spring.md` (se completa a
+  medida que aparecen conceptos).
 - Testing: backend con `httptest`; mobile con `flutter test`. Linter mobile: `flutter analyze`.
   En mobile, las dependencias se inyectan por constructor (`main` crea el `HealthClient` y lo
   pasa hacia abajo) para poder testear: los clientes HTTP reciben un `http.Client` opcional
@@ -230,7 +249,8 @@ calistenia, pero también fuerza con barra (Barra Libre) y movilidad ("flexifuer
 - Docker: el engine nativo (`/var/run/docker.sock`) requiere el grupo `docker`, que el
   usuario no tiene; se usa Docker Desktop (contexto `desktop-linux`), que hay que abrir a
   mano. No hay `psql` en el host: usar `docker exec supabase_db_naguan-app psql -U postgres`.
-- Supabase local: CLI 2.119 en `~/.local/bin/supabase` (binario del release de GitHub).
+- Supabase local: CLI 2.119 en `~/.local/bin/supabase`; sqlc en `~/.local/bin/sqlc`
+  (binarios de los releases de GitHub).
   Se levanta solo lo necesario por ahora (Postgres 17 + Studio):
   `supabase start -x gotrue,realtime,storage-api,imgproxy,mailpit,edge-runtime,logflare,vector,supavisor`.
   Postgres en `127.0.0.1:54322` (postgres/postgres), Studio en `http://127.0.0.1:54323`.

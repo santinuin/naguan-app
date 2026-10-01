@@ -4,9 +4,13 @@ API de la app. Ver `/CLAUDE.md` en la raíz del repo para el contexto completo d
 arquitectura y decisiones.
 
 ```bash
-go run ./cmd/api      # API en :8080 (o $PORT)
+go run ./cmd/api      # API en :8080 (o $PORT), contra $DATABASE_URL o el Postgres local
 go test ./...
+sqlc generate         # regenera internal/db a partir de internal/db/queries/*.sql
 ```
+
+Endpoints: `GET /health`, `GET /programs`, `GET /programs/{slug}`, `GET /sessions/{id}`.
+La base local se levanta con `supabase start` desde la raíz (ver `/CLAUDE.md`).
 
 ## Importar los programas (`cmd/seed`)
 
