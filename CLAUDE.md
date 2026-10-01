@@ -40,7 +40,7 @@ a la hora de asistir en el desarrollo:
 
 ## Estado del proyecto
 
-- Fase actual: API del catálogo (backend Go sobre la base local). Entorno de
+- Fase actual: **en producción** (Cloud Run + Supabase nube), usada desde un APK de release. Entorno de
   desarrollo listo y verificado: Go 1.27.1, Flutter 3.47.5 / Dart 3.13.4, Android SDK y
   emulador `pixel8`, Docker Desktop y Supabase local (ver "Particularidades del entorno").
 - Hecho: navegación de punta a punta con el tema de Forja (Postgres → sqlc → API Go →
@@ -71,8 +71,8 @@ a la hora de asistir en el desarrollo:
 - Próximos pasos (hoja de ruta), primero lo estructural y después el contenido:
   1. Ingreso con biometría (`local_auth` + refresh token en `flutter_secure_storage`).
   2. Endpoints y pantalla de ejercicio (detalle, videos, músculos, progresiones).
-  3. Despliegue: Dockerfile, CI y guía hechos; falta ejecutarlo con las cuentas del
-     usuario (Supabase nube, Google Cloud) siguiendo `docs/despliegue.md`.
+  3. ~~Despliegue~~: hecho (ver "Producción" en Convenciones). Pendiente menor: clave de
+     firma propia (keystore) antes de compartir el APK con amigos.
   4. Historial de Fraguas y Mojones en la app.
   5. Datos: niveles B y C (ver "Datos fuente"); ajustes de contenido (nombres de
      sesiones, calentamiento y estiramiento).
@@ -315,6 +315,15 @@ calistenia, pero también fuerza con barra (Barra Libre) y movilidad ("flexifuer
   `DATABASE_URL` en Secret Manager). La app de release se configura con
   `--dart-define` (`API_BASE_URL`, `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`). Alerta de
   presupuesto de USD 1 en Google Cloud. Registro público deshabilitado en Supabase.
+- **Producción** (desplegada el 2026-10-01): proyecto de Supabase `naguan`, ref
+  `uglblscyrtrurpdlxssj` (`https://uglblscyrtrurpdlxssj.supabase.co`, sa-east-1); proyecto de
+  Google Cloud `naguan` (cuenta de facturación "Naguan" con alerta de USD 1); servicio de
+  Cloud Run `naguan-api` en `https://naguan-api-164976317185.southamerica-east1.run.app`;
+  secreto `database-url` en Secret Manager (solo lo lee la cuenta de servicio de Cloud
+  Run). Redesplegar: `gcloud run deploy naguan-api --source . --region
+  southamerica-east1` desde `backend/` (conserva variables y secretos). Migraciones
+  nuevas: `supabase db push` (el repo está vinculado con `supabase link`). `supabase login`
+  y `gcloud auth login` se corren en la terminal del usuario (necesitan TTY).
 - CI: `.github/workflows/ci.yml` (gofmt, vet, tests, `sqlc diff` con sqlc 1.31.1, build
   de Docker; dart format, analyze y tests de Flutter). CD: a mano por ahora.
 
@@ -328,6 +337,9 @@ calistenia, pero también fuerza con barra (Barra Libre) y movilidad ("flexifuer
 - Flutter está en `~/development/flutter/bin`, cargado en el `PATH` del perfil interactivo;
   en shells no interactivos (los de Claude) hay que agregarlo a mano.
 - El warning `sdkmanager is deprecated` durante `flutter run` es inofensivo.
+- Memoria de Gradle acotada a 4G en `mobile/android/gradle.properties`: con los 8G de la
+  plantilla, el build de release moría por falta de memoria (exit 137) con el emulador y
+  Docker abiertos.
 - Docker: el engine nativo (`/var/run/docker.sock`) requiere el grupo `docker`, que el
   usuario no tiene; se usa Docker Desktop (contexto `desktop-linux`), que hay que abrir a
   mano. No hay `psql` en el host: usar `docker exec supabase_db_naguan-app psql -U postgres`.

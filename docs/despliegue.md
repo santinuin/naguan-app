@@ -159,7 +159,10 @@ flutter build apk --release \
   --dart-define=SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
 ```
 
-El APK queda en `build/app/outputs/flutter-apk/app-release.apk`. Se instala pasándolo al
+El APK queda en `build/app/outputs/flutter-apk/app-release.apk` (~53 MB: trae el
+código nativo de las tres arquitecturas, ARM de 32 y 64 bits y x86). Con
+`--split-per-abi` se generan APKs separados de ~18 MB; para un teléfono moderno alcanza
+con el `arm64-v8a`. Se instala pasándolo al
 teléfono (habilitando "instalar apps de orígenes desconocidos") o con
 `adb install` con el teléfono conectado.
 
@@ -169,6 +172,19 @@ teléfono (habilitando "instalar apps de orígenes desconocidos") o con
   plantilla de Flutter). Para uso personal alcanza; antes de compartirlo con amigos
   conviene crear una clave propia (*keystore*), porque Android solo instala una
   actualización si está firmada con la **misma** clave que la versión instalada.
+
+### Si el build de release muere con "exit code 137"
+
+Es el sistema matando el proceso por falta de memoria. La plantilla de Flutter le da a
+Gradle hasta 8 GB de heap (`mobile/android/gradle.properties`), más el daemon de Kotlin
+aparte. En este proyecto quedó en 4 GB, que alcanzan; si vuelve a pasar, cerrá el emulador
+y Docker durante el build.
+
+### `SUPABASE_ISSUER` en producción
+
+No hace falta: la API llega a Supabase por la misma URL que figura en los tokens
+(`https://<ref>.supabase.co`). Solo se usa al correr el contenedor en local, donde la API
+llega por `host.docker.internal` pero los tokens dicen `127.0.0.1`.
 
 ## 5. Integración continua
 
