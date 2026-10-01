@@ -39,8 +39,9 @@ a la hora de asistir en el desarrollo:
 
 ## Estado del proyecto
 
-- Fase actual: esqueleto de punta a punta (paso 2 de la hoja de ruta). Entorno de desarrollo
-  listo y verificado: Go 1.27.1, Flutter 3.47.5 / Dart 3.13.4, Android SDK y emulador `pixel8`.
+- Fase actual: conectar el backend Go a la base (local) y exponer el catálogo. Entorno de
+  desarrollo listo y verificado: Go 1.27.1, Flutter 3.47.5 / Dart 3.13.4, Android SDK y
+  emulador `pixel8`, Docker Desktop y Supabase local (ver "Particularidades del entorno").
 - Hecho: backend Go mínimo con `GET /health` (con tests); app Flutter con `HealthClient` y
   `HomeScreen` que consulta `/health` desde el emulador; renombre completo a `naguan-app`;
   tema de Forja en Flutter: fuentes empaquetadas y `ThemeData` Hierro/Hueso (ver
@@ -49,15 +50,17 @@ a la hora de asistir en el desarrollo:
   presionar (`FilledButton` no la soporta); textura de grano sobre `bg`; registrar las
   licencias OFL de las fuentes con `LicenseRegistry` antes de compartir el APK.
 - Hecho (datos): esquema del catálogo y el importador `backend/cmd/seed` del nivel A
-  (470 ejercicios, 209 progresiones, 5 programas, 191 sesiones), validado contra
-  Postgres 16. Pendiente (más adelante, lo hace el usuario): auditar ejercicio por
+  (470 ejercicios, 209 progresiones, 5 programas, 191 sesiones), cargado en Supabase
+  local (Postgres 17). Pendiente (más adelante, lo hace el usuario): auditar ejercicio por
   ejercicio en `backend/seed/exercise_names.csv`, incluidas las variantes numeradas
   ("Flexión anillas 1/2/3"), que según el caso son niveles o ejercicios distintos.
 - Próximos pasos (hoja de ruta):
-  1. Datos: revisar nombres del CSV; después niveles B y C (ver "Datos fuente").
-  2. Supabase: proyecto, aplicar migración y seed, elegir sqlc vs squirrel.
-  3. Auth con Supabase y validación del JWT en Go.
-  4. Funcionalidades: catálogo de ejercicios, rutinas, ejecución de sesión (timers),
+  1. Acceso a datos desde Go: elegir sqlc vs squirrel, conectar a la base local y
+     exponer los primeros endpoints del catálogo.
+  2. Supabase en la nube: crear el proyecto y aplicar migración y seed.
+  3. Datos: niveles B y C (ver "Datos fuente").
+  4. Auth con Supabase y validación del JWT en Go.
+  5. Funcionalidades: catálogo de ejercicios, rutinas, ejecución de sesión (timers),
      historial.
 
 ## Forma de trabajo
@@ -82,7 +85,7 @@ a la hora de asistir en el desarrollo:
   en Dart, pero se decide invertir el aprendizaje.
 
 ### Backend
-- **Go** (net/http o un router liviano tipo Chi/Gin — a definir al implementar).
+- **Go** con `net/http` estándar (el mux de Go 1.22+ alcanza; sin Chi ni Gin por ahora).
 - Motivo: ya tengo experiencia con Go, deploy simple (binario único), buen tipado,
   bajo consumo de recursos. No se elige por "concurrencia" (a esta escala no es un factor
   diferencial entre stacks), sino por conocimiento previo y simplicidad operativa.
@@ -117,8 +120,7 @@ a la hora de asistir en el desarrollo:
 ## Costo estimado actual
 
 Con Android solamente: **~USD 0/mes** (Supabase free tier + Cloudflare R2 free tier +
-Cloud Run free tier). Ver el archivo de decisiones para el detalle de límites de cada
-tier gratuito.
+Cloud Run free tier).
 
 ## Datos fuente
 
@@ -226,8 +228,13 @@ calistenia, pero también fuerza con barra (Barra Libre) y movilidad ("flexifuer
   en shells no interactivos (los de Claude) hay que agregarlo a mano.
 - El warning `sdkmanager is deprecated` durante `flutter run` es inofensivo.
 - Docker: el engine nativo (`/var/run/docker.sock`) requiere el grupo `docker`, que el
-  usuario no tiene; Docker Desktop (contexto `desktop-linux`) hay que abrirlo a mano. Sin
-  `psql` ni CLI de Supabase instalados todavía.
+  usuario no tiene; se usa Docker Desktop (contexto `desktop-linux`), que hay que abrir a
+  mano. No hay `psql` en el host: usar `docker exec supabase_db_naguan-app psql -U postgres`.
+- Supabase local: CLI 2.119 en `~/.local/bin/supabase` (binario del release de GitHub).
+  Se levanta solo lo necesario por ahora (Postgres 17 + Studio):
+  `supabase start -x gotrue,realtime,storage-api,imgproxy,mailpit,edge-runtime,logflare,vector,supavisor`.
+  Postgres en `127.0.0.1:54322` (postgres/postgres), Studio en `http://127.0.0.1:54323`.
+  `supabase db reset` reaplica migraciones + `supabase/seed.sql`; `supabase stop` lo apaga.
 
 ## Decisiones descartadas (y por qué)
 
