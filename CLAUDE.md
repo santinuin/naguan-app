@@ -42,10 +42,13 @@ a la hora de asistir en el desarrollo:
 - Fase actual: esqueleto de punta a punta (paso 2 de la hoja de ruta). Entorno de desarrollo
   listo y verificado: Go 1.27.1, Flutter 3.47.5 / Dart 3.13.4, Android SDK y emulador `pixel8`.
 - Hecho: backend Go mínimo con `GET /health` (con tests); app Flutter con `HealthClient` y
-  `HomeScreen` que consulta `/health` desde el emulador; renombre completo a `naguan-app`.
-- En curso: tema de Forja en Flutter (`ThemeData` Hierro/Hueso, fuentes empaquetadas en el
-  APK en vez de `google_fonts`, ícono adaptativo). **Lo escribe el usuario a mano, guiado
-  paso a paso** (ver "Forma de trabajo" abajo).
+  `HomeScreen` que consulta `/health` desde el emulador; renombre completo a `naguan-app`;
+  tema de Forja en Flutter: fuentes empaquetadas y `ThemeData` Hierro/Hueso (ver
+  "Convenciones").
+- En curso: ícono adaptativo de Android (variante C, primer plano al 66%, monocromático).
+- Pendiente del tema: widget propio `ForjaButton` con la sombra dura que se hunde al
+  presionar (`FilledButton` no la soporta); textura de grano sobre `bg`; registrar las
+  licencias OFL de las fuentes con `LicenseRegistry` antes de compartir el APK.
 - Deuda conocida: `mobile/test/widget_test.dart` sigue siendo el test del contador (referencia
   `MyApp`, que ya no existe) y rompe `flutter analyze`; reemplazarlo por un widget test propio.
 - Próximos pasos (hoja de ruta):
@@ -58,9 +61,11 @@ a la hora de asistir en el desarrollo:
 
 ## Forma de trabajo
 
-- **Dart/Flutter lo escribe el usuario**; Claude guía con explicaciones, fragmentos cortos y
-  el porqué de cada decisión, y revisa lo que el usuario escribe. Es su primer contacto con
-  Dart y con desarrollo móvil, y el fin didáctico manda sobre la velocidad.
+- **Dart/Flutter**: es el primer contacto del usuario con Dart y con desarrollo móvil, y el
+  fin didáctico manda sobre la velocidad. Por defecto Claude guía con explicaciones,
+  fragmentos cortos y el porqué de cada decisión, y revisa lo que el usuario escribe. Si el
+  usuario lo pide, Claude escribe el código y lo acompaña de una explicación detallada de
+  los conceptos de Dart/Flutter que aparecen, para que el usuario lo lea y aprenda.
 - **Go**: el usuario ya lo conoce, así que Claude puede escribir el código y explicar solo
   las decisiones no obvias.
 - El usuario hace sus propios `git commit` y `git push`; Claude no commitea.
@@ -142,6 +147,17 @@ _Pendiente: definir el modelo completo una vez normalizados los Excel de ejercic
   viene de `PORT` (Cloud Run), 8080 por defecto. Módulo:
   `github.com/santinuin/naguan-app/backend`.
 - Testing: backend con `httptest`; mobile con `flutter test`. Linter mobile: `flutter analyze`.
+- Tema mobile en `mobile/lib/theme/`: `forja_tokens.dart` tiene los valores crudos del
+  sistema de diseño (`ForjaPalette.hierro`/`.hueso`, `ForjaSpace`, `ForjaRadius`,
+  `ForjaBorder`, `ForjaFonts`); `forja_theme.dart` los mapea a `ThemeData` (`forjaHierro`,
+  `forjaHueso`). Mapeo de estilos: hero→`displayLarge`, display→`displayMedium`,
+  title→`titleLarge`, heading→`headlineSmall`, body→`bodyLarge`/`bodyMedium`,
+  label→`labelSmall`. Lo que Material no cubre (paleta completa, `stat`, `bodyStrong`) va en
+  la `ThemeExtension` `Forja`, accesible con `context.forja`. En las pantallas: estilos
+  desde el tema, nunca `TextStyle`/colores escritos a mano. Error = `signal` (el sistema de
+  diseño no define un color de error). La app usa `ThemeMode.dark` (Hierro) fijo.
+- Fuentes: TTF estáticos en `mobile/assets/fonts/` (con sus licencias OFL), declarados en
+  `pubspec.yaml`; no se usa `google_fonts` (descarga al primer uso, falla sin señal).
 - Al elegir paquetes de Dart, verificar en pub.dev que soporten iOS además de Android, para
   no cerrar esa puerta (agregar iOS después es `flutter create --platforms=ios .`, pero
   compilarlo requiere una Mac o CI en la nube, p. ej. Codemagic).
@@ -156,6 +172,8 @@ _Pendiente: definir el modelo completo una vez normalizados los Excel de ejercic
   `mobile/README.md`.
 - Asegurarse de que haya un único `adb` (el del SDK en `~/Android/Sdk/platform-tools`) para
   evitar conflictos de versión del servidor.
+- Flutter está en `~/development/flutter/bin`, cargado en el `PATH` del perfil interactivo;
+  en shells no interactivos (los de Claude) hay que agregarlo a mano.
 - El warning `sdkmanager is deprecated` durante `flutter run` es inofensivo.
 
 ## Decisiones descartadas (y por qué)

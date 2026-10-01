@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:naguan_app/home_screen.dart';
+import 'package:naguan_app/theme/forja_theme.dart';
 
 void main() {
   runApp(const NaguanApp());
@@ -12,8 +13,12 @@ class NaguanApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'FORJA DEL NAGUAN',
-      theme: ThemeData(colorSchemeSeed: Colors.deepOrange),
-      home: const HomeScreen()
+      theme: forjaHueso,
+      darkTheme: forjaHierro,
+      // Hierro es el tema principal. Con ThemeMode.system seguiría al
+      // sistema operativo.
+      themeMode: ThemeMode.dark,
+      home: const HomeScreen(),
     );
   }
 }
