@@ -61,12 +61,14 @@ a la hora de asistir en el desarrollo:
   renombrar cada sesión de cada programa con un nombre acorde (hoy muchas quedaron como
   "Sesión N"); sumar el calentamiento y el estiramiento que les faltan a los programas.
 - Próximos pasos (hoja de ruta):
-  1. Lo estructural de la API primero (ver la propuesta en curso); los ajustes de
-     contenido después.
-  2. Supabase en la nube: crear el proyecto y aplicar migración y seed.
-  3. Datos: niveles B y C (ver "Datos fuente").
-  4. Auth con Supabase y validación del JWT en Go.
-  5. Funcionalidades: catálogo de ejercicios, rutinas, ejecución de sesión (timers),
+  1. Lo estructural de la API primero, en este orden: (a) cimientos transversales:
+     hecho; (b) autenticación con Supabase Auth (gotrue local + validación del JWT en un
+     middleware de Go + login en Flutter); (c) modelo del usuario: Senda que sigue,
+     registro de Fraguas templadas, Brasa y Mojones; (d) endpoints de ejercicio;
+     (e) despliegue (Supabase nube, Docker, Cloud Run, CI). Los ajustes de contenido,
+     después.
+  2. Datos: niveles B y C (ver "Datos fuente").
+  3. Funcionalidades: catálogo de ejercicios, rutinas, ejecución de sesión (timers),
      historial.
 
 ## Forma de trabajo
@@ -199,11 +201,16 @@ calistenia, pero también fuerza con barra (Barra Libre) y movilidad ("flexifuer
   pantalla (label de Android): `Naguan`.
 - Backend Go: `net/http` estándar (mux de Go 1.22+ con `"GET /ruta"`), sin framework.
   Módulo `github.com/santinuin/naguan-app/backend`. Layout:
-  - `cmd/api`: arranque; arma las dependencias a mano (pool → `db.Queries` →
-    `catalog.Service` → router). `PORT` (8080 por defecto) y `DATABASE_URL` (por defecto el
-    Postgres de `supabase start`).
-  - `internal/httpapi`: router y handlers; define las interfaces que consume (`Catalog`) y
-    traduce errores a status (`catalog.ErrNotFound` → 404; el resto, 500 sin detalle).
+  - `cmd/api`: arranque; arma las dependencias a mano (config → pool → `db.Queries` →
+    `catalog.Service` → router).
+  - `internal/config`: configuración desde el entorno, validada al arrancar: `PORT`
+    (8080), `DATABASE_URL` (el Postgres de `supabase start`), `REQUEST_TIMEOUT` (10s),
+    `SHUTDOWN_TIMEOUT` (10s).
+  - `internal/httpapi`: router, handlers y middleware (`logRequests` → `recoverPanics` →
+    `withTimeout`, en ese orden). Rutas de la app bajo **`/v1`**; `/health` sin versión.
+    Define las interfaces que consume (`Catalog`) y traduce errores a status
+    (`ErrNotFound` → 404, `DeadlineExceeded` → 504, `Canceled` → sin respuesta; el resto,
+    500 sin detalle).
   - `internal/catalog`: tipos de respuesta JSON (separados de las filas de la base) y
     armado (p. ej. agrupar los ítems planos en bloques).
   - `internal/db`: **generado por sqlc** (`sqlc generate` desde `backend/`, config en
@@ -242,7 +249,8 @@ calistenia, pero también fuerza con barra (Barra Libre) y movilidad ("flexifuer
   deep links). Modelos con
   `fromJson` a mano (pattern matching de Dart 3), sin generación de código por ahora. Los
   clientes decodifican el cuerpo con `utf8.decode(bodyBytes)` (la API no manda charset).
-  La URL del backend es `apiBaseUrl` en `main.dart` (`10.0.2.2:8080` en el emulador).
+  La URL base de la API es `apiBaseUrl` en `main.dart` (`http://10.0.2.2:8080/v1` en el
+  emulador); los clientes agregan la ruta.
 - Fuentes: TTF estáticos en `mobile/assets/fonts/` (con sus licencias OFL), declarados en
   `pubspec.yaml`; no se usa `google_fonts` (descarga al primer uso, falla sin señal).
 - Al elegir paquetes de Dart, verificar en pub.dev que soporten iOS además de Android, para

@@ -3,8 +3,9 @@ import 'package:naguan_app/catalog/catalog_client.dart';
 import 'package:naguan_app/catalog/programs_screen.dart';
 import 'package:naguan_app/theme/forja_theme.dart';
 
-/// URL del backend. En el emulador Android, la PC host es 10.0.2.2.
-const apiBaseUrl = 'http://10.0.2.2:8080';
+/// URL base de la API (versión 1). En el emulador Android, la PC host es
+/// 10.0.2.2. Los clientes agregan la ruta (`/programs`...) sobre esta base.
+const apiBaseUrl = 'http://10.0.2.2:8080/v1';
 
 void main() {
   final catalogClient = CatalogClient(baseUrl: apiBaseUrl);

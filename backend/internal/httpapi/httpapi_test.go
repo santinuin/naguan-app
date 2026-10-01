@@ -3,10 +3,12 @@ package httpapi
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/santinuin/naguan-app/backend/internal/catalog"
 )
@@ -21,6 +23,9 @@ type fakeCatalog struct {
 	err      error
 	gotSlug  string
 	gotID    int64
+	// hang hace que GetSession espere hasta que se cancele el contexto,
+	// como una consulta lenta: sirve para probar el timeout.
+	hang bool
 }
 
 func (f *fakeCatalog) ListPrograms(context.Context) ([]catalog.ProgramSummary, error) {
@@ -32,8 +37,12 @@ func (f *fakeCatalog) GetProgram(_ context.Context, slug string) (catalog.Progra
 	return f.program, f.err
 }
 
-func (f *fakeCatalog) GetSession(_ context.Context, id int64) (catalog.Session, error) {
+func (f *fakeCatalog) GetSession(ctx context.Context, id int64) (catalog.Session, error) {
 	f.gotID = id
+	if f.hang {
+		<-ctx.Done() // bloquea hasta que el contexto se cancele
+		return catalog.Session{}, ctx.Err()
+	}
 	return f.session, f.err
 }
 
@@ -42,7 +51,7 @@ func do(t *testing.T, cat Catalog, method, path string) *httptest.ResponseRecord
 	t.Helper()
 	req := httptest.NewRequest(method, path, nil)
 	rec := httptest.NewRecorder()
-	NewRouter(cat).ServeHTTP(rec, req)
+	NewRouter(cat, time.Second).ServeHTTP(rec, req)
 	return rec
 }
 
@@ -68,7 +77,7 @@ func TestHealthMethodNotAllowed(t *testing.T) {
 func TestListPrograms(t *testing.T) {
 	cat := &fakeCatalog{programs: []catalog.ProgramSummary{{Slug: "unbreakable", Name: "Unbreakable", SessionCount: 50}}}
 
-	rec := do(t, cat, http.MethodGet, "/programs")
+	rec := do(t, cat, http.MethodGet, "/v1/programs")
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200", rec.Code)
@@ -82,7 +91,7 @@ func TestListPrograms(t *testing.T) {
 func TestGetProgramPassesSlug(t *testing.T) {
 	cat := &fakeCatalog{program: catalog.Program{Slug: "ring-master", Name: "Ring Master"}}
 
-	rec := do(t, cat, http.MethodGet, "/programs/ring-master")
+	rec := do(t, cat, http.MethodGet, "/v1/programs/ring-master")
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200", rec.Code)
@@ -100,11 +109,12 @@ func TestGetSession(t *testing.T) {
 		wantStatus int
 		wantID     int64
 	}{
-		{"ok", "/sessions/7", nil, http.StatusOK, 7},
-		{"no existe", "/sessions/999", catalog.ErrNotFound, http.StatusNotFound, 999},
-		{"id no numérico", "/sessions/abc", nil, http.StatusBadRequest, 0},
-		{"id negativo", "/sessions/-1", nil, http.StatusBadRequest, 0},
-		{"error de la base", "/sessions/7", errors.New("se cayó la conexión"), http.StatusInternalServerError, 7},
+		{"ok", "/v1/sessions/7", nil, http.StatusOK, 7},
+		{"no existe", "/v1/sessions/999", catalog.ErrNotFound, http.StatusNotFound, 999},
+		{"id no numérico", "/v1/sessions/abc", nil, http.StatusBadRequest, 0},
+		{"id negativo", "/v1/sessions/-1", nil, http.StatusBadRequest, 0},
+		{"error de la base", "/v1/sessions/7", errors.New("se cayó la conexión"), http.StatusInternalServerError, 7},
+		{"error envuelto", "/v1/sessions/7", fmt.Errorf("leyendo: %w", catalog.ErrNotFound), http.StatusNotFound, 7},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -123,5 +133,25 @@ func TestGetSession(t *testing.T) {
 				t.Errorf("la respuesta expone el error interno: %s", rec.Body.String())
 			}
 		})
+	}
+}
+
+func TestOldRoutesAreGone(t *testing.T) {
+	rec := do(t, &fakeCatalog{}, http.MethodGet, "/programs")
+
+	if rec.Code != http.StatusNotFound {
+		t.Errorf("status = %d, want 404: las rutas sin /v1 ya no existen", rec.Code)
+	}
+}
+
+func TestRequestTimeout(t *testing.T) {
+	cat := &fakeCatalog{hang: true}
+	req := httptest.NewRequest(http.MethodGet, "/v1/sessions/7", nil)
+	rec := httptest.NewRecorder()
+
+	NewRouter(cat, 20*time.Millisecond).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusGatewayTimeout {
+		t.Errorf("status = %d, want %d", rec.Code, http.StatusGatewayTimeout)
 	}
 }

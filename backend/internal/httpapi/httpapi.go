@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/santinuin/naguan-app/backend/internal/catalog"
 )
@@ -23,21 +24,31 @@ type Catalog interface {
 	GetSession(ctx context.Context, id int64) (catalog.Session, error)
 }
 
-// NewRouter arma el mux con todas las rutas. Devuelve http.Handler (y no
-// *http.ServeMux) para que main y los tests dependan solo de la interfaz.
-func NewRouter(cat Catalog) http.Handler {
+// NewRouter arma el mux con todas las rutas y le aplica el middleware.
+// Devuelve http.Handler (y no *http.ServeMux) para que main y los tests
+// dependan solo de la interfaz.
+func NewRouter(cat Catalog, requestTimeout time.Duration) http.Handler {
 	mux := http.NewServeMux()
 
-	// Desde Go 1.22 el mux soporta método y wildcards en el patrón,
-	// así que por ahora no hace falta Chi ni Gin.
+	// /health queda sin versión: lo consulta la infraestructura (Cloud Run,
+	// un balanceador), no la app.
 	mux.HandleFunc("GET /health", handleHealth)
 
+	// Las rutas de la API van bajo /v1: cuando haya que romper el contrato,
+	// conviven /v1 y /v2 mientras la app se actualiza. Desde Go 1.22 el mux
+	// soporta método y wildcards en el patrón; no hace falta Chi ni Gin.
 	h := catalogHandlers{cat: cat}
-	mux.HandleFunc("GET /programs", h.listPrograms)
-	mux.HandleFunc("GET /programs/{slug}", h.getProgram)
-	mux.HandleFunc("GET /sessions/{id}", h.getSession)
+	mux.HandleFunc("GET /v1/programs", h.listPrograms)
+	mux.HandleFunc("GET /v1/programs/{slug}", h.getProgram)
+	mux.HandleFunc("GET /v1/sessions/{id}", h.getSession)
 
-	return mux
+	// El orden importa: logRequests va afuera de todo para registrar
+	// también los 500 que genera recoverPanics.
+	return chain(mux,
+		logRequests,
+		recoverPanics,
+		withTimeout(requestTimeout),
+	)
 }
 
 type healthResponse struct {
@@ -98,8 +109,21 @@ type errorResponse struct {
 // se loguea con el detalle y al cliente le llega un mensaje genérico (el
 // detalle puede tener información interna, como el SQL).
 func writeError(w http.ResponseWriter, r *http.Request, err error) {
-	if errors.Is(err, catalog.ErrNotFound) {
+	// errors.Is recorre la cadena de errores envueltos con %w: encuentra
+	// ErrNotFound o context.DeadlineExceeded aunque estén varias capas abajo.
+	switch {
+	case errors.Is(err, catalog.ErrNotFound):
 		writeJSON(w, http.StatusNotFound, errorResponse{Error: "no encontrado"})
+		return
+	case errors.Is(err, context.DeadlineExceeded):
+		// Venció el timeout del request (middleware withTimeout).
+		slog.Warn("timeout atendiendo el request", "method", r.Method, "path", r.URL.Path, "err", err)
+		writeJSON(w, http.StatusGatewayTimeout, errorResponse{Error: "tiempo agotado"})
+		return
+	case errors.Is(err, context.Canceled):
+		// El cliente cortó la conexión: no hay a quién responder, y no es
+		// un error del servidor.
+		slog.Info("el cliente canceló el request", "method", r.Method, "path", r.URL.Path)
 		return
 	}
 	slog.Error("error atendiendo el request", "method", r.Method, "path", r.URL.Path, "err", err)

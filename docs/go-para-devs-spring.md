@@ -94,3 +94,84 @@ importen va en la raíz del módulo o en `pkg/`.
 No es especial para el compilador: es convención. Cada subdirectorio es un binario
 (`package main` con su `func main()`): acá `cmd/api` (el servidor) y `cmd/seed` (el
 importador), ambos usando paquetes de `internal/`.
+
+## Middleware: el `WebFilter` de Go
+
+Un middleware es una función que recibe un `http.Handler` y devuelve otro que lo envuelve
+(el patrón *decorator*): hace algo antes, llama a `next.ServeHTTP(w, r)`, y hace algo
+después. Es el mismo papel que un `WebFilter` de WebFlux, sin anotaciones ni orden por
+`@Order`: el orden es el de la llamada a `chain` en `httpapi.NewRouter`.
+
+```go
+type Middleware func(next http.Handler) http.Handler
+
+chain(mux, logRequests, recoverPanics, withTimeout(cfg.RequestTimeout))
+// logRequests ( recoverPanics ( withTimeout ( mux ) ) )
+```
+
+El primero de la lista es el más externo: ve el request primero y la respuesta último. Por
+eso `logRequests` va afuera: así registra también el 500 que produce `recoverPanics`.
+
+| Middleware | Qué hace | En Spring |
+|---|---|---|
+| `logRequests` | Una línea de log por request (método, ruta, status, bytes, duración) | Un `WebFilter` de logging / el access log de Netty |
+| `recoverPanics` | Convierte un *panic* en un 500 con el formato de la API | Un `@ExceptionHandler(Throwable.class)` |
+| `withTimeout` | Pone un deadline al `context.Context` del request | `.timeout(Duration)` sobre el `Mono` de la respuesta |
+
+### Envolver el `ResponseWriter`: *embedding*
+
+Para saber qué status devolvió el handler, `logRequests` le pasa un `statusRecorder`:
+
+```go
+type statusRecorder struct {
+    http.ResponseWriter // campo sin nombre: embedding
+    status, bytes int
+}
+```
+
+Un campo sin nombre **promociona** sus métodos: `statusRecorder` tiene `Header()`,
+`Write()` y `WriteHeader()` sin escribirlos, y redefine solo los que necesita espiar. No
+es herencia (no hay `super`, ni polimorfismo sobre el tipo embebido): es composición con
+delegación automática. Cumple la interfaz `http.ResponseWriter`, así que el handler no se
+entera de que le cambiaron el writer.
+
+### `panic` y `recover` no son excepciones
+
+En Go los errores esperables se devuelven como valores. Un `panic` es para errores de
+programación (un map nil, un índice fuera de rango) y corta la ejecución subiendo por la
+pila. Solo se atrapa con `recover()` dentro de una función diferida (`defer`).
+
+`net/http` ya evita que un panic en un handler tumbe el servidor, pero corta la conexión
+sin responder; `recoverPanics` hace que el cliente reciba un 500 legible y que el log
+tenga el stack trace. Ojo: un panic en **otra** goroutine (una lanzada con `go`) no pasa
+por ningún middleware y sí tumba el proceso.
+
+### Timeouts con `context`
+
+`withTimeout` no puede matar el handler (en Go no se detiene una goroutine desde afuera):
+cancela su contexto, y todo lo que lo respeta (las consultas de `pgx`, un `http.Client`)
+se interrumpe y devuelve `context.DeadlineExceeded`. `writeError` lo traduce a **504**.
+Si el que cancela es el cliente (cerró la app), el error es `context.Canceled`: no se
+responde ni se registra como error del servidor.
+
+Todo esto funciona por la cadena de errores: `fmt.Errorf("...: %w", err)` envuelve, y
+`errors.Is(err, context.DeadlineExceeded)` la recorre aunque el error esté varias capas
+abajo. Es el equivalente a buscar una excepción en la cadena de `getCause()`.
+
+## Configuración
+
+`internal/config` es el `@ConfigurationProperties` del proyecto: un struct tipado que se
+carga una vez en `main` desde variables de entorno (`PORT`, `DATABASE_URL`,
+`REQUEST_TIMEOUT`, `SHUTDOWN_TIMEOUT`), con valores por defecto y validación. Si algo está
+mal, el servidor no arranca y el error lista **todos** los problemas juntos.
+
+Para testearlo sin tocar el entorno real, la función que busca variables se recibe como
+parámetro (`load(lookup func(string) (string, bool))`): en Go las funciones son valores,
+y pasar una función es la forma más liviana de inyectar una dependencia.
+
+## Versionado de la API
+
+Las rutas de la app van bajo `/v1` (`/health` no, porque la consulta la infraestructura).
+Cuando haya que romper el contrato (renombrar un campo, cambiar una forma), `/v1` y `/v2`
+conviven mientras las apps instaladas se actualizan: en móvil no se puede forzar que todos
+actualicen a la vez.

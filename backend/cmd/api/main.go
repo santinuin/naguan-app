@@ -15,13 +15,10 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/santinuin/naguan-app/backend/internal/catalog"
+	"github.com/santinuin/naguan-app/backend/internal/config"
 	"github.com/santinuin/naguan-app/backend/internal/db"
 	"github.com/santinuin/naguan-app/backend/internal/httpapi"
 )
-
-// localDatabaseURL es el Postgres de `supabase start`. En Cloud Run se usa
-// DATABASE_URL (el equivalente a spring.datasource.url).
-const localDatabaseURL = "postgres://postgres:postgres@127.0.0.1:54322/postgres"
 
 func main() {
 	if err := run(); err != nil {
@@ -31,15 +28,11 @@ func main() {
 }
 
 func run() error {
-	// Cloud Run inyecta el puerto en PORT; en local usamos 8080.
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8080"
-	}
-
-	dbURL := os.Getenv("DATABASE_URL")
-	if dbURL == "" {
-		dbURL = localDatabaseURL
+	// Toda la configuración se lee y valida acá, una vez: si falta algo o
+	// está mal, el servidor no arranca (falla rápido, con todos los errores).
+	cfg, err := config.Load()
+	if err != nil {
+		return fmt.Errorf("configuración: %w", err)
 	}
 
 	// El pool de conexiones (el HikariCP de pgx). pgxpool.New no se conecta
@@ -47,7 +40,7 @@ func run() error {
 	// rápido en vez de en el primer request.
 	startCtx, cancelStart := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancelStart()
-	pool, err := pgxpool.New(startCtx, dbURL)
+	pool, err := pgxpool.New(startCtx, cfg.DatabaseURL)
 	if err != nil {
 		return fmt.Errorf("configurando el pool de Postgres: %w", err)
 	}
@@ -62,12 +55,15 @@ func run() error {
 	// necesita por constructor.
 	queries := db.New(pool)
 	catalogService := catalog.NewService(queries)
-	router := httpapi.NewRouter(catalogService)
+	router := httpapi.NewRouter(catalogService, cfg.RequestTimeout)
 
 	srv := &http.Server{
-		Addr:              ":" + port,
-		Handler:           router,
+		Addr:    ":" + cfg.Port,
+		Handler: router,
+		// Timeouts a nivel de conexión, complementarios al de cada request:
+		// protegen de clientes lentos o que dejan conexiones abiertas.
 		ReadHeaderTimeout: 5 * time.Second,
+		IdleTimeout:       60 * time.Second,
 	}
 
 	// ctx se cancela al recibir Ctrl+C (SIGINT) o SIGTERM. Cloud Run manda
@@ -91,7 +87,7 @@ func run() error {
 		slog.Info("apagando...")
 	}
 
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), cfg.ShutdownTimeout)
 	defer cancel()
 	return srv.Shutdown(shutdownCtx)
 }
