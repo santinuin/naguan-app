@@ -1,0 +1,609 @@
+source_id,coach,source_name,name,side
+5809,773,90-90,90-90,
+5606,727,Abdominales,Abdominales,
+5226,773,Abdominales con extensión,Abdominales con extensión,
+5227,773,Abdominales con giro,Abdominales con giro,
+5224,773,Abdominales en V,Abdominales en V,
+5686,727,Abdominales en anillas 1,Abdominales en anillas 1,
+5687,727,Abdominales en anillas 2,Abdominales en anillas 2,
+5688,727,Abdominales en anillas 3,Abdominales en anillas 3,
+5225,773,Abdominales en semi V,Abdominales en semi V,
+5607,727,Abdominales en semi V,Abdominales en semi V,
+5349,773,Abrazos al sol,Abrazos al sol,
+5833,773,Agarre alternado,Agarre alternado,
+5832,773,Agarre supino en barra,Agarre supino en barra,
+5696,727,Aguante isométrico,Aguante isométrico,
+5269,773,Andar,Andar,
+5950,773,Apertura de deltoides en pared,Apertura de deltoides en pared,
+5551,727,Apertura de piernas,Apertura de piernas,
+5958,773,Apoyos de rodilla,Apoyos de rodilla,
+5350,773,Arrancada en dos,Arrancada en dos,
+5527,727,Balanceo de pierna (izquierda),Balanceo de piernas,left
+5489,727,Balanceo de piernas (derecha),Balanceo de piernas,right
+5528,727,Balanceo de piernas lateral (izquierda),Balanceo de piernas lateral,left
+5490,727,Balanceo de piernas lateral (derecha),Balanceo de piernas lateral,right
+5940,773,Balanceo global,Balanceo global,
+5945,773,Basculaciones pélvicas,Basculaciones pélvicas,
+5309,773,Bubu,Bubu,
+5758,773,Buceador,Buceador,
+5236,773,Burpee,Burpee,
+5292,773,Burpee con salto rodillas-codos,Burpee con salto rodillas-codos,
+5237,773,Burpee doble,Burpee doble,
+5352,773,Burpee dominada,Burpee dominada,
+5310,773,Burpee lateral,Burpee lateral,
+5759,773,Burpee roll,Burpee roll,
+5299,773,Burpees con salto estrella,Burpees con salto estrella,
+5238,773,Burrol,Burrol,
+5311,773,Burrol salto a caja,Burrol salto a caja,
+5875,773,Bíceps en suspensión,Bíceps en suspensión,
+5814,773,Caballero adelante (izquierda),Caballero adelante,left
+5813,773,Caballero adelante (derecha),Caballero adelante,right
+5529,727,Calentamiento perro (izquierda),Calentamiento perro,left
+5518,727,Calentamiento perro (derecha),Calentamiento perro,right
+5432,773,Caminata del grangero (izquierda),Caminata del grangero,left
+5431,773,Caminata del grangero (derecha),Caminata del grangero,right
+5895,773,Caminata del granjero,Caminata del granjero,
+5353,773,Cargada a hombro,Cargada a hombro,
+5380,773,Cargada completa con KB,Cargada completa con kettlebell,
+5241,773,Carrera corta,Carrera corta,
+5420,773,Chin ups asistida,Chin ups asistida,
+5909,773,Circunducciones de cuello,Circunducciones de cuello,
+5915,773,Circunducciones de tobillo,Circunducciones de tobillo,
+5910,773,Circunducciones de tórax,Circunducciones de tórax,
+5962,773,Circunducciones lumbares,Circunducciones lumbares,
+5649,727,Clean (izquierda),Clean,left
+5628,727,Clean (derecha),Clean,right
+5960,773,Codos al suelo en sentadilla,Codos al suelo en sentadilla,
+5250,773,Cohete,Cohete,
+5407,773,Cohete (izquierda),Cohete,left
+5406,773,Cohete (derecha),Cohete,right
+5355,773,Cohete con carga,Cohete con carga,
+5417,773,Cohete con peso (izquierda),Cohete con peso,left
+5416,773,Cohete con peso (derecha),Cohete con peso,right
+5985,773,contracírculos de deltoides (I),Contracírculos de deltoides,left
+5935,773,contracírculos de deltoides (D),Contracírculos de deltoides,right
+5496,727,Correr en el sitio,Correr en el sitio,
+5357,773,Crol,Crol,
+5978,773,Cruce pie derecho a mano,Cruce pie derecho a mano,
+5423,773,Cruce pie izquierdo a mano,Cruce pie izquierdo a mano,
+5931,773,Cuclillas altas,Cuclillas altas,
+5824,773,Cuclillas con extensión de pierna,Cuclillas con extensión de pierna,
+5930,773,Cuclillas de rodillas juntas,Cuclillas de rodillas juntas,
+5761,773,Cuclillas iso,Cuclillas iso,
+5724,727,Cuelgue agarre falso Flexiónado,Cuelgue agarre falso Flexiónado,
+5723,727,Cuelgue agarre falso extendido,Cuelgue agarre falso extendido,
+5699,727,Curl de bíceps 1,Curl de bíceps 1,
+5700,727,Curl de bíceps 2,Curl de bíceps 2,
+5936,773,Círculos de codos en apoyo,Círculos de codos en apoyo,
+5912,773,Círculos de codos y muñecas,Círculos de codos y muñecas,
+5933,773,Círculos de cuello,Círculos de cuello,
+5911,773,Círculos de deltoides,Círculos de deltoides,
+5913,773,Círculos de pelvis,Círculos de pelvis,
+5914,773,Círculos de rodillas juntas,Círculos de rodillas juntas,
+5938,773,Círculos de rodillas separadas,Círculos de rodillas separadas,
+5939,773,Círculos de tobillo,Círculos de tobillo,
+5934,773,Círculos de tórax,Círculos de tórax,
+5946,773,Círculos dinámicos de rodillas (izquierda),Círculos dinámicos de rodillas,left
+5986,773,Círculos dinámicos de rodillas (derecha),Círculos dinámicos de rodillas,right
+5920,773,Círculos mano contra mano,Círculos mano contra mano,
+5734,773,"De pie, el gato","De pie, el gato",
+5514,727,Deslizamiento escapular,Deslizamiento escapular,
+5918,773,Deslizamientos de tórax anteroposteriores,Deslizamientos de tórax anteroposteriores,
+5925,773,Deslizamientos laterales de cuello,Deslizamientos laterales de cuello,
+5926,773,Deslizamientos laterales de tórax,Deslizamientos laterales de tórax,
+5612,727,Desplante adelante con peso,Desplante adelante con peso,
+5613,727,Desplante atrás con peso,Desplante atrás con peso,
+5595,727,Desplante con salto,Desplante con salto,
+5593,727,Desplante hacia atrás,Desplante hacia atrás,
+5592,727,Desplante hacia delante,Desplante hacia delante,
+5594,727,Desplante lateral,Desplante lateral,
+5614,727,Desplante lateral con peso,Desplante lateral con peso,
+5313,773,Desplazamiento lateral,Desplazamiento lateral,
+5988,773,Dinamico lateral cadera (izquierda),Dinamico lateral cadera,left
+5989,773,Dinamico lateral cadera (derecha),Dinamico lateral cadera,right
+5921,773,Dinámico frontal de cadera,Dinámico frontal de cadera,
+5990,773,Dinamico frontal de cadera (izquierda),Dinámico frontal de cadera,left
+5991,773,Dinamico frontal de cadera (derecha),Dinámico frontal de cadera,right
+5929,773,Dinámico lateral de cadera,Dinámico lateral de cadera,
+5927,773,Dislocaciones de deltoides c/ banda,Dislocaciones de deltoides con banda,
+5919,773,Dislocaciones de deltoides c/ banda,Dislocaciones de deltoides unilaterales con banda,
+5262,773,Dominada,Dominada,
+6022,727,Dominada,Dominada,
+5726,727,Dominada agarre falso,Dominada agarre falso,
+5673,727,Dominada anillas 1,Dominada anillas 1,
+5674,727,Dominada anillas 2,Dominada anillas 2,
+5675,727,Dominada anillas 3,Dominada anillas 3,
+5703,727,Dominada arquero 1,Dominada arquero 1,
+5704,727,Dominada arquero 2,Dominada arquero 2,
+5359,773,Dominada asistida,Dominada asistida,
+5852,773,Dominada australiana,Dominada australiana,
+5430,773,Dominada australiana con caja y trx,Dominada australiana con caja y trx,
+5617,727,Dominada con manos juntas,Dominada con manos juntas,
+5418,773,Dominada con mesa,Dominada con mesa,
+5676,727,Dominada con piernas encogidas 1,Dominada con piernas encogidas 1,
+5677,727,Dominada con piernas encogidas 2,Dominada con piernas encogidas 2,
+5360,773,Dominada con salto,Dominada con salto,
+6027,727,Dominada con salto,Dominada con salto,
+5640,727,Dominada en mesa,Dominada en mesa,
+5493,727,Dominada escapular,Dominada escapular,
+5361,773,Dominada spider,Dominada spider,
+5421,773,Dominada spider asistida,Dominada spider asistida,
+5356,773,Dominada supina,Dominada supina,
+5588,727,Dominada supina,Dominada supina,
+5636,727,Dominada supina con salto,Dominada supina con salto,
+5831,773,Dominadas escapulares,Dominadas escapulares,
+5807,773,Dominadas trx,Dominadas trx,
+5848,773,El payo lado (izquierda),El payo lado,left
+5849,773,El payo lado (derecha),El payo lado,right
+5291,773,El puente,El puente,
+5290,773,El puente 1 pierna,El puente a una pierna,
+5411,773,El puente 1 pierna (izquierda),El puente a una pierna,left
+5623,727,El puente 1 pierna (izquierda),El puente a una pierna,left
+5410,773,El puente 1 pierna (derecha),El puente a una pierna,right
+5646,727,El puente 1 pierna (derecha),El puente a una pierna,right
+5992,773,El puente con carga,El puente con carga,
+5993,773,El puente isometrico,El puente isometrico,
+5994,773,El puente isometrico con carga,El puente isometrico con carga,
+6041,727,Elevación de cadera en anillas,Elevación de cadera en anillas,
+5692,727,Elevación de piernas a inversión 1,Elevación de piernas a inversión 1,
+5693,727,Elevación de piernas a inversión 2,Elevación de piernas a inversión 2,
+5877,773,Elevación de rodillas con giro,Elevación de rodillas con giro,
+5894,773,Elevación de rodillas en barra iso,Elevación de rodillas en barra iso,
+5953,773,Empujes escapulares en plancha,Empujes escapulares en plancha,
+5605,727,Escalada de pared,Escalada de pared,
+5876,773,Escalada de pared,Escalada de pared,
+5296,773,Escalador,Escalador,
+5297,773,Escalador alterno,Escalador alterno,
+5425,773,Escalador con rotación (izquierda),Escalador con rotación,left
+5980,773,Escalador con rotación (derecha),Escalador con rotación,right
+5315,773,Escalador lateral,Escalador lateral,
+5316,773,Escalador rana,Escalador rana,
+5317,773,Escalador runner,Escalador runner,
+5714,727,Escaladores de montaña,Escaladores de montaña,
+5601,727,Escaladores de montaña hacia abajo,Escaladores de montaña hacia abajo,
+5600,727,Escaladores de montaña hacia arriba,Escaladores de montaña hacia arriba,
+5318,773,Escaleras,Escaleras,
+5510,727,Escaleras,Escaleras,
+5763,773,Escaleras y flexión,Escaleras y flexión,
+5362,773,Espalda,Espalda,
+5540,727,Estiramiento aductores en pared,Estiramiento aductores en pared,
+5582,727,Estiramiento antebrazo (izquierda),Estiramiento antebrazo,left
+5560,727,Estiramiento antebrazo (derecha),Estiramiento antebrazo,right
+5810,773,Estiramiento cadena posterior,Estiramiento cadena posterior,
+5580,727,Estiramiento cuello,Estiramiento cuello,
+5517,727,Estiramiento cuádriceps,Estiramiento cuádriceps,
+5845,773,Estiramiento de abductores,Estiramiento de abductores,
+5902,773,Estiramiento de glúteos (izquierda),Estiramiento de glúteos,left
+5491,727,Estiramiento de muñecas,Estiramiento de muñecas,
+5577,727,Estiramiento de pierna (izquierda),Estiramiento de pierna,left
+5562,727,Estiramiento de pierna (derecha),Estiramiento de pierna,right
+5541,727,Estiramiento de rana,Estiramiento de rana,
+5574,727,Estiramiento de tríceps (izquierda),Estiramiento de tríceps,left
+5556,727,Estiramiento de tríceps (derecha),Estiramiento de tríceps,right
+5571,727,Estiramiento dorsal en pared (izquierda),Estiramiento dorsal en pared,left
+5550,727,Estiramiento dorsal en pared (derecha),Estiramiento dorsal en pared,right
+5539,727,Estiramiento en cuatro (izquierda),Estiramiento en cuatro,left
+5566,727,Estiramiento en cuatro (derecha),Estiramiento en cuatro,right
+5572,727,Estiramiento flexores cadera (izquierda),Estiramiento flexores cadera,left
+5553,727,Estiramiento flexores cadera (derecha),Estiramiento flexores cadera,right
+5579,727,Estiramiento gemelos (izquierda),Estiramiento gemelos,left
+5536,727,Estiramiento gemelos (derecha),Estiramiento gemelos,right
+5668,727,Estiramiento germano 1,Estiramiento germano 1,
+5669,727,Estiramiento germano 2,Estiramiento germano 2,
+5576,727,Estiramiento hombro (izquierda),Estiramiento hombro,left
+5561,727,Estiramiento hombro (derecha),Estiramiento hombro,right
+5537,727,Estiramiento isquios,Estiramiento isquios,
+5850,773,Estiramiento isquios (izquierda),Estiramiento isquios,left
+5844,773,Estiramiento isquios (derecha),Estiramiento isquios,right
+5570,727,Estiramiento isquios en v (izquierda),Estiramiento isquios en v,left
+5549,727,Estiramiento isquios en v (derecha),Estiramiento isquios en v,right
+5564,727,Estiramiento lateral torácico (izquierda),Estiramiento lateral torácico,left
+5533,727,Estiramiento lateral torácico (derecha),Estiramiento lateral torácico,right
+5427,773,Estiramiento pectoral menor (I),Estiramiento pectoral menor,left
+5981,773,Estiramiento pectoral menor (D),Estiramiento pectoral menor,right
+5563,727,Estiramiento pectorales en pared (izquierda),Estiramiento pectorales en pared,left
+5532,727,Estiramiento pectorales en pared (derecha),Estiramiento pectorales en pared,right
+5578,727,Estiramiento pectorales en puerta (izquierda),Estiramiento pectorales en puerta,left
+5531,727,Estiramiento pectorales en puerta (derecha),Estiramiento pectorales en puerta,right
+5554,727,Estiramiento pierna lateral (izquierda),Estiramiento pierna lateral,left
+5573,727,Estiramiento pierna lateral (derecha),Estiramiento pierna lateral,right
+5568,727,Estiramiento pretzel (izquierda),Estiramiento pretzel,left
+5546,727,Estiramiento pretzel (derecha),Estiramiento pretzel,right
+5565,727,Estiramiento samson (izquierda),Estiramiento samson,left
+5535,727,Estiramiento samson (derecha),Estiramiento samson,right
+5667,727,Estiramiento superman,Estiramiento superman,
+5666,727,Estiramiento tríceps-deltoides,Estiramiento tríceps-deltoides,
+5839,773,Excéntricas subescapular (I),Excéntricas subescapular,left
+5983,773,Excéntricas subescapular (derecha),Excéntricas subescapular,right
+5942,773,Expansiones de tórax,Expansiones de tórax,
+5966,773,Extensiones segmentadas en pared,Extensiones segmentadas en pared,
+5834,773,Extensiones torácicas,Extensiones torácicas,
+5655,727,Extensión explosiva de cadera,Extensión explosiva de cadera,
+5697,727,Extensión tríceps,Extensión tríceps,
+5841,773,Face pull,Face pull,
+5707,727,Face pull 1,Face pull 1,
+5708,727,Face pull 2,Face pull 2,
+5252,773,Flexión,Flexión,
+5583,727,Flexión,Flexión,
+5260,773,Flexión abierta,Flexión abierta,
+5267,773,Flexión abierta con rodillas,Flexión abierta con rodillas,
+5670,727,Flexión anillas 1,Flexión anillas 1,
+5671,727,Flexión anillas 2,Flexión anillas 2,
+5672,727,Flexión anillas 3,Flexión anillas 3,
+5256,773,Flexión araña,Flexión araña,
+5621,727,Flexión araña,Flexión araña,
+5711,727,Flexión arquero 1,Flexión arquero 1,
+5319,773,Flexión cerrada,Flexión cerrada,
+5320,773,Flexión con déficit,Flexión con déficit,
+5585,727,Flexión con palmada,Flexión con palmada,
+5660,727,Flexión con palmada de rodillas,Flexión con palmada de rodillas,
+5264,773,Flexión con rodillas,Flexión con rodillas,
+5632,727,Flexión con rodillas,Flexión con rodillas,
+5321,773,Flexión con rodillas con déficit,Flexión con rodillas con déficit,
+5586,727,Flexión con voltereta,Flexión con voltereta,
+5843,773,Flexión de cuello,Flexión de cuello,
+5259,773,Flexión de reptil,Flexión de reptil,
+5295,773,Flexión declinada,Flexión declinada,
+5253,773,Flexión diamante,Flexión diamante,
+5616,727,Flexión diamante,Flexión diamante,
+5659,727,Flexión diamante de rodillas,Flexión diamante de rodillas,
+5257,773,Flexión en L,Flexión en L,
+5634,727,Flexión en L,Flexión en L,
+5879,773,Flexión en L con deficit,Flexión en L con deficit,
+5633,727,Flexión en pared,Flexión en pared,
+5492,727,Flexión escapular,Flexión escapular,
+5261,773,Flexión hindú,Flexión hindú,
+5608,727,Flexión hindú,Flexión hindú,
+5268,773,Flexión hindú con rodillas,Flexión hindú con rodillas,
+5289,773,Flexión inclinada,Flexión inclinada,
+5258,773,Flexión lateral,Flexión lateral,
+5265,773,Flexión lateral con rodillas,Flexión lateral con rodillas,
+5324,773,Flexión manos arriba,Flexión manos arriba,
+5325,773,Flexión manos arriba con rodillas,Flexión manos arriba con rodillas,
+5767,773,Flexión molinos,Flexión molinos,
+5255,773,Flexión montaña,Flexión montaña,
+5635,727,Flexión montaña,Flexión montaña,
+5326,773,Flexión noria,Flexión noria,
+5328,773,Flexión palmada,Flexión palmada,
+5887,773,Flexión pino,Flexión pino,
+5886,773,Flexión pino con deficit,Flexión pino con deficit,
+5254,773,Flexión reloj,Flexión reloj,
+5266,773,Flexión reptil con rodillas,Flexión reptil con rodillas,
+5618,727,Flexión reptíl,Flexión reptíl,
+5278,773,Flexión rodando,Flexión rodando,
+5329,773,Flexión rodillas con palmada,Flexión rodillas con palmada,
+5967,773,Flexión segmentada en pared,Flexión segmentada en pared,
+5347,773,Flexión spider inversa,Flexión spider inversa,
+5348,773,Flexión spider inversa con rodillas,Flexión spider inversa con rodillas,
+5622,727,Flexión superman,Flexión superman,
+5765,773,Flexión tigre,Flexión tigre,
+5584,727,Flexión vertical,Flexión vertical,
+5684,727,Flexión vertical 1,Flexión vertical 1,
+5685,727,Flexión vertical 2,Flexión vertical 2,
+5766,773,Flexión y extensión de muñecas,Flexión y extensión de muñecas,
+5764,773,Flexión y extensión de tobillos,Flexión y extensión de tobillos,
+5422,773,Flexión y extensión de tobillos (I),Flexión y extensión de tobillos,left
+5977,773,Flexión y extensión de tobillos (D),Flexión y extensión de tobillos,right
+5963,773,Flexo-extensión con sentadilla,Flexo-extensión con sentadilla,
+6034,727,Flow d,Flow D,
+5654,727,Flow a,Flow A,
+6032,727,Flow b,Flow B,
+6033,727,Flow c,Flow C,
+6035,727,Flow e,Flow E,
+5701,727,Fly de pecho 1,Fly de pecho 1,
+5702,727,Fly de pecho 2,Fly de pecho 2,
+6040,727,Fly invertido 1,Fly invertido 1,
+5709,727,Fly invertido 2,Fly invertido 2,
+5263,773,Fondos,Fondos,
+5698,727,Fondos de tríceps,Fondos de tríceps,
+5717,727,Fondos en L en anillas,Fondos en L en anillas,
+5681,727,Fondos en anillas 1,Fondos en anillas 1,
+5682,727,Fondos en anillas 2,Fondos en anillas 2,
+5683,727,Fondos en anillas 3,Fondos en anillas 3,
+5866,773,Fondos en paralelas,Fondos en paralelas,
+5433,773,Fondos en paralelas con cinta,Fondos en paralelas con cinta,
+5932,773,Fricciones,Fricciones,
+5769,773,Gato a perro,Gato a perro,
+5790,773,Giro capoeira,Giro capoeira,
+5567,727,Giro de torso (izquierda),Giro de torso,left
+5545,727,Giro de torso (derecha),Giro de torso,right
+5521,727,Giro y apertura en v,Giro y apertura en v,
+5488,727,Giros articulares,Giros articulares,
+5996,773,Hip thrust con carga,Hip thrust con carga,
+5995,773,Hip thrust libre,Hip thrust libre,
+5498,727,Hollow body rock,Hollow body rock,
+6021,727,Hollow hold,Hollow hold,
+5364,773,Hombro a hombro,Hombro a hombro,
+5718,727,Inversión encogida a dominada,Inversión encogida a dominada,
+5499,727,Iron cross,Iron cross,
+5500,727,Iron cross alta,Iron cross alta,
+5501,727,Iron cross inversa,Iron cross inversa,
+5722,727,Isométrico L a dominada,Isométrico L a dominada,
+6039,727,Isométrico en L 1,Isométrico en L 1,
+5694,727,Isométrico en L 2,Isométrico en L 2,
+5695,727,Isométrico en L 3,Isométrico en L 3,
+5721,727,Isométrico encogido a pino,Isométrico encogido a pino,
+5770,773,Lanzada adelante,Lanzada adelante,
+5937,773,Lateralizaciones sentado,Lateralizaciones sentado,
+5590,727,Levantamiento de piernas,Levantamiento de piernas,
+5689,727,Levantamiento de piernas 1,Levantamiento de piernas 1,
+5690,727,Levantamiento de piernas 2,Levantamiento de piernas 2,
+5691,727,Levantamiento de piernas 3,Levantamiento de piernas 3,
+5638,727,Levantamiento de piernas Flexiónadas,Levantamiento de piernas Flexiónadas,
+5639,727,Levantamiento de piernas en suelo,Levantamiento de piernas en suelo,
+5395,773,Levantamiento turco (izquierda),Levantamiento turco,left
+5642,727,Levantamiento turco (izquierda),Levantamiento turco,left
+5394,773,Levantamiento turco (derecha),Levantamiento turco,right
+6026,727,Levantamiento turco (derecha),Levantamiento turco,right
+5653,727,Levantamiento turco con peso (izquierda),Levantamiento turco con peso,left
+6019,773,Levantamiento turco con peso (izquierda),Levantamiento turco con peso,left
+5630,727,Levantamiento turco con peso (derecha),Levantamiento turco con peso,right
+6018,773,Levantamiento turco con peso (derecha),Levantamiento turco con peso,right
+5228,773,Levantar las piernas,Levantar las piernas,
+5596,727,Limpiaparabrisas,Limpiaparabrisas,
+5599,727,Marcha de glúteos,Marcha de glúteos,
+5222,773,Mckenzie,Mckenzie,
+5366,773,Media cargada,Media cargada,
+5842,773,Mentón a esternón,Mentón a esternón,
+5956,773,Mesa plegable,Mesa plegable,
+5334,773,Molino,Molino,
+5661,727,Molino (izquierda),Molino,left
+5647,727,Molino (derecha),Molino,right
+6036,727,Molino con peso (izquierda),Molino con peso,left
+6029,727,Molino con peso (derecha),Molino con peso,right
+5872,773,Molino en bar,Molino en bar,
+5581,727,Molino lateral (izquierda),Molino lateral,left
+5557,727,Molino lateral (derecha),Molino lateral,right
+5771,773,Molinos paleo,Molinos paleo,
+5728,727,Muscle-up 1,Muscle-up 1,
+5729,727,Muscle-up 2,Muscle-up 2,
+5727,727,Muscle-up asistida,Muscle-up asistida,
+5943,773,Nadadores de deltoides,Nadadores de deltoides,
+5870,773,Nordic curl,Nordic curl,
+5954,773,Ochos dobles,Ochos dobles,
+5917,773,Ondas de cuello anteroposteriores,Ondas de cuello anteroposteriores,
+5928,773,Ondas de manos entrelazadas,Ondas de manos entrelazadas,
+5369,773,Paladas,Paladas,
+5904,773,Pallof press (izquierda),Pallof press,left
+5903,773,Pallof press (derecha),Pallof press,right
+5511,727,Paseo de cangrejo,Paseo de cangrejo,
+5513,727,Paseo de hombre araña,Paseo de hombre araña,
+5512,727,Paseo de oso,Paseo de oso,
+5506,727,Paseo silencioso,Paseo silencioso,
+5733,773,"Paso lateral y mini squat, brazos arriba","Paso lateral y mini squat, brazos arriba",
+5522,727,Patada en cruce lateral,Patada en cruce lateral,
+5789,773,Patada inferior,Patada inferior,
+5603,727,Patadas de burro,Patadas de burro,
+5893,773,Pecho a barra,Pecho a barra,
+5627,727,Pendulo,Pendulo,
+5924,773,Percusiones,Percusiones,
+5664,727,Perro boca abajo anillas,Perro boca abajo anillas,
+5665,727,Perro boca abajo en T en anillas,Perro boca abajo en T en anillas,
+5808,773,Perro en trx,Perro en trx,
+5543,727,Perro hacia abajo,Perro hacia abajo,
+5534,727,Perro hacia abajo en wall,Perro hacia abajo en wall,
+5542,727,Perro hacia arriba,Perro hacia arriba,
+5987,773,Perímetro máximo de pie (izquierda),Perímetro máximo de pie,left
+5947,773,Perímetro máximo de pie (derecha),Perímetro máximo de pie,right
+5358,773,Peso muerto,Peso muerto,
+5274,773,Peso muerto 1 pierna,Peso muerto a una pierna,
+5409,773,Peso muerto 1 pierna (izquierda),Peso muerto a una pierna,left
+6028,727,Peso muerto 1 pierna (izquierda),Peso muerto a una pierna,left
+5408,773,Peso muerto 1 pierna (derecha),Peso muerto a una pierna,right
+6024,727,Peso muerto 1 pierna (derecha),Peso muerto a una pierna,right
+6043,773,Peso muerto 1 pierna con KB,Peso muerto a una pierna con kettlebell,
+5644,727,Peso muerto 1 pierna con KB (izquierda),Peso muerto a una pierna con kettlebell,left
+6045,773,Peso muerto 1 pierna con KB (izquierda),Peso muerto a una pierna con kettlebell,left
+5619,727,Peso muerto 1 pierna con KB (derecha),Peso muerto a una pierna con kettlebell,right
+6044,773,Peso muerto 1 pierna con KB (derecha),Peso muerto a una pierna con kettlebell,right
+5773,773,Pie a mano cruzada,Pie a mano cruzada,
+5424,773,Pie a mano invertido (izquierda),Pie a mano invertido,left
+5979,773,Pie a mano invertido (derecha),Pie a mano invertido,right
+5373,773,Pies a barra,Pies a barra,
+5374,773,Pies a barra lateral,Pies a barra lateral,
+5719,727,Pino encogido 1,Pino encogido 1,
+5720,727,Pino encogido 2,Pino encogido 2,
+5774,773,Pistol en trx,Pistol en trx,
+5816,773,Pistol en trx (izquierda),Pistol en trx,left
+5815,773,Pistol en trx (derecha),Pistol en trx,right
+5216,773,Plancha,Plancha,
+5597,727,Plancha,Plancha,
+5219,773,Plancha araña,Plancha araña,
+5652,727,Plancha araña,Plancha araña,
+5337,773,Plancha asimétrica,Plancha asimétrica,
+5415,773,Plancha asimétrica (izquierda),Plancha asimétrica,left
+5414,773,Plancha asimétrica (derecha),Plancha asimétrica,right
+5775,773,Plancha cadera,Plancha cadera,
+5283,773,Plancha con desplazamiento lateral,Plancha con desplazamiento lateral,
+5220,773,Plancha con extensión,Plancha con extensión,
+5280,773,Plancha con salto,Plancha con salto,
+5624,727,Plancha con salto,Plancha con salto,
+5276,773,Plancha con salto lateral,Plancha con salto lateral,
+5611,727,Plancha con toques,Plancha con toques,
+5610,727,Plancha dinámica,Plancha dinámica,
+5713,727,Plancha en anillas,Plancha en anillas,
+5218,773,Plancha equilibrio,Plancha equilibrio,
+5896,773,Plancha equilibrio en TRX,Plancha equilibrio en TRX,
+5862,773,Plancha isométrica de pie (I),Plancha isométrica de pie,left
+5861,773,Plancha isométrica de pie (derecha),Plancha isométrica de pie,right
+5393,773,Plancha lateral (izquierda),Plancha lateral,left
+5648,727,Plancha lateral (izquierda),Plancha lateral,left
+5392,773,Plancha lateral (derecha),Plancha lateral,right
+5662,727,Plancha lateral (derecha),Plancha lateral,right
+5525,727,Plancha lateral con giro (izquierda),Plancha lateral con giro,left
+5530,727,Plancha lateral con giro (derecha),Plancha lateral con giro,right
+5899,773,Plancha lateral con rodilla (izquierda),Plancha lateral con rodilla,left
+5898,773,Plancha lateral con rodilla (derecha),Plancha lateral con rodilla,right
+5339,773,Plancha martillo,Plancha martillo,
+5777,773,Plancha molinos,Plancha molinos,
+5217,773,Plancha pivot,Plancha pivot,
+5609,727,Plancha pivote,Plancha pivote,
+5878,773,Plancha press,Plancha press,
+5335,773,Plancha rotacion,Plancha rotacion,
+5976,773,Plancha rotacion (izquierda),Plancha rotacion,left
+5975,773,Plancha rotacion (derecha),Plancha rotacion,right
+5558,727,Pose del niño,Pose del niño,
+5569,727,Pose paloma (izquierda),Pose paloma,left
+5548,727,Pose paloma (derecha),Pose paloma,right
+5575,727,Pose triángulo (izquierda),Pose triángulo,left
+5559,727,Pose triángulo (derecha),Pose triángulo,right
+5663,727,Preparación general deltoides,Preparación general deltoides,
+5656,727,Press (izquierda),Press,left
+5625,727,Press (derecha),Press,right
+5778,773,Press trx,Press trx,
+5555,727,Puente con elevación de brazo,Puente con elevación de brazo,
+5544,727,Puente de deltoides,Puente de deltoides,
+5526,727,Puente de deltoides dinámico,Puente de deltoides dinámico,
+5829,773,Puente rana,Puente rana,
+5375,773,Push press,Push press,
+5650,727,Push press (izquierda),Push press,left
+6031,727,Push press (derecha),Push press,right
+5840,773,Pájaros,Pájaros,
+5371,773,Péndulo americano,Péndulo americano,
+5881,773,Péndulo piernas lateral,Péndulo piernas lateral,
+5941,773,Reloj de cuello,Reloj de cuello,
+5657,727,Remo (izquierda),Remo,left
+5626,727,Remo (derecha),Remo,right
+5780,773,Remo abierto en trx,Remo abierto en trx,
+5705,727,Remo arquero 1,Remo arquero 1,
+5706,727,Remo arquero 2,Remo arquero 2,
+5781,773,Remo doble trx,Remo doble trx,
+5678,727,Remo en anillas 1,Remo en anillas 1,
+5679,727,Remo en anillas 2,Remo en anillas 2,
+5680,727,Remo en anillas 3,Remo en anillas 3,
+5859,773,Remo en suspensión,Remo en suspensión,
+5782,773,Remo giro trx,Remo giro trx,
+5341,773,Rodillas a de pie,Rodillas a de pie,
+5229,773,Rodillas a los codos,Rodillas a los codos,
+5508,727,Rodillas a pecho,Rodillas a pecho,
+5340,773,Rodillas cuclillas,Rodillas cuclillas,
+5342,773,Roll a dos,Roll a dos,
+5343,773,Roll a pies,Roll a pies,
+5948,773,Rotaciones con inercia,Rotaciones con inercia,
+5957,773,Rotaciones de cadera sentado,Rotaciones de cadera sentado,
+5961,773,Rotaciones de columna en sentadilla,Rotaciones de columna en sentadilla,
+5835,773,Rotaciones torácicas c/ rodilla (D),Rotaciones torácicas con rodilla,right
+5847,773,Rotaciones torácicas c/ rodillas I,Rotaciones torácicas con rodilla,left
+5426,773,Rotaciones torácicas estirado (I),Rotaciones torácicas estirado,left
+5836,773,Rotaciones torácicas estirado (D),Rotaciones torácicas estirado,right
+5503,727,Rotación de cadera,Rotación de cadera,
+5504,727,Rotación de cadera y estiramiento,Rotación de cadera y estiramiento,
+5428,773,Rotadores externos izquierdo,Rotadores externos,left
+5982,773,Rotadores externos derecho,Rotadores externos,right
+5487,727,Saltar a la cuerda,Saltar a la cuerda,
+5232,773,Salto,Salto,
+5855,773,Salto a cuerda doble,Salto a cuerda doble,
+5231,773,Salto caja,Salto caja,
+5589,727,Salto de skater,Salto de skater,
+5235,773,Salto estrella,Salto estrella,
+5233,773,Salto horizontal,Salto horizontal,
+5494,727,Saltos con separación de piernas,Saltos con separación de piernas,
+5312,773,Saltos cruzados,Saltos cruzados,
+5495,727,Saltos cruzados,Saltos cruzados,
+5331,773,Saltos de tijera,Saltos de tijera,
+5964,773,Segmentaciones en gato,Segmentaciones en gato,
+5965,773,Segmentaciones en puente,Segmentaciones en puente,
+5279,773,Semi burpee,Semi burpee,
+5637,727,Semi burpee,Semi burpee,
+5419,773,Semi burpee dos piernas,Semi burpee dos piernas,
+5365,773,Sentada con peso,Sentada con peso,
+5345,773,Sentada paleo,Sentada paleo,
+5955,773,Sentadas en seiza,Sentadas en seiza,
+5242,773,Sentadilla,Sentadilla,
+5505,727,Sentadilla 90/90,Sentadilla 90/90,
+5275,773,Sentadilla a cada lado,Sentadilla a cada lado,
+5523,727,Sentadilla a mono,Sentadilla a mono,
+5959,773,Sentadilla ancha,Sentadilla ancha,
+5293,773,Sentadilla búlgara,Sentadilla búlgara,
+5413,773,Sentadilla búlgara (izquierda),Sentadilla búlgara,left
+5658,727,Sentadilla búlgara (izquierda),Sentadilla búlgara,left
+5412,773,Sentadilla búlgara (derecha),Sentadilla búlgara,right
+6020,727,Sentadilla búlgara (derecha),Sentadilla búlgara,right
+6042,727,Sentadilla búlgara con anillas (izquierda),Sentadilla búlgara con anillas,left
+5725,727,Sentadilla búlgara con anillas (derecha),Sentadilla búlgara con anillas,right
+6009,773,Sentadilla búlgara con peso,Sentadilla búlgara con peso,
+5643,727,Sentadilla búlgara con peso (izquierda),Sentadilla búlgara con peso,left
+6011,773,Sentadilla búlgara con peso (izquierda),Sentadilla búlgara con peso,left
+5604,727,Sentadilla búlgara con peso (derecha),Sentadilla búlgara con peso,right
+6010,773,Sentadilla búlgara con peso (derecha),Sentadilla búlgara con peso,right
+6037,727,Sentadilla con anillas,Sentadilla con anillas,
+5524,727,Sentadilla con apertura de cadera,Sentadilla con apertura de cadera,
+5502,727,Sentadilla con calentamiento de muñecas,Sentadilla con calentamiento de muñecas,
+5552,727,Sentadilla con elevación de brazo,Sentadilla con elevación de brazo,
+5641,727,Sentadilla con peso,Sentadilla con peso,
+5377,773,Sentadilla con peso frontal,Sentadilla con peso frontal,
+5243,773,Sentadilla con salto,Sentadilla con salto,
+5891,773,Sentadilla con salto con carga,Sentadilla con salto con carga,
+5277,773,Sentadilla con salto lateral,Sentadilla con salto lateral,
+5602,727,Sentadilla con voltereta,Sentadilla con voltereta,
+5803,773,Sentadilla cuclilla trx,Sentadilla cuclilla trx,
+5244,773,Sentadilla de pistolero,Sentadilla de pistolero,
+5397,773,Sentadilla de pistolero (izquierda),Sentadilla de pistolero,left
+5396,773,Sentadilla de pistolero (derecha),Sentadilla de pistolero,right
+5437,773,Sentadilla pistolero asistida,Sentadilla pistolero asistida,
+5439,773,Sentadilla pistolero asistida (izquierda),Sentadilla pistolero asistida,left
+5438,773,Sentadilla pistolero asistida (derecha),Sentadilla pistolero asistida,right
+6038,727,Sentadilla pistolero con anillas,Sentadilla pistolero con anillas,
+5434,773,Sentadilla pistolero con caja,Sentadilla pistolero con caja,
+5436,773,Sentadilla pistolero con caja (izquierda),Sentadilla pistolero con caja,left
+5435,773,Sentadilla pistolero con caja (derecha),Sentadilla pistolero con caja,right
+5346,773,Sentadilla profunda,Sentadilla profunda,
+5538,727,Sentadilla religiosa,Sentadilla religiosa,
+5867,773,Sentadillas a una pierna en caja,Sentadillas a una pierna en caja,
+5916,773,Shaking global,Shaking global,
+5715,727,Skin the cat 1,Skin the cat 1,
+5716,727,Skin the cat 2,Skin the cat 2,
+5332,773,Skipping,Skipping,
+5333,773,Skipping rodillas codos,Skipping rodillas codos,
+5300,773,Sprint,Sprint,
+6023,727,Squat con carga,Squat con carga,
+5631,727,Step up con peso,Step up con peso,
+5223,773,Supermán,Superman,
+5516,727,Superman,Superman,
+5901,773,Supinación y pronación c/ bastón I,Supinación y pronación con bastón,left
+5900,773,Supinación y pronación c/ bastón D,Supinación y pronación con bastón,right
+5273,773,Surfer,Surfer,
+5519,727,Tabla de deltoides,Tabla de deltoides,
+5520,727,Tabla de deltoides dinámica,Tabla de deltoides dinámica,
+5507,727,Talones a glúteos,Talones a glúteos,
+5379,773,Thruster con KB,Thruster con kettlebell,
+5651,727,Thruster con KB (izquierda),Thruster con kettlebell,left
+6025,0,Thruster con kettlebell izquierdo,Thruster con kettlebell,left
+5629,727,Thruster con KB (derecha),Thruster con kettlebell,right
+5286,773,Thruster libre,Thruster libre,
+5615,727,Thruster libre,Thruster libre,
+5786,773,Tigre,Tigre,
+5787,773,Tigre mckenzie,Tigre mckenzie,
+5869,773,Toques de hombro,Toques de hombro,
+5922,773,Transición de rodillas seiza,Transición de rodillas seiza,
+5923,773,Transición de tobillos kiza,Transición de tobillos kiza,
+5854,773,Tríceps con peso corporal,Tríceps con peso corporal,
+5497,727,Vaca-gato,Vaca-gato,
+5944,773,Voodoo circulatorio de manos,Voodoo circulatorio de manos,
+5515,727,Wall angels,Wall angels,
+5245,773,Zancada,Zancada,
+5399,773,Zancada (izquierda),Zancada,left
+5398,773,Zancada (derecha),Zancada,right
+5248,773,Zancada abierta,Zancada abierta,
+5405,773,Zancada abierta (izquierda),Zancada abierta,left
+5404,773,Zancada abierta (derecha),Zancada abierta,right
+5792,773,Zancada atrás con extension,Zancada atrás con extension,
+5818,773,Zancada atrás con extension (izquierda),Zancada atrás con extension,left
+5817,773,Zancada atrás con extension (derecha),Zancada atrás con extension,right
+5246,773,Zancada con salto,Zancada con salto,
+5892,773,Zancada con salto con peso,Zancada con salto con peso,
+5905,773,Zancada con salto con peso (izquierda),Zancada con salto con peso,left
+5906,773,Zancada con salto con peso (derecha),Zancada con salto con peso,right
+5804,773,Zancada giros,Zancada giros,
+5247,773,Zancada pivot,Zancada pivot,
+5403,773,Zancada pivot (izquierda),Zancada pivot,left
+5402,773,Zancada pivot (derecha),Zancada pivot,right
+5401,773,Zancada saltando (izquierda),Zancada saltando,left
+5400,773,Zancada saltando (derecha),Zancada saltando,right
+5795,773,Zancadas OH con peso,Zancadas OH con peso,
+5822,773,Zancadas OH con peso (izquierda),Zancadas OH con peso,left
+5821,773,Zancadas OH con peso (derecha),Zancadas OH con peso,right
+5794,773,Zancadas adelante equilibrio,Zancadas adelante equilibrio,
+5820,773,Zancadas adelante equilibrio (izquierda),Zancadas adelante equilibrio,left
+5819,773,Zancadas adelante equilibrio (derecha),Zancadas adelante equilibrio,right
+5282,773,¡Levántate!,¡Levántate!,

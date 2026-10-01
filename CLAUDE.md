@@ -48,10 +48,14 @@ a la hora de asistir en el desarrollo:
 - Pendiente del tema: widget propio `ForjaButton` con la sombra dura que se hunde al
   presionar (`FilledButton` no la soporta); textura de grano sobre `bg`; registrar las
   licencias OFL de las fuentes con `LicenseRegistry` antes de compartir el APK.
+- Hecho (datos): esquema del catálogo y el importador `backend/cmd/seed` del nivel A
+  (470 ejercicios, 209 progresiones, 5 programas, 191 sesiones), validado contra
+  Postgres 16. Pendiente (más adelante, lo hace el usuario): auditar ejercicio por
+  ejercicio en `backend/seed/exercise_names.csv`, incluidas las variantes numeradas
+  ("Flexión anillas 1/2/3"), que según el caso son niveles o ejercicios distintos.
 - Próximos pasos (hoja de ruta):
-  1. Modelo de datos en Postgres a partir de los Excel de ejercicios/planes (pendiente: el
-     usuario tiene que pasar los archivos; no están en el repo).
-  2. Supabase: base de datos, migraciones, elegir sqlc vs squirrel.
+  1. Datos: revisar nombres del CSV; después niveles B y C (ver "Datos fuente").
+  2. Supabase: proyecto, aplicar migración y seed, elegir sqlc vs squirrel.
   3. Auth con Supabase y validación del JWT en Go.
   4. Funcionalidades: catálogo de ejercicios, rutinas, ejecución de sesión (timers),
      historial.
@@ -116,19 +120,55 @@ Con Android solamente: **~USD 0/mes** (Supabase free tier + Cloudflare R2 free t
 Cloud Run free tier). Ver el archivo de decisiones para el detalle de límites de cada
 tier gratuito.
 
-## Modelo de dominio (a completar)
+## Datos fuente
 
-Entidades previstas (sujeto a ajuste cuando se normalicen los Excel):
-- `exercise`: ejercicio individual, con video, grupo muscular, tipo, instrucciones.
-- `routine`: una rutina/plan de entrenamiento.
-- `routine_block`: bloque dentro de una rutina, con un tipo (`superset`, `tabata`,
-  `pyramid`, `straight_set`, etc.) y su configuración específica (rondas, tiempos de
-  trabajo/descanso, etc.).
-- `block_exercise`: relación entre un bloque y sus ejercicios (orden, series, reps, peso).
-- `user`: usuario de la app.
-- `session` / `session_log`: registro de una sesión de entrenamiento completada por un usuario.
+Los programas viven en `docs/source/` (**no versionado**, ver `.gitignore`): material comprado
+o privado (Mammoth Hunters lo liberó al cerrar; los de Fitness Revolucionario son libros
+comprados). Uso personal: si la app se abriera al público, habría que reemplazar planes y
+videos. Al importar tenemos libertad total de **rediseñar IDs y nombres** para que encajen con
+la estética y la filosofía de la app (sistema de diseño), y de simplificar.
 
-_Pendiente: definir el modelo completo una vez normalizados los Excel de ejercicios y planes._
+- **Nivel A (primera etapa, automatizable):** `Indice de ejercicios.xlsx` (609 ejercicios,
+  export de la base de MH) y los programas MH con hojas `Sesion N`: Aurum (12), Elite (69),
+  Primal (20), Ring Master (40), Unbreakable (50). Filas desplegadas por vuelta:
+  block, block_type, set, ex_id, ex_order, tiempo, reps.
+- **Nivel B (segunda etapa):** Guerrera Espartana y Barra Libre (Excel con el plan en texto,
+  p. ej. `4x15-20`, superseries `A1`/`A2`; Barra Libre usa cargas sobre el 1RM).
+- **Nivel C (segunda etapa, transcripción):** solo en PDF: Muscle Hunters (12 semanas, 3
+  niveles según un test), Desencadenado, Efecto Kettlebell, Sinergia, y los calentamientos y
+  la movilidad de Unbreakable.
+- Fuera de alcance: El Plan Revolucionario (nutrición y hábitos) y las hojas de medidas.
+
+Reglas de saneamiento ya decididas:
+- `ex_id` es la referencia confiable; **el video siempre sale del índice**. Los videos de
+  los programas están mal en 431 filas (55 ejercicios, sobre todo Ring Master).
+- Duplicados del índice (mismo ejercicio grabado por dos coaches, `LookupList.Coach_id`):
+  se fusionan; canónico = coach **727** (el de Unbreakable y Ring Master), el otro ID queda
+  como alias. Excepción: 5919/5927 no son duplicados (unilateral vs. bilateral).
+- Encabezados con 8 variantes; `block_type` solo en la primera fila del bloque; números
+  como texto; descanso = ejercicio "Descanso" (5968) → en el modelo es un ítem de descanso.
+
+## Modelo de dominio
+
+Esquema en `supabase/migrations/20261001000000_catalog.sql`. Alcance de la app:
+calistenia, pero también fuerza con barra (Barra Libre) y movilidad ("flexifuerza").
+
+- **Catálogo:** `exercise` (sin lado; `unilateral` indica que se hace de a un lado),
+  `exercise_video` (uno, o uno por lado), `exercise_progression` (grafo más fácil → más
+  difícil), `muscle`/`joint` con sus tablas de unión.
+- **Sesiones:** `session` es una entidad propia (`kind`: workout, warmup, mobility,
+  cooldown) para poder usarla suelta (p. ej. solo un calentamiento) o en varios programas;
+  `program_session` da el orden dentro de un `program`.
+- **Ejecución:** `block` (`type`: rounds, rounds_with_rest, tabata, superset, ladder,
+  amrap; `time_cap_s` solo en amrap, cuyos ítems son una vuelta que se repite) y
+  `block_item` **desplegado** (una fila por ejercicio y por vuelta, en orden): `kind`
+  exercise | rest, lado, y tiempo **o** reps (nunca ambos; lo garantiza un `check`).
+- Identificadores en inglés; el vocabulario de la app (Senda, Fragua, Golpe, Enfriá) es de
+  la UI. IDs propios (`identity`) + `slug` donde hace falta una clave estable; los IDs de
+  MH no entran en la base.
+- Segunda etapa (cuando haya datos que lo pidan): cargas (`load_kg` / % 1RM), rangos de
+  reps (`4x15-20`), niveles por test, y las tablas de registro de lo entrenado.
+- Nombres de los programas: se mantienen los originales por ahora.
 
 ## Convenciones (a completar a medida que se implemente)
 
@@ -162,6 +202,10 @@ _Pendiente: definir el modelo completo una vez normalizados los Excel de ejercic
   Los recursos de Android se generan con `flutter_launcher_icons` (config en
   `pubspec.yaml`, inset 17% → dibujo al 66%): `dart run flutter_launcher_icons`. No editar a
   mano los `mipmap-*`/`drawable-*` generados.
+- Datos: migraciones en `supabase/migrations/` (convención de la CLI de Supabase); el seed
+  `supabase/seed.sql` se genera con `backend/cmd/seed` y **no se versiona** (contenido de
+  la fuente; el repo es público por ahora). Sí se versiona `backend/seed/exercise_names.csv`
+  (solo nombres). Ver `backend/README.md`.
 - Fuentes: TTF estáticos en `mobile/assets/fonts/` (con sus licencias OFL), declarados en
   `pubspec.yaml`; no se usa `google_fonts` (descarga al primer uso, falla sin señal).
 - Al elegir paquetes de Dart, verificar en pub.dev que soporten iOS además de Android, para
@@ -181,6 +225,9 @@ _Pendiente: definir el modelo completo una vez normalizados los Excel de ejercic
 - Flutter está en `~/development/flutter/bin`, cargado en el `PATH` del perfil interactivo;
   en shells no interactivos (los de Claude) hay que agregarlo a mano.
 - El warning `sdkmanager is deprecated` durante `flutter run` es inofensivo.
+- Docker: el engine nativo (`/var/run/docker.sock`) requiere el grupo `docker`, que el
+  usuario no tiene; Docker Desktop (contexto `desktop-linux`) hay que abrirlo a mano. Sin
+  `psql` ni CLI de Supabase instalados todavía.
 
 ## Decisiones descartadas (y por qué)
 

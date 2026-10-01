@@ -1,0 +1,7 @@
+# Material fuente de los programas (Excel, PDF, videos): contenido comprado o
+# privado, solo para uso personal. Nunca se versiona; ver CLAUDE.md, "Datos fuente".
+/docs/source/
+
+# Seed generado por backend/cmd/seed: contiene descripciones y videos de la
+# fuente. Se regenera con `go run ./cmd/seed sql` desde backend/.
+/supabase/seed.sql

@@ -1,17 +1,30 @@
 # Backend (Go)
 
-API para la app de calistenia. Ver `/CLAUDE.md` en la raíz del repo para el contexto
-completo de arquitectura y decisiones.
+API de la app. Ver `/CLAUDE.md` en la raíz del repo para el contexto completo de
+arquitectura y decisiones.
 
-## Setup pendiente
-
-Go no está instalado en este entorno todavía. Cuando esté disponible:
-
-```
-go mod init github.com/<usuario>/naguan-app/backend
+```bash
+go run ./cmd/api      # API en :8080 (o $PORT)
+go test ./...
 ```
 
-## Estado
+## Importar los programas (`cmd/seed`)
 
-Sin implementar aún. Próximo paso: modelar el esquema de Postgres (ejercicios, rutinas,
-bloques, sets, usuarios, sesiones) a partir de la documentación en Excel a normalizar.
+Convierte el material de `docs/source/` (no versionado) en el seed del catálogo:
+ejercicios, progresiones, músculos, programas y sesiones. El esquema está en
+`/supabase/migrations/`.
+
+```bash
+go run ./cmd/seed names   # crea o completa seed/exercise_names.csv
+go run ./cmd/seed sql     # genera /supabase/seed.sql (no versionado)
+```
+
+`seed/exercise_names.csv` es la **fuente de verdad de la identidad y el nombre** de cada
+ejercicio: una fila por ejercicio del índice original (`source_id`), con el nombre y el
+lado en el catálogo nuevo. Las filas con el mismo `name` son el mismo ejercicio (así se
+fusionan los duplicados de coach y los pares izquierda/derecha). Se edita a mano;
+`names` conserva las ediciones y solo agrega filas nuevas.
+
+El importador corta con errores ante datos inconsistentes (nombres que chocan,
+tiempo y reps a la vez, bloques sin tipo...). Los errores puntuales de la fuente se
+corrigen de forma explícita en `cellFixes` (`internal/mhimport/source.go`).
