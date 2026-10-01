@@ -64,8 +64,10 @@ a la hora de asistir en el desarrollo:
   1. Lo estructural de la API primero, en este orden: (a) cimientos transversales:
      hecho; (b) autenticación con Supabase Auth: hecho (ver `docs/autenticacion.md`);
      pendiente sumar ingreso con biometría (`local_auth` + refresh token en
-     `flutter_secure_storage`); (c) modelo del usuario: Senda que sigue,
-     registro de Fraguas templadas, Brasa y Mojones; (d) endpoints de ejercicio;
+     `flutter_secure_storage`); (c) modelo del usuario: hecho (progreso por Senda con
+     checks y reset, Fraguas templadas, Brasa, Mojones; API `/v1/me/...`); falta
+     consumirlo desde la app (checks en la Senda, ejecución de una Fragua con timers y
+     registro al terminar, Brasa en la pantalla principal); (d) endpoints de ejercicio;
      (e) despliegue (Supabase nube, Docker, Cloud Run, CI). Los ajustes de contenido,
      después.
   2. Datos: niveles B y C (ver "Datos fuente").
@@ -90,7 +92,8 @@ a la hora de asistir en el desarrollo:
 - **Documentos explicativos en `docs/`** (versionados): todo lo que valga la pena dejar
   por escrito sobre diseño, arquitectura o cómo funcionan los frameworks por debajo (Go,
   Flutter, Supabase). Se crean o amplían a medida que aparecen los temas. Hoy:
-  `docs/go-para-devs-spring.md`, `docs/flutter-como-funciona.md`, `docs/autenticacion.md`.
+  `docs/go-para-devs-spring.md`, `docs/flutter-como-funciona.md`, `docs/autenticacion.md`,
+  `docs/modelo-de-datos.md`.
 - Guía de entorno, emulador y comandos útiles: `mobile/README.md`.
 
 ## Stack decidido
@@ -171,7 +174,10 @@ Reglas de saneamiento ya decididas:
 
 ## Modelo de dominio
 
-Esquema en `supabase/migrations/20261001000000_catalog.sql`. Alcance de la app:
+Detalle y decisiones en `docs/modelo-de-datos.md`. Migraciones en `supabase/migrations/`:
+catálogo, cierre de la API REST de Supabase (RLS + revocar permisos a `anon` y
+`authenticated`: **toda tabla nueva lleva `enable row level security`**) y registro de
+entrenamiento (`workout`, `workout_item`, `program_reset`). Alcance de la app:
 calistenia, pero también fuerza con barra (Barra Libre) y movilidad ("flexifuerza").
 
 - **Catálogo:** `exercise` (sin lado; `unilateral` indica que se hace de a un lado),
@@ -187,8 +193,19 @@ calistenia, pero también fuerza con barra (Barra Libre) y movilidad ("flexifuer
 - Identificadores en inglés; el vocabulario de la app (Senda, Fragua, Golpe, Enfriá) es de
   la UI. IDs propios (`identity`) + `slug` donde hace falta una clave estable; los IDs de
   MH no entran en la base.
+- **Entrenamiento (flexible):** cualquier Fragua de cualquier Senda, en cualquier orden y
+  las veces que se quiera. Fuente de verdad: `workout` (Fragua templada, con `local_date`
+  = día en el teléfono) y `workout_item` (reps o segundos reales). Todo se deriva:
+  checks por Senda (templada después del último reset), próxima sugerida (primera sin
+  check), Brasa y Mojones. `program_reset` guarda el último reset de cada Senda (resetear
+  no borra historial). `user_id` referencia `auth.users`.
+- **Brasa:** días entrenados; se apaga con 2 días hábiles seguidos sin entrenar; sábado y
+  domingo opcionales (no cuentan como falta); `at_risk` si ya faltó un día hábil y hoy
+  no entrenó. Función pura en `training/brasa.go`.
+- **Mojones:** por ejercicio (ambos lados juntos), mejor reps y/o mejor duración; la
+  primera vez e igualar no cuentan. `POST /v1/me/workouts` devuelve `new_records`.
 - Segunda etapa (cuando haya datos que lo pidan): cargas (`load_kg` / % 1RM), rangos de
-  reps (`4x15-20`), niveles por test, y las tablas de registro de lo entrenado.
+  reps (`4x15-20`), niveles por test.
 - Nombres de los programas: se mantienen los originales por ahora.
 
 ## Convenciones (a completar a medida que se implemente)
@@ -212,6 +229,10 @@ calistenia, pero también fuerza con barra (Barra Libre) y movilidad ("flexifuer
     `withTimeout`, en ese orden). Rutas de la app bajo **`/v1`**, todas detrás de
     `requireUser` (token de Supabase obligatorio; `GET /v1/me` devuelve el usuario);
     `/health` público y sin versión.
+  - `internal/training`: progreso por Senda, Fraguas templadas, Brasa (`brasa.go`, pura)
+    y Mojones; transacciones con `inTx` (pgx + `q.WithTx`); errores de dominio
+    `ValidationError` (400) y `ErrProgramNotFound` (404). Tests de integración contra la base local con `TEST_DATABASE_URL` (se saltean
+    sin ella).
   - `internal/auth`: valida los JWT de Supabase (ES256, claves públicas del JWKS de
     `SUPABASE_URL`, con `golang-jwt` + `keyfunc`) y lleva el usuario en el `context`
     (`auth.WithUser` / `auth.UserFrom`). La autorización por usuario se hace en Go (la API
@@ -227,7 +248,9 @@ calistenia, pero también fuerza con barra (Barra Libre) y movilidad ("flexifuer
   - Interfaces chicas y del lado del consumidor; nada de interfaz + `Impl` por servicio.
 - Notas de Go para quien viene de Spring: `docs/go-para-devs-spring.md` (se completa a
   medida que aparecen conceptos).
-- Testing: backend con `httptest`; mobile con `flutter test`. Linter mobile: `flutter analyze`.
+- Testing: backend con `httptest` y tests de integración
+  (`TEST_DATABASE_URL=postgres://postgres:postgres@127.0.0.1:54322/postgres go test ./...`);
+  mobile con `flutter test`. Linter mobile: `flutter analyze`.
   En mobile, las dependencias se inyectan por constructor (`main` crea el `CatalogClient` y lo
   pasa hacia abajo) para poder testear: los clientes HTTP reciben un `http.Client` opcional
   (en tests, `MockClient` de `package:http/testing.dart`), y las pantallas reciben el cliente

@@ -216,14 +216,17 @@ esa nunca va en una app.
 
 ## Autorización: quién puede ver qué
 
-Hoy todo `/v1` exige un usuario, sin más distinción. Cuando haya datos por usuario (sus
-Fraguas templadas), **la autorización la hace la API Go**: cada consulta filtra por
-`user.ID`, que sale del token verificado, nunca de un parámetro que mande la app.
+Todo `/v1` exige un usuario. Para los datos de cada usuario (su Senda, sus Fraguas
+templadas), **la autorización la hace la API Go**: cada consulta filtra por `user.ID`, que
+sale del token verificado, nunca de un parámetro que mande la app.
 
-Un detalle importante: la API se conecta a Postgres como el usuario `postgres`, que
-**ignora la Row Level Security (RLS)** de Supabase. RLS es la alternativa para cuando la
-app consulta la base directamente (con PostgREST); acá no la usamos, porque toda
-consulta pasa por Go.
+Un detalle importante: la API se conecta a Postgres como el usuario `postgres`, que no
+está sujeto a la Row Level Security (RLS). Las rutas del usuario van bajo `/v1/me/...`: el
+usuario sale del token, nunca de la URL.
+
+Como la app no consulta la base directamente, **el acceso por la API REST de Supabase
+está cerrado**: RLS activada sin políticas y permisos revocados para `anon` y
+`authenticated` (ver `docs/modelo-de-datos.md`, "Seguridad").
 
 ## Para probar en local
 

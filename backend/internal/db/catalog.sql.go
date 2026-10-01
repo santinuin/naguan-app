@@ -138,7 +138,8 @@ func (q *Queries) ListPrograms(ctx context.Context) ([]ListProgramsRow, error) {
 }
 
 const listSessionItems = `-- name: ListSessionItems :many
-select b.position   as block_position,
+select i.id         as item_id,
+       b.position   as block_position,
        b.type       as block_type,
        b.time_cap_s,
        i.round,
@@ -157,6 +158,7 @@ order by b.position, i.round, i.position
 `
 
 type ListSessionItemsRow struct {
+	ItemID        int64
 	BlockPosition int16
 	BlockType     BlockType
 	TimeCapS      *int32
@@ -184,6 +186,7 @@ func (q *Queries) ListSessionItems(ctx context.Context, sessionID int64) ([]List
 	for rows.Next() {
 		var i ListSessionItemsRow
 		if err := rows.Scan(
+			&i.ItemID,
 			&i.BlockPosition,
 			&i.BlockType,
 			&i.TimeCapS,

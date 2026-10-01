@@ -66,7 +66,7 @@ func doAs(t *testing.T, cat Catalog, authorization, method, path string) *httpte
 		req.Header.Set("Authorization", authorization)
 	}
 	rec := httptest.NewRecorder()
-	NewRouter(cat, fakeVerifier{}, time.Second).ServeHTTP(rec, req)
+	NewRouter(Deps{Catalog: cat, Training: &fakeTraining{}, Verifier: fakeVerifier{}, RequestTimeout: time.Second}).ServeHTTP(rec, req)
 	return rec
 }
 
@@ -172,7 +172,7 @@ func TestRequestTimeout(t *testing.T) {
 	rec := httptest.NewRecorder()
 
 	req.Header.Set("Authorization", "Bearer token-valido")
-	NewRouter(cat, fakeVerifier{}, 20*time.Millisecond).ServeHTTP(rec, req)
+	NewRouter(Deps{Catalog: cat, Training: &fakeTraining{}, Verifier: fakeVerifier{}, RequestTimeout: 20 * time.Millisecond}).ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusGatewayTimeout {
 		t.Errorf("status = %d, want %d", rec.Code, http.StatusGatewayTimeout)

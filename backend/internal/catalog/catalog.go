@@ -62,6 +62,9 @@ type Block struct {
 }
 
 type Item struct {
+	// ID identifica el ítem: la app lo manda de vuelta al registrar una
+	// Fragua templada, para decir qué hizo en cada ejercicio.
+	ID        int64        `json:"id"`
 	Round     int16        `json:"round"`
 	Position  int16        `json:"position"`
 	Kind      string       `json:"kind"`
@@ -166,6 +169,7 @@ func groupBlocks(rows []db.ListSessionItemsRow) []Block {
 		b := &blocks[len(blocks)-1]
 
 		it := Item{
+			ID:    r.ItemID,
 			Round: r.Round, Position: r.Position, Kind: string(r.Kind),
 			DurationS: r.DurationS, Reps: r.Reps,
 		}

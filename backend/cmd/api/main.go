@@ -19,6 +19,7 @@ import (
 	"github.com/santinuin/naguan-app/backend/internal/config"
 	"github.com/santinuin/naguan-app/backend/internal/db"
 	"github.com/santinuin/naguan-app/backend/internal/httpapi"
+	"github.com/santinuin/naguan-app/backend/internal/training"
 )
 
 func main() {
@@ -68,8 +69,12 @@ func run() error {
 	// El "contenedor de dependencias", a mano: cada pieza recibe lo que
 	// necesita por constructor.
 	queries := db.New(pool)
-	catalogService := catalog.NewService(queries)
-	router := httpapi.NewRouter(catalogService, verifier, cfg.RequestTimeout)
+	router := httpapi.NewRouter(httpapi.Deps{
+		Catalog:        catalog.NewService(queries),
+		Training:       training.NewService(pool),
+		Verifier:       verifier,
+		RequestTimeout: cfg.RequestTimeout,
+	})
 
 	srv := &http.Server{
 		Addr:    ":" + cfg.Port,

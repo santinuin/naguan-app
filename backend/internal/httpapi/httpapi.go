@@ -12,6 +12,7 @@ import (
 
 	"github.com/santinuin/naguan-app/backend/internal/auth"
 	"github.com/santinuin/naguan-app/backend/internal/catalog"
+	"github.com/santinuin/naguan-app/backend/internal/training"
 )
 
 // Catalog es lo que los handlers necesitan del catálogo. La interfaz se
@@ -25,20 +26,53 @@ type Catalog interface {
 	GetSession(ctx context.Context, id int64) (catalog.Session, error)
 }
 
+// Training es lo que los handlers necesitan del registro de entrenamiento.
+type Training interface {
+	ListProgress(ctx context.Context, userID string) ([]training.ProgramProgress, error)
+	Progress(ctx context.Context, userID, slug string) (training.ProgramProgressDetail, error)
+	ResetProgress(ctx context.Context, userID, slug string) error
+	RecordWorkout(ctx context.Context, userID string, w training.NewWorkout) (training.Workout, error)
+	ListWorkouts(ctx context.Context, userID string, limit int32) ([]training.Workout, error)
+	Stats(ctx context.Context, userID string, today time.Time) (training.Stats, error)
+	Records(ctx context.Context, userID string) ([]training.Record, error)
+}
+
+// Deps son las dependencias del router. Un struct en vez de una lista de
+// parámetros: con cuatro o más, los nombres de campo hacen legible la
+// llamada (Deps{Catalog: ..., Training: ...}) y agregar uno no rompe el orden.
+type Deps struct {
+	Catalog        Catalog
+	Training       Training
+	Verifier       TokenVerifier
+	RequestTimeout time.Duration
+}
+
 // NewRouter arma el mux con todas las rutas y le aplica el middleware.
 // Devuelve http.Handler (y no *http.ServeMux) para que main y los tests
 // dependan solo de la interfaz.
-func NewRouter(cat Catalog, verifier TokenVerifier, requestTimeout time.Duration) http.Handler {
+func NewRouter(d Deps) http.Handler {
 	// La API de la app (/v1) vive en su propio mux, y todo él pasa por
 	// requireUser: el contenido de los programas solo lo ve quien inició
 	// sesión. Desde Go 1.22 el mux soporta método y wildcards en el patrón;
 	// no hace falta Chi ni Gin.
 	v1 := http.NewServeMux()
-	h := catalogHandlers{cat: cat}
+	c := catalogHandlers{cat: d.Catalog}
+	v1.HandleFunc("GET /v1/programs", c.listPrograms)
+	v1.HandleFunc("GET /v1/programs/{slug}", c.getProgram)
+	v1.HandleFunc("GET /v1/sessions/{id}", c.getSession)
+
+	// Lo que es del usuario va bajo /v1/me: la ruta deja claro que el
+	// recurso es "el mío", y el usuario sale del token, nunca de la URL
+	// (no hay /v1/users/{id} que alguien pueda cambiar por otro id).
+	t := trainingHandlers{tr: d.Training}
 	v1.HandleFunc("GET /v1/me", handleMe)
-	v1.HandleFunc("GET /v1/programs", h.listPrograms)
-	v1.HandleFunc("GET /v1/programs/{slug}", h.getProgram)
-	v1.HandleFunc("GET /v1/sessions/{id}", h.getSession)
+	v1.HandleFunc("GET /v1/me/programs", t.listProgress)
+	v1.HandleFunc("GET /v1/me/programs/{slug}", t.getProgress)
+	v1.HandleFunc("DELETE /v1/me/programs/{slug}/progress", t.resetProgress)
+	v1.HandleFunc("POST /v1/me/workouts", t.recordWorkout)
+	v1.HandleFunc("GET /v1/me/workouts", t.listWorkouts)
+	v1.HandleFunc("GET /v1/me/stats", t.getStats)
+	v1.HandleFunc("GET /v1/me/records", t.listRecords)
 
 	mux := http.NewServeMux()
 	// /health es público y sin versión: lo consulta la infraestructura
@@ -47,14 +81,14 @@ func NewRouter(cat Catalog, verifier TokenVerifier, requestTimeout time.Duration
 	// Un patrón que termina en "/" captura todo lo que empieza así. Las
 	// rutas bajo /v1 van versionadas: cuando haya que romper el contrato,
 	// conviven /v1 y /v2 mientras la app se actualiza.
-	mux.Handle("/v1/", requireUser(verifier)(v1))
+	mux.Handle("/v1/", requireUser(d.Verifier)(v1))
 
 	// El orden importa: logRequests va afuera de todo para registrar
 	// también los 500 que genera recoverPanics.
 	return chain(mux,
 		logRequests,
 		recoverPanics,
-		withTimeout(requestTimeout),
+		withTimeout(d.RequestTimeout),
 	)
 }
 
@@ -136,9 +170,23 @@ type errorResponse struct {
 func writeError(w http.ResponseWriter, r *http.Request, err error) {
 	// errors.Is recorre la cadena de errores envueltos con %w: encuentra
 	// ErrNotFound o context.DeadlineExceeded aunque estén varias capas abajo.
+	// errors.As busca en la cadena un error de un TIPO (no un valor
+	// puntual, como errors.Is): para errores que llevan datos, como el
+	// mensaje de una validación.
+	var verr *training.ValidationError
+	var berr *badRequestError
 	switch {
+	case errors.As(err, &verr):
+		writeJSON(w, http.StatusBadRequest, errorResponse{Error: verr.Msg})
+		return
+	case errors.As(err, &berr):
+		writeJSON(w, http.StatusBadRequest, errorResponse{Error: berr.msg})
+		return
 	case errors.Is(err, catalog.ErrNotFound):
 		writeJSON(w, http.StatusNotFound, errorResponse{Error: "no encontrado"})
+		return
+	case errors.Is(err, training.ErrProgramNotFound):
+		writeJSON(w, http.StatusNotFound, errorResponse{Error: "no existe la senda"})
 		return
 	case errors.Is(err, context.DeadlineExceeded):
 		// Venció el timeout del request (middleware withTimeout).

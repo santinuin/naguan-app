@@ -7,6 +7,7 @@ package db
 import (
 	"database/sql/driver"
 	"fmt"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
 )
@@ -254,6 +255,12 @@ type Program struct {
 	Description *string
 }
 
+type ProgramReset struct {
+	UserID    string
+	ProgramID int64
+	ResetAt   time.Time
+}
+
 type ProgramSession struct {
 	ProgramID int64
 	Position  int16
@@ -265,4 +272,20 @@ type Session struct {
 	Kind        SessionKind
 	Title       string
 	Description *string
+}
+
+type Workout struct {
+	ID         int64
+	UserID     string
+	SessionID  int64
+	StartedAt  time.Time
+	FinishedAt time.Time
+	LocalDate  time.Time
+}
+
+type WorkoutItem struct {
+	WorkoutID   int64
+	BlockItemID int64
+	Reps        *int16
+	DurationS   *int32
 }

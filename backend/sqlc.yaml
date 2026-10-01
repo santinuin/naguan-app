@@ -17,3 +17,19 @@ sql:
         # Los structs de filas no se exponen como JSON: la API tiene sus
         # propios tipos (como separar entidad y DTO en Spring).
         emit_json_tags: false
+        # Tipos de Postgres → tipos comunes de Go. Sin esto, sqlc usa los de
+        # pgx (pgtype.UUID, pgtype.Timestamptz...), que son más incómodos.
+        # Las columnas nullable necesitan su propio override (con puntero).
+        overrides:
+          - db_type: uuid
+            go_type: string
+          - db_type: timestamptz
+            go_type: time.Time
+          - db_type: timestamptz
+            nullable: true
+            go_type:
+              import: time
+              type: Time
+              pointer: true
+          - db_type: date
+            go_type: time.Time

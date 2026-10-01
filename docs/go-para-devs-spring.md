@@ -175,3 +175,132 @@ Las rutas de la app van bajo `/v1` (`/health` no, porque la consulta la infraest
 Cuando haya que romper el contrato (renombrar un campo, cambiar una forma), `/v1` y `/v2`
 conviven mientras las apps instaladas se actualizan: en móvil no se puede forzar que todos
 actualicen a la vez.
+
+## Transacciones: `@Transactional`, explícito
+
+```go
+func (s *Service) inTx(ctx context.Context, fn func(q *db.Queries) error) error {
+    tx, err := s.pool.Begin(ctx)
+    if err != nil { return err }
+    defer tx.Rollback(ctx)          // si ya hubo Commit, no hace nada
+    if err := fn(s.q.WithTx(tx)); err != nil {
+        return err                  // el defer deshace todo
+    }
+    return tx.Commit(ctx)
+}
+```
+
+- Lo que en Spring hace un proxy alrededor de un método anotado, en Go es una función
+  que recibe otra función: se ve exactamente qué corre dentro de la transacción.
+- **`defer tx.Rollback(ctx)` justo después de `Begin`** es el idioma: cualquier salida
+  temprana (un error, un panic) deshace la transacción, y después de un `Commit` exitoso
+  el `Rollback` no hace nada.
+- **`q.WithTx(tx)`** (generado por sqlc) devuelve las mismas consultas pero sobre la
+  transacción: el mismo código funciona dentro o fuera de una.
+- Ejemplo real: `training.StartProgram` termina la Senda anterior y crea la nueva en una
+  transacción; `RecordWorkout` valida, crea el workout y sus ítems, y si un ítem es
+  inválido no queda nada a medias (hay un test de integración que lo verifica).
+
+### Inserción masiva: `:copyfrom`
+
+`CreateWorkoutItems` usa el protocolo **COPY** de Postgres (anotación `:copyfrom` en
+sqlc): manda todas las filas en un solo flujo, mucho más rápido que un `INSERT` por fila.
+Es el equivalente a un batch de JDBC.
+
+## `errors.Is` vs `errors.As`
+
+| | Busca en la cadena de errores... | Para | En Java |
+|---|---|---|---|
+| `errors.Is(err, ErrX)` | un **valor** puntual | errores sin datos (`ErrNotFound`, `context.DeadlineExceeded`) | comparar contra una instancia |
+| `errors.As(err, &target)` | un **tipo**, y lo asigna a `target` | errores que llevan datos (`*ValidationError` con su mensaje) | `catch (ValidationException e)` |
+
+```go
+var verr *training.ValidationError
+if errors.As(err, &verr) {
+    writeJSON(w, 400, errorResponse{Error: verr.Msg})
+}
+```
+
+Los dos recorren la cadena armada con `fmt.Errorf("...: %w", err)`.
+
+**Cada error en su capa:** `training.ValidationError` es del dominio ("el ítem es un
+descanso"); `httpapi.badRequestError` es de HTTP ("el JSON está roto"). `writeError`
+traduce ambos a 400, pero el dominio no sabe nada de HTTP.
+
+## Tests de integración
+
+`internal/training/training_integration_test.go` corre contra un Postgres real (el de
+`supabase start`), con el esquema y el seed cargados:
+
+```bash
+TEST_DATABASE_URL=postgres://postgres:postgres@127.0.0.1:54322/postgres go test ./...
+```
+
+- Sin `TEST_DATABASE_URL`, `t.Skip` los saltea: `go test ./...` funciona sin base.
+- Cada test crea su propio usuario en `auth.users` y lo borra con `t.Cleanup` (el
+  `on delete cascade` se lleva sus datos). Así los tests no se pisan entre sí.
+- Prueban lo que un fake no puede: las consultas SQL, las transacciones, el índice único
+  parcial y el aislamiento entre usuarios.
+
+Es el `@SpringBootTest` con Testcontainers, pero contra la base local que ya está
+levantada.
+
+## Inyectar el reloj
+
+`NewWorkout.validate(now time.Time)` recibe la hora actual en vez de llamar a
+`time.Now()` adentro. Así el resultado depende solo de sus argumentos, y los tests usan
+una hora fija. Es lo mismo que pasar un `java.time.Clock`. Lo aprendimos con un test que
+fallaba según la hora del día en que se corría.
+
+## Diseño de la API REST
+
+| Método y ruta | Qué hace | Status |
+|---|---|---|
+| `GET /v1/me/programs` | Progreso en cada Senda (checks, próxima sugerida) | 200 |
+| `GET /v1/me/programs/{slug}` | Progreso en una Senda, con los ids de las Fraguas con check | 200, o 404 |
+| `DELETE /v1/me/programs/{slug}/progress` | Resetear la Senda (el historial no se borra) | 204 (sin cuerpo) |
+| `POST /v1/me/workouts` | Registrar una Fragua templada; devuelve los Mojones superados | 201 Created |
+| `GET /v1/me/workouts?limit=` | Historial | 200 |
+| `GET /v1/me/stats?today=AAAA-MM-DD` | Brasa y total de Fraguas | 200 |
+| `GET /v1/me/records` | Mojones | 200 |
+
+- **Todo lo del usuario va bajo `/v1/me`**: el usuario sale del token, no de la URL.
+- **`DELETE .../progress`** para resetear: lo que se borra es el recurso "progreso" (los
+  checks), no la Senda ni el historial. Un `POST .../reset` también sería válido; el
+  `DELETE` expresa mejor que el estado queda vacío.
+- **`readJSON`** es el `@RequestBody`, pero estricto: limita el tamaño
+  (`http.MaxBytesReader`), rechaza campos desconocidos (`DisallowUnknownFields`, así un
+  error de tipeo en la app no pasa en silencio) y exige un único objeto JSON.
+
+## Embedding en JSON
+
+`ProgramProgressDetail` embebe a `ProgramProgress` (campo sin nombre). Al serializar,
+`encoding/json` **aplana** los campos del embebido: el detalle tiene la misma forma que
+un elemento de la lista, más `completed_session_ids`. Es composición, no herencia, pero
+en el JSON se ve como un `extends`.
+
+Se hizo así por un detalle de `omitempty`: omite los campos con valor cero, y para un
+slice eso incluye el **vacío**, no solo el `nil`. Con un solo tipo y `omitempty`, una
+Senda recién reseteada mandaba el campo ausente en vez de `[]`.
+
+## Trampa con fechas: `Truncate` no da "hoy"
+
+`time.Now().Truncate(24 * time.Hour)` trunca contra la medianoche **UTC**. En Córdoba
+(UTC-3) eso es el día anterior a las 21:00, y si después se lee `.Day()` en la zona
+local, da el día equivocado. "Hoy" para el usuario se arma con los componentes locales:
+`time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)`. Salió de un test
+de integración que fallaba solo de noche.
+
+## SQL que vale la pena conocer
+
+- **`left join lateral (...) on true`**: una subconsulta que se evalúa **por cada fila**
+  de la consulta de afuera y puede usar sus columnas. Se usa para "la próxima Fragua sin
+  check de cada Senda" en una sola consulta (sin N+1).
+- **sqlc no ve la nulabilidad a través de una lateral**: tipa sus columnas como no
+  nullable, y el `Scan` fallaría con un `NULL`. Se resuelve en el SQL con `coalesce` y
+  un valor centinela (`0` = no hay próxima), documentado en la consulta.
+- **`sqlc.narg(slug)`**: un parámetro nullable con nombre. `(sqlc.narg(slug)::text is
+  null or p.slug = sqlc.narg(slug))` hace que la misma consulta sirva para la lista
+  (`nil`) y para el detalle (un slug).
+- **`insert ... on conflict do update`**: un *upsert*. Crea la fila o, si ya existe,
+  la actualiza, de forma atómica.

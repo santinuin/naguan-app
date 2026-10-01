@@ -37,7 +37,8 @@ where id = $1;
 -- datos de su bloque repetidos: el código Go los agrupa en bloques. Es una sola
 -- consulta en vez de una por bloque (el problema "N+1" de JPA).
 -- El left join es porque los descansos no tienen ejercicio.
-select b.position   as block_position,
+select i.id         as item_id,
+       b.position   as block_position,
        b.type       as block_type,
        b.time_cap_s,
        i.round,

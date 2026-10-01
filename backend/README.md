@@ -5,12 +5,14 @@ arquitectura y decisiones.
 
 ```bash
 go run ./cmd/api      # API en :8080 (o $PORT), contra $DATABASE_URL o el Postgres local
-go test ./...
+go test ./...         # + TEST_DATABASE_URL=... para los tests de integración
 sqlc generate         # regenera internal/db a partir de internal/db/queries/*.sql
 ```
 
 Endpoints: `GET /health` (público) y, bajo `/v1` y con `Authorization: Bearer <token de
-Supabase>`: `GET /me`, `GET /programs`, `GET /programs/{slug}`, `GET /sessions/{id}`.
+Supabase>`: `GET /programs`, `GET /programs/{slug}`, `GET /sessions/{id}` y, del usuario, `GET /me`,
+`GET /me/programs[/{slug}]`, `DELETE /me/programs/{slug}/progress`,
+`POST|GET /me/workouts`, `GET /me/stats?today=`, `GET /me/records`.
 Ver `/docs/autenticacion.md`. Configuración por entorno: ver `internal/config`.
 La base local se levanta con `supabase start` desde la raíz (ver `/CLAUDE.md`).
 
