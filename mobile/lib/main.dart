@@ -1,18 +1,20 @@
 import 'package:flutter/material.dart';
-import 'package:naguan_app/health_client.dart';
-import 'package:naguan_app/home_screen.dart';
+import 'package:naguan_app/catalog/catalog_client.dart';
+import 'package:naguan_app/catalog/programs_screen.dart';
 import 'package:naguan_app/theme/forja_theme.dart';
 
+/// URL del backend. En el emulador Android, la PC host es 10.0.2.2.
+const apiBaseUrl = 'http://10.0.2.2:8080';
+
 void main() {
-  // En el emulador Android, la PC host es 10.0.2.2.
-  final healthClient = HealthClient(baseUrl: 'http://10.0.2.2:8080');
-  runApp(NaguanApp(healthClient: healthClient));
+  final catalogClient = CatalogClient(baseUrl: apiBaseUrl);
+  runApp(NaguanApp(catalogClient: catalogClient));
 }
 
 class NaguanApp extends StatelessWidget {
-  const NaguanApp({super.key, required this.healthClient});
+  const NaguanApp({super.key, required this.catalogClient});
 
-  final HealthClient healthClient;
+  final CatalogClient catalogClient;
 
   @override
   Widget build(BuildContext context) {
@@ -23,7 +25,7 @@ class NaguanApp extends StatelessWidget {
       // Hierro es el tema principal. Con ThemeMode.system seguiría al
       // sistema operativo.
       themeMode: ThemeMode.dark,
-      home: HomeScreen(client: healthClient),
+      home: ProgramsScreen(client: catalogClient),
     );
   }
 }

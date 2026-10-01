@@ -43,8 +43,8 @@ a la hora de asistir en el desarrollo:
 - Fase actual: API del catálogo (backend Go sobre la base local). Entorno de
   desarrollo listo y verificado: Go 1.27.1, Flutter 3.47.5 / Dart 3.13.4, Android SDK y
   emulador `pixel8`, Docker Desktop y Supabase local (ver "Particularidades del entorno").
-- Hecho: backend Go mínimo con `GET /health` (con tests); app Flutter con `HealthClient` y
-  `HomeScreen` que consulta `/health` desde el emulador; renombre completo a `naguan-app`;
+- Hecho: primera pantalla real de punta a punta: la app lista las Sendas (`GET /programs`)
+  con el tema de Forja (Postgres → sqlc → API Go → Flutter); renombre completo a `naguan-app`;
   tema de Forja en Flutter: fuentes empaquetadas y `ThemeData` Hierro/Hueso (ver
   "Convenciones"); ícono adaptativo de Android (variante C, con capa monocromática).
 - Pendiente del tema: widget propio `ForjaButton` con la sombra dura que se hunde al
@@ -57,8 +57,9 @@ a la hora de asistir en el desarrollo:
   ejercicio en `backend/seed/exercise_names.csv`, incluidas las variantes numeradas
   ("Flexión anillas 1/2/3"), que según el caso son niveles o ejercicios distintos.
 - Próximos pasos (hoja de ruta):
-  1. Más endpoints del catálogo (ejercicios: detalle, videos, músculos, progresiones) y
-     consumirlos desde la app Flutter.
+  1. Navegación en la app: Senda → lista de Fraguas (`GET /programs/{slug}`) → detalle de
+     la Fragua (`GET /sessions/{id}`); después, endpoints de ejercicios (detalle, videos,
+     músculos, progresiones).
   2. Supabase en la nube: crear el proyecto y aplicar migración y seed.
   3. Datos: niveles B y C (ver "Datos fuente").
   4. Auth con Supabase y validación del JWT en Go.
@@ -68,10 +69,10 @@ a la hora de asistir en el desarrollo:
 ## Forma de trabajo
 
 - **Dart/Flutter**: es el primer contacto del usuario con Dart y con desarrollo móvil, y el
-  fin didáctico manda sobre la velocidad. Por defecto Claude guía con explicaciones,
-  fragmentos cortos y el porqué de cada decisión, y revisa lo que el usuario escribe. Si el
-  usuario lo pide, Claude escribe el código y lo acompaña de una explicación detallada de
-  los conceptos de Dart/Flutter que aparecen, para que el usuario lo lea y aprenda.
+  fin didáctico manda sobre la velocidad. **Claude escribe el código**, avanzando paso a paso
+  y explicando cada concepto de Dart/Flutter que aparece (qué hace, por qué así, qué
+  alternativa se descartó); el usuario después lo lee en detalle. Indicar un orden de
+  lectura de los archivos.
 - **Go y Supabase**: el usuario viene de **Java / Spring WebFlux** y usa el proyecto para
   aprender Go y Supabase (además de Flutter). Claude escribe el código Go, pero de forma
   pedagógica: explica los conceptos y el idioma de Go, con analogías a Java/Spring cuando
@@ -80,6 +81,10 @@ a la hora de asistir en el desarrollo:
   idiomático en Go.
 - El usuario hace sus propios `git commit` y `git push`; Claude no commitea.
 - Cada paso nuevo de tooling o de Flutter se acompaña de instrucciones para probarlo.
+- **Documentos explicativos en `docs/`** (versionados): todo lo que valga la pena dejar
+  por escrito sobre diseño, arquitectura o cómo funcionan los frameworks por debajo (Go,
+  Flutter, Supabase). Se crean o amplían a medida que aparecen los temas. Hoy:
+  `docs/go-para-devs-spring.md`, `docs/flutter-como-funciona.md`.
 - Guía de entorno, emulador y comandos útiles: `mobile/README.md`.
 
 ## Stack decidido
@@ -205,7 +210,7 @@ calistenia, pero también fuerza con barra (Barra Libre) y movilidad ("flexifuer
 - Notas de Go para quien viene de Spring: `docs/go-para-devs-spring.md` (se completa a
   medida que aparecen conceptos).
 - Testing: backend con `httptest`; mobile con `flutter test`. Linter mobile: `flutter analyze`.
-  En mobile, las dependencias se inyectan por constructor (`main` crea el `HealthClient` y lo
+  En mobile, las dependencias se inyectan por constructor (`main` crea el `CatalogClient` y lo
   pasa hacia abajo) para poder testear: los clientes HTTP reciben un `http.Client` opcional
   (en tests, `MockClient` de `package:http/testing.dart`), y las pantallas reciben el cliente
   (en tests, un fake con `implements` y un `Completer` para controlar cuándo responde).
@@ -227,6 +232,11 @@ calistenia, pero también fuerza con barra (Barra Libre) y movilidad ("flexifuer
   `supabase/seed.sql` se genera con `backend/cmd/seed` y **no se versiona** (contenido de
   la fuente; el repo es público por ahora). Sí se versiona `backend/seed/exercise_names.csv`
   (solo nombres). Ver `backend/README.md`.
+- Mobile organizado por funcionalidad (`lib/catalog/`: modelo, cliente, pantalla) y
+  `lib/theme/` (tokens, `ThemeData`, widgets propios como `ForjaPill`). Modelos con
+  `fromJson` a mano (pattern matching de Dart 3), sin generación de código por ahora. Los
+  clientes decodifican el cuerpo con `utf8.decode(bodyBytes)` (la API no manda charset).
+  La URL del backend es `apiBaseUrl` en `main.dart` (`10.0.2.2:8080` en el emulador).
 - Fuentes: TTF estáticos en `mobile/assets/fonts/` (con sus licencias OFL), declarados en
   `pubspec.yaml`; no se usa `google_fonts` (descarga al primer uso, falla sin señal).
 - Al elegir paquetes de Dart, verificar en pub.dev que soporten iOS además de Android, para
