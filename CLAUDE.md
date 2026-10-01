@@ -48,8 +48,6 @@ a la hora de asistir en el desarrollo:
 - Pendiente del tema: widget propio `ForjaButton` con la sombra dura que se hunde al
   presionar (`FilledButton` no la soporta); textura de grano sobre `bg`; registrar las
   licencias OFL de las fuentes con `LicenseRegistry` antes de compartir el APK.
-- Deuda conocida: `mobile/test/widget_test.dart` sigue siendo el test del contador (referencia
-  `MyApp`, que ya no existe) y rompe `flutter analyze`; reemplazarlo por un widget test propio.
 - Próximos pasos (hoja de ruta):
   1. Modelo de datos en Postgres a partir de los Excel de ejercicios/planes (pendiente: el
      usuario tiene que pasar los archivos; no están en el repo).
@@ -146,6 +144,10 @@ _Pendiente: definir el modelo completo una vez normalizados los Excel de ejercic
   viene de `PORT` (Cloud Run), 8080 por defecto. Módulo:
   `github.com/santinuin/naguan-app/backend`.
 - Testing: backend con `httptest`; mobile con `flutter test`. Linter mobile: `flutter analyze`.
+  En mobile, las dependencias se inyectan por constructor (`main` crea el `HealthClient` y lo
+  pasa hacia abajo) para poder testear: los clientes HTTP reciben un `http.Client` opcional
+  (en tests, `MockClient` de `package:http/testing.dart`), y las pantallas reciben el cliente
+  (en tests, un fake con `implements` y un `Completer` para controlar cuándo responde).
 - Tema mobile en `mobile/lib/theme/`: `forja_tokens.dart` tiene los valores crudos del
   sistema de diseño (`ForjaPalette.hierro`/`.hueso`, `ForjaSpace`, `ForjaRadius`,
   `ForjaBorder`, `ForjaFonts`); `forja_theme.dart` los mapea a `ThemeData` (`forjaHierro`,

@@ -3,15 +3,15 @@ import 'package:naguan_app/health_client.dart';
 import 'package:naguan_app/theme/forja_tokens.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  const HomeScreen({super.key, required this.client});
+
+  final HealthClient client;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final _client = HealthClient(baseUrl: 'http://10.0.2.2:8080');
-
   String _message = 'Sin consultar';
   bool _loading = false;
 
@@ -20,7 +20,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     String message;
     try {
-      final status = await _client.fetchStatus();
+      final status = await widget.client.fetchStatus();
       message = 'Backend: $status';
     } catch (e) {
       message = 'Error: $e';
