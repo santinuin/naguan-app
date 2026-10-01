@@ -1,28 +1,13 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:naguan_app/catalog/catalog_client.dart';
+import 'package:naguan_app/catalog/program.dart';
+import 'package:naguan_app/catalog/program_screen.dart';
 import 'package:naguan_app/catalog/program_summary.dart';
 import 'package:naguan_app/catalog/programs_screen.dart';
 import 'package:naguan_app/theme/forja_theme.dart';
 
-/// Cliente falso: cada llamada a fetchPrograms devuelve el Future de un
-/// Completer nuevo, que el test completa cuando quiere. Así se puede ver el
-/// estado "cargando" y contar los reintentos.
-class FakeCatalogClient implements CatalogClient {
-  final calls = <Completer<List<ProgramSummary>>>[];
-
-  @override
-  final String baseUrl = 'http://fake';
-
-  @override
-  Future<List<ProgramSummary>> fetchPrograms() {
-    final completer = Completer<List<ProgramSummary>>();
-    calls.add(completer);
-    return completer.future;
-  }
-}
+import 'fake_catalog_client.dart';
 
 Future<void> pumpScreen(WidgetTester tester, CatalogClient client) {
   return tester.pumpWidget(
@@ -44,7 +29,7 @@ void main() {
     final client = FakeCatalogClient();
     await pumpScreen(tester, client);
 
-    client.calls.single.complete(const [
+    client.programsCalls.single.complete(const [
       ProgramSummary(
         slug: 'unbreakable',
         name: 'Unbreakable',
@@ -71,7 +56,9 @@ void main() {
     final client = FakeCatalogClient();
     await pumpScreen(tester, client);
 
-    client.calls.single.completeError(const CatalogException('sin red'));
+    client.programsCalls.single.completeError(
+      const CatalogException('sin red'),
+    );
     await tester.pump();
 
     expect(find.text('SIN SEÑAL'), findsOneWidget);
@@ -80,12 +67,60 @@ void main() {
     await tester.pump();
 
     // Un request nuevo, y la pantalla vuelve a "cargando".
-    expect(client.calls, hasLength(2));
+    expect(client.programsCalls, hasLength(2));
     expect(find.byType(CircularProgressIndicator), findsOneWidget);
 
-    client.calls.last.complete(const []);
+    client.programsCalls.last.complete(const []);
     await tester.pump();
 
     expect(find.text('SENDAS'), findsOneWidget);
+  });
+
+  testWidgets('tocar una senda abre su pantalla y "atrás" vuelve', (
+    tester,
+  ) async {
+    final client = FakeCatalogClient();
+    await pumpScreen(tester, client);
+    client.programsCalls.single.complete(const [
+      ProgramSummary(slug: 'ring-master', name: 'Ring Master', sessionCount: 2),
+    ]);
+    await tester.pump();
+
+    await tester.tap(find.text('RING MASTER'));
+    // Dos frames: en el primero, Flutter construye ProgramScreen fuera de
+    // escena (offstage) para preparar la transición, y los find no lo ven;
+    // en el siguiente ya está en escena. Ojo: acá NO sirve pumpAndSettle.
+    // Espera a que no queden animaciones, y el CircularProgressIndicator de
+    // la carga gira para siempre: el test se colgaría ("pumpAndSettle timed
+    // out").
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(find.byType(ProgramScreen), findsOneWidget);
+    expect(client.requestedSlugs, ['ring-master']);
+
+    client.programCalls.single.complete(
+      const Program(
+        slug: 'ring-master',
+        name: 'Ring Master',
+        sessions: [
+          SessionSummary(position: 1, id: 10, title: 'Fundamentos'),
+          SessionSummary(position: 2, id: 11, title: 'Fuerza'),
+        ],
+      ),
+    );
+    // Con la carga terminada ya no hay animaciones infinitas: pumpAndSettle
+    // bombea frames hasta que termina la transición entre pantallas.
+    await tester.pumpAndSettle();
+
+    expect(find.text('FRAGUA 01'), findsOneWidget);
+    expect(find.text('Fuerza'), findsOneWidget);
+
+    // El botón "atrás" del AppBar hace pop: vuelve a la lista.
+    await tester.tap(find.byType(BackButton));
+    await tester.pumpAndSettle();
+
+    expect(find.text('SENDAS'), findsOneWidget);
+    expect(find.byType(ProgramScreen), findsNothing);
   });
 }

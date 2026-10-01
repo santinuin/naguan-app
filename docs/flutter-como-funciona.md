@@ -85,6 +85,69 @@ cambia de estado, y el `snapshot` dice en cuál está (`connectionState`, `hasEr
 `data`). Así, "cargando / error / datos" queda en un solo lugar del `build()`. Para un
 `Stream` existe `StreamBuilder`, el análogo para varios valores.
 
+## Navegación: el Navigator es una pila
+
+El `Navigator` (que crea `MaterialApp`) mantiene una **pila de rutas**; cada ruta es una
+pantalla completa. Es la misma idea que el back stack de Android:
+
+```dart
+Navigator.of(context).push(
+  MaterialPageRoute<void>(builder: (_) => ProgramScreen(client: client, slug: p.slug, name: p.name)),
+);
+```
+
+- `push` apila una ruta nueva con su animación de entrada; la anterior queda debajo, viva
+  (su `State` se conserva: al volver, la lista sigue donde estaba, sin recargar).
+- `pop` (el botón "atrás" del `AppBar`, el gesto de Android o `Navigator.of(context).pop()`)
+  la desapila. El `AppBar` muestra el botón "atrás" solo si hay una ruta debajo.
+- **Los datos se pasan por constructor**: la pantalla nueva recibe lo que necesita
+  (`client`, `slug`, y además el `name`, que ya conocemos, para mostrar el título al
+  instante mientras carga el resto).
+
+Esta es la API imperativa ("Navigator 1.0"), la más simple de entender. Para deep links
+(abrir la app directo en una Fragua desde una notificación) o navegación declarativa
+basada en URLs existe `Router` ("Navigator 2.0"), que casi siempre se usa a través del
+paquete `go_router`. Lo vamos a necesitar cuando haya notificaciones; por ahora, la pila
+alcanza.
+
+## Componentes reutilizables: `LoadView<T>`
+
+Cuando el mismo patrón aparece por tercera vez, se extrae. "Cargando / error con
+reintento / datos" estaba en `ProgramsScreen` y lo iban a necesitar dos pantallas más, así
+que vive en `lib/common/load_view.dart`:
+
+```dart
+LoadView<Program>(
+  load: () => client.fetchProgram(slug),       // cómo cargar
+  builder: (context, program) => _SessionList(…),  // qué mostrar con el dato
+)
+```
+
+- Es **genérico** (`<T>`), como una clase genérica de Java.
+- Recibe una **función** (`Future<T> Function()`) y no un `Future`: así decide cuándo
+  llamarla (al montarse y en cada reintento). Si no hay argumentos alcanza con un
+  *tear-off* (`load: client.fetchPrograms`, sin paréntesis: una method reference); si los
+  hay, una closure.
+- Las pantallas que lo usan quedan como `StatelessWidget`: el estado vive en `LoadView`.
+
+## Dart que apareció en el camino
+
+| Concepto | Ejemplo en el código | Equivalente en Java |
+|---|---|---|
+| Enum mejorado (con campos y constructor `const`) | `enum BlockType { tabata('TÁBATA'), …; final String label; }` | `enum` con campos |
+| `Enum.values.byName` | `Side.values.byName('left')` | `Side.valueOf("LEFT")` |
+| Getter calculado | `List<List<Item>> get rounds` | Un método `getRounds()` sin estado |
+| `putIfAbsent` | `byRound.putIfAbsent(round, () => []).add(item)` | `computeIfAbsent` |
+| Map literal ordenado | `<int, List<Item>>{}` es un `LinkedHashMap` | `new LinkedHashMap<>()` |
+| Collection `if` / `for` | `if (x case final d?) ...[…]`, `for (final b in blocks) …` dentro de `children` | (no hay: se arma la lista a mano) |
+| Records y `indexed` | `for (final (index, items) in rounds.indexed)` | (no hay; un `for` con índice) |
+| Patrones de objeto | `switch (item) { Item(:final reps?) => …, }` | `switch` con record patterns (Java 21) |
+| División entera | `seconds ~/ 60` (`/` siempre da `double`) | `seconds / 60` entre `int` |
+
+Los **campos opcionales** del JSON (`time_cap_s`, `side`, `reps`…) se leen fuera del
+patrón con un cast nullable (`json['reps'] as int?`): un map pattern exige que la clave
+exista, y la API omite las que no aplican.
+
 ## Arquitectura de la app
 
 El código se organiza **por funcionalidad** (feature-first), no por tipo de archivo:
@@ -93,9 +156,14 @@ El código se organiza **por funcionalidad** (feature-first), no por tipo de arc
 lib/
   main.dart                     arma las dependencias (CatalogClient) y la app
   catalog/                      todo lo del catálogo junto
-    program_summary.dart        modelo (fromJson)
+    program_summary.dart        modelos (fromJson)
+    program.dart, session.dart
     catalog_client.dart         acceso a la API
-    programs_screen.dart        pantalla
+    programs_screen.dart        pantallas: Sendas → Senda → Fragua
+    program_screen.dart
+    session_screen.dart
+    format.dart                 formato de duraciones y reps
+  common/                       piezas compartidas entre funcionalidades (LoadView)
   theme/                        sistema de diseño: tokens, ThemeData, widgets propios
 ```
 
@@ -125,6 +193,20 @@ cliente hace `utf8.decode(response.bodyBytes)`.
 | Widget | Una pantalla, sin emulador | `testWidgets`, `tester.pumpWidget`, `find.text`, `tester.tap` |
 
 En un widget test, Flutter no dibuja solo: `tester.pump()` procesa lo pendiente y dibuja
-un frame. El patrón es acción (`tap`, completar un `Completer`) → `pump()` → `expect`. Los
+un frame; `tester.pumpAndSettle()` bombea frames hasta que no queden animaciones. El patrón es acción (`tap`, completar un `Completer`) → `pump()` → `expect`. Los
 fakes se escriben a mano con `implements` (toda clase de Dart es también una interfaz), y
 un `Completer` permite decidir *cuándo* responde el falso, para ver el estado "cargando".
+
+### Trampas al testear navegación
+
+- **`pumpAndSettle` se cuelga con un `CircularProgressIndicator` en pantalla**: gira para
+  siempre, así que nunca "se asienta" (`pumpAndSettle timed out`). Primero hay que
+  completar la carga (el `Completer` del fake) y recién después llamar a `pumpAndSettle`
+  para que termine la transición.
+- **En el primer frame después de un `push`, la pantalla nueva está offstage**: Flutter la
+  construye fuera de escena para preparar la transición. El `fetch` ya se disparó, pero
+  `find.byType(...)` todavía no la ve (los finders ignoran lo offstage). Un segundo
+  `pump` con algo de tiempo la pone en escena.
+- **El fake compartido** (`test/catalog/fake_catalog_client.dart`) usa `implements
+  CatalogClient`: si el cliente real suma un método, el fake deja de compilar y el
+  analizador avisa. Es una ventaja: nunca queda desactualizado en silencio.

@@ -43,8 +43,10 @@ a la hora de asistir en el desarrollo:
 - Fase actual: API del catálogo (backend Go sobre la base local). Entorno de
   desarrollo listo y verificado: Go 1.27.1, Flutter 3.47.5 / Dart 3.13.4, Android SDK y
   emulador `pixel8`, Docker Desktop y Supabase local (ver "Particularidades del entorno").
-- Hecho: primera pantalla real de punta a punta: la app lista las Sendas (`GET /programs`)
-  con el tema de Forja (Postgres → sqlc → API Go → Flutter); renombre completo a `naguan-app`;
+- Hecho: navegación de punta a punta con el tema de Forja (Postgres → sqlc → API Go →
+  Flutter): Sendas (`GET /programs`) → Senda con sus Fraguas (`GET /programs/{slug}`) →
+  Fragua con bloques, vueltas (las idénticas consecutivas se compactan) y métricas
+  (`GET /sessions/{id}`); renombre completo a `naguan-app`;
   tema de Forja en Flutter: fuentes empaquetadas y `ThemeData` Hierro/Hueso (ver
   "Convenciones"); ícono adaptativo de Android (variante C, con capa monocromática).
 - Pendiente del tema: widget propio `ForjaButton` con la sombra dura que se hunde al
@@ -55,11 +57,12 @@ a la hora de asistir en el desarrollo:
   local (Postgres 17). API de lectura: `GET /programs`, `GET /programs/{slug}`,
   `GET /sessions/{id}` (sesión con bloques e ítems), con tests. Pendiente (más adelante, lo hace el usuario): auditar ejercicio por
   ejercicio en `backend/seed/exercise_names.csv`, incluidas las variantes numeradas
-  ("Flexión anillas 1/2/3"), que según el caso son niveles o ejercicios distintos.
+  ("Flexión anillas 1/2/3"), que según el caso son niveles o ejercicios distintos;
+  renombrar cada sesión de cada programa con un nombre acorde (hoy muchas quedaron como
+  "Sesión N"); sumar el calentamiento y el estiramiento que les faltan a los programas.
 - Próximos pasos (hoja de ruta):
-  1. Navegación en la app: Senda → lista de Fraguas (`GET /programs/{slug}`) → detalle de
-     la Fragua (`GET /sessions/{id}`); después, endpoints de ejercicios (detalle, videos,
-     músculos, progresiones).
+  1. Lo estructural de la API primero (ver la propuesta en curso); los ajustes de
+     contenido después.
   2. Supabase en la nube: crear el proyecto y aplicar migración y seed.
   3. Datos: niveles B y C (ver "Datos fuente").
   4. Auth con Supabase y validación del JWT en Go.
@@ -232,8 +235,11 @@ calistenia, pero también fuerza con barra (Barra Libre) y movilidad ("flexifuer
   `supabase/seed.sql` se genera con `backend/cmd/seed` y **no se versiona** (contenido de
   la fuente; el repo es público por ahora). Sí se versiona `backend/seed/exercise_names.csv`
   (solo nombres). Ver `backend/README.md`.
-- Mobile organizado por funcionalidad (`lib/catalog/`: modelo, cliente, pantalla) y
-  `lib/theme/` (tokens, `ThemeData`, widgets propios como `ForjaPill`). Modelos con
+- Mobile organizado por funcionalidad (`lib/catalog/`: modelos, cliente, pantallas),
+  `lib/common/` (piezas compartidas: `LoadView<T>` para cargando/error/datos) y
+  `lib/theme/` (tokens, `ThemeData`, widgets propios como `ForjaPill`). Navegación con
+  `Navigator.push` + `MaterialPageRoute`, datos por constructor (go_router cuando haya
+  deep links). Modelos con
   `fromJson` a mano (pattern matching de Dart 3), sin generación de código por ahora. Los
   clientes decodifican el cuerpo con `utf8.decode(bodyBytes)` (la API no manda charset).
   La URL del backend es `apiBaseUrl` en `main.dart` (`10.0.2.2:8080` en el emulador).

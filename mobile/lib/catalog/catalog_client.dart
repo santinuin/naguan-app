@@ -1,7 +1,9 @@
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
+import 'package:naguan_app/catalog/program.dart';
 import 'package:naguan_app/catalog/program_summary.dart';
+import 'package:naguan_app/catalog/session.dart';
 
 /// Error al hablar con la API del catálogo. Implementar [Exception] (y no
 /// [Error]) indica que es un fallo esperable, que la UI debe manejar: sin
@@ -36,6 +38,18 @@ class CatalogClient {
       for (final item in json)
         ProgramSummary.fromJson(item as Map<String, dynamic>),
     ];
+  }
+
+  Future<Program> fetchProgram(String slug) async {
+    // Uri.encodeComponent escapa el slug por si trae caracteres especiales:
+    // nunca concatenar datos crudos en una URL.
+    final json = await _getJson('/programs/${Uri.encodeComponent(slug)}');
+    return Program.fromJson(json as Map<String, dynamic>);
+  }
+
+  Future<Session> fetchSession(int id) async {
+    final json = await _getJson('/sessions/$id');
+    return Session.fromJson(json as Map<String, dynamic>);
   }
 
   /// Hace un GET y devuelve el cuerpo decodificado. Centraliza el manejo de
