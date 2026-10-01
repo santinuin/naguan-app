@@ -1,4 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Internet para hablar con la API y con Supabase. Antes solo estaba en
+         el manifiesto de debug (src/debug), así que un APK de release no
+         podía conectarse a nada. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <application
         android:label="Naguan"
         android:name="${applicationName}"

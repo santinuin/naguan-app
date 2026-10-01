@@ -23,6 +23,7 @@ func TestLoadDefaults(t *testing.T) {
 		Port:            "8080",
 		DatabaseURL:     localDatabaseURL,
 		SupabaseURL:     localSupabaseURL,
+		SupabaseIssuer:  localSupabaseURL + "/auth/v1",
 		RequestTimeout:  10 * time.Second,
 		ShutdownTimeout: 10 * time.Second,
 	}
@@ -59,5 +60,18 @@ func TestLoadReportsAllErrors(t *testing.T) {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("el error no menciona %s: %v", want, err)
 		}
+	}
+}
+
+func TestIssuerOverride(t *testing.T) {
+	cfg, err := load(env(map[string]string{
+		"SUPABASE_URL":    "http://host.docker.internal:54321",
+		"SUPABASE_ISSUER": "http://127.0.0.1:54321/auth/v1",
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.SupabaseIssuer != "http://127.0.0.1:54321/auth/v1" {
+		t.Errorf("issuer = %q", cfg.SupabaseIssuer)
 	}
 }

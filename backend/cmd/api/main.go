@@ -61,7 +61,7 @@ func run() error {
 
 	// El verificador de tokens descarga las claves públicas de Supabase y
 	// las refresca en segundo plano mientras ctx no se cancele.
-	verifier, err := auth.NewVerifier(ctx, cfg.SupabaseURL)
+	verifier, err := auth.NewVerifier(ctx, cfg.SupabaseURL, cfg.SupabaseIssuer)
 	if err != nil {
 		return err
 	}

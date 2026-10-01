@@ -35,19 +35,22 @@ type Verifier struct {
 }
 
 // NewVerifier arma un verificador para el proyecto de Supabase en
-// supabaseURL (p. ej. http://127.0.0.1:54321).
+// supabaseURL (p. ej. http://127.0.0.1:54321), que acepta tokens del emisor
+// issuer (p. ej. http://127.0.0.1:54321/auth/v1). Son dos datos y no uno:
+// la dirección por la que se llega a Supabase no siempre es la que Supabase
+// pone como emisor en sus tokens.
 //
 // Las claves públicas se descargan del JWKS del proyecto y se refrescan en
 // segundo plano (si Supabase rota la clave, aparece un "kid" nuevo y se
 // vuelve a descargar). Ese refresco vive mientras viva ctx: main le pasa un
 // contexto que se cancela al apagar el servidor.
-func NewVerifier(ctx context.Context, supabaseURL string) (*Verifier, error) {
+func NewVerifier(ctx context.Context, supabaseURL, issuer string) (*Verifier, error) {
 	base := strings.TrimSuffix(supabaseURL, "/")
 	jwks, err := keyfunc.NewDefaultCtx(ctx, []string{base + "/auth/v1/.well-known/jwks.json"})
 	if err != nil {
 		return nil, fmt.Errorf("cargando las claves públicas de Supabase: %w", err)
 	}
-	return newVerifier(jwks.Keyfunc, base+"/auth/v1"), nil
+	return newVerifier(jwks.Keyfunc, issuer), nil
 }
 
 // newVerifier recibe la función que da la clave pública para un token: los

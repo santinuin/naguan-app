@@ -1,0 +1,77 @@
+# Integración continua: en cada push y pull request, el backend y la app se
+# verifican solos. Si algo falla, GitHub marca el commit con una cruz roja.
+#
+# Los tests de integración del backend necesitan Postgres (TEST_DATABASE_URL):
+# acá no se definen, así que se saltean (t.Skip) y corren los unitarios.
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+# Si llega un push nuevo a la misma rama, cancela la corrida anterior.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend (Go)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+
+      - name: Formato (gofmt)
+        # gofmt -l lista los archivos mal formateados; si hay alguno, falla.
+        run: test -z "$(gofmt -l .)" || (gofmt -l . && exit 1)
+
+      - name: go vet
+        run: go vet ./...
+
+      - name: Tests
+        run: go test ./...
+
+      - uses: sqlc-dev/setup-sqlc@v4
+        with:
+          sqlc-version: '1.31.1'  # la misma que en local: el código generado lleva la versión
+
+      - name: El código de sqlc está al día
+        # sqlc diff compara lo generado con lo que generaría ahora: si alguien
+        # cambió una consulta y no corrió sqlc generate, falla.
+        run: sqlc diff
+
+      - name: La imagen Docker construye
+        run: docker build -t naguan-api .
+
+  mobile:
+    name: App (Flutter)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.5'
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+
+      - name: Formato (dart format)
+        run: dart format --output=none --set-exit-if-changed lib test
+
+      - run: flutter analyze
+
+      - run: flutter test

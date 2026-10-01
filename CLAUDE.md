@@ -71,7 +71,8 @@ a la hora de asistir en el desarrollo:
 - Próximos pasos (hoja de ruta), primero lo estructural y después el contenido:
   1. Ingreso con biometría (`local_auth` + refresh token en `flutter_secure_storage`).
   2. Endpoints y pantalla de ejercicio (detalle, videos, músculos, progresiones).
-  3. Despliegue: Supabase en la nube, Dockerfile del backend, Cloud Run y CI.
+  3. Despliegue: Dockerfile, CI y guía hechos; falta ejecutarlo con las cuentas del
+     usuario (Supabase nube, Google Cloud) siguiendo `docs/despliegue.md`.
   4. Historial de Fraguas y Mojones en la app.
   5. Datos: niveles B y C (ver "Datos fuente"); ajustes de contenido (nombres de
      sesiones, calentamiento y estiramiento).
@@ -95,7 +96,7 @@ a la hora de asistir en el desarrollo:
   por escrito sobre diseño, arquitectura o cómo funcionan los frameworks por debajo (Go,
   Flutter, Supabase). Se crean o amplían a medida que aparecen los temas. Hoy:
   `docs/go-para-devs-spring.md`, `docs/flutter-como-funciona.md`, `docs/autenticacion.md`,
-  `docs/modelo-de-datos.md`.
+  `docs/modelo-de-datos.md`, `docs/despliegue.md`.
 - Guía de entorno, emulador y comandos útiles: `mobile/README.md`.
 
 ## Stack decidido
@@ -226,7 +227,9 @@ calistenia, pero también fuerza con barra (Barra Libre) y movilidad ("flexifuer
     `catalog.Service` → router).
   - `internal/config`: configuración desde el entorno, validada al arrancar: `PORT`
     (8080), `DATABASE_URL` (el Postgres de `supabase start`), `SUPABASE_URL`
-    (`http://127.0.0.1:54321`), `REQUEST_TIMEOUT` (10s),
+    (`http://127.0.0.1:54321`), `SUPABASE_ISSUER` (por defecto `SUPABASE_URL` +
+    `/auth/v1`; se pisa cuando la API llega a Supabase por otra dirección que la que
+    figura en los tokens, p. ej. desde un contenedor), `REQUEST_TIMEOUT` (10s),
     `SHUTDOWN_TIMEOUT` (10s).
   - `internal/httpapi`: router, handlers y middleware (`logRequests` → `recoverPanics` →
     `withTimeout`, en ese orden). Rutas de la app bajo **`/v1`**, todas detrás de
@@ -305,7 +308,15 @@ calistenia, pero también fuerza con barra (Barra Libre) y movilidad ("flexifuer
   compilarlo requiere una Mac o CI en la nube, p. ej. Codemagic).
 - En el emulador Android, la PC host se alcanza en `10.0.2.2` (no `localhost`); HTTP sin
   cifrar está bloqueado por defecto en Android y hay que habilitarlo solo en desarrollo.
-- Estilo de código (más allá de gofmt / dart format), CI/CD: pendiente.
+- Despliegue (guía completa en `docs/despliegue.md`): API en Cloud Run
+  (`southamerica-east1`, `--source .` con `backend/Dockerfile` multi-etapa sobre
+  distroless, escala a cero, `--max-instances 2`), base y Auth en Supabase nube
+  (`sa-east-1`; la API conecta por el **Session pooler**, puerto 5432, IPv4;
+  `DATABASE_URL` en Secret Manager). La app de release se configura con
+  `--dart-define` (`API_BASE_URL`, `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`). Alerta de
+  presupuesto de USD 1 en Google Cloud. Registro público deshabilitado en Supabase.
+- CI: `.github/workflows/ci.yml` (gofmt, vet, tests, `sqlc diff` con sqlc 1.31.1, build
+  de Docker; dart format, analyze y tests de Flutter). CD: a mano por ahora.
 
 ## Particularidades del entorno de desarrollo
 

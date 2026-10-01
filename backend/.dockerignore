@@ -1,0 +1,6 @@
+# Lo que no entra al contexto del build: ni se copia ni invalida la cache.
+.git
+*.md
+seed/
+Dockerfile
+.dockerignore

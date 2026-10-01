@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -17,9 +18,14 @@ type Config struct {
 	Port string
 	// DatabaseURL es la conexión a Postgres (el spring.datasource.url).
 	DatabaseURL string
-	// SupabaseURL es la URL del proyecto de Supabase: de ahí salen las
-	// claves públicas para validar los tokens y el emisor esperado.
+	// SupabaseURL es la URL del proyecto de Supabase: por ahí se descargan
+	// las claves públicas para validar los tokens.
 	SupabaseURL string
+	// SupabaseIssuer es el emisor ("iss") que tienen que traer los tokens.
+	// Por defecto, SupabaseURL + "/auth/v1". Se pisa cuando la API llega a
+	// Supabase por otra dirección que la que Supabase pone en sus tokens
+	// (p. ej. desde un contenedor: host.docker.internal vs. 127.0.0.1).
+	SupabaseIssuer string
 	// RequestTimeout es el tiempo máximo para atender un request: pasado
 	// ese tiempo se cancela su contexto (y con él, las consultas en curso).
 	RequestTimeout time.Duration
@@ -55,6 +61,7 @@ func load(lookup func(string) (string, bool)) (Config, error) {
 		DatabaseURL: get("DATABASE_URL", localDatabaseURL),
 		SupabaseURL: get("SUPABASE_URL", localSupabaseURL),
 	}
+	cfg.SupabaseIssuer = get("SUPABASE_ISSUER", strings.TrimSuffix(cfg.SupabaseURL, "/")+"/auth/v1")
 
 	// Como en el importador, se juntan todos los errores: si faltan tres
 	// cosas, el mensaje dice las tres.
