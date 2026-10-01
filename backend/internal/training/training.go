@@ -14,10 +14,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"regexp"
 	"slices"
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/santinuin/naguan-app/backend/internal/db"
@@ -25,6 +27,25 @@ import (
 
 // ErrProgramNotFound: no existe la Senda pedida.
 var ErrProgramNotFound = errors.New("no existe la senda")
+
+// ErrUnknownUser: el token es válido pero el usuario ya no existe (se borró
+// la cuenta). Un JWT no se puede revocar: sigue pasando la validación hasta
+// que vence, y recién la base lo detecta al escribir (la foreign key a
+// auth.users). Para la API es un 401, no un error del servidor.
+var ErrUnknownUser = errors.New("el usuario no existe")
+
+// asUnknownUser traduce la violación de la foreign key de user_id a
+// ErrUnknownUser. errors.As busca en la cadena un *pgconn.PgError: el error
+// tipado de Postgres, con el código SQLSTATE y el nombre de la restricción.
+func asUnknownUser(err error) error {
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) &&
+		pgErr.Code == "23503" && // foreign_key_violation
+		(pgErr.ConstraintName == "workout_user_id_fkey" || pgErr.ConstraintName == "program_reset_user_id_fkey") {
+		return ErrUnknownUser
+	}
+	return err
+}
 
 // ValidationError es un problema con los datos que mandó la app (un 400). Es
 // un tipo y no una variable como ErrProgramNotFound porque lleva un mensaje
@@ -200,18 +221,24 @@ func (s *Service) ResetProgress(ctx context.Context, userID, slug string) error 
 		return fmt.Errorf("leyendo el programa %q: %w", slug, err)
 	}
 	if err := s.q.ResetProgramProgress(ctx, db.ResetProgramProgressParams{UserID: userID, ProgramID: p.ID}); err != nil {
-		return fmt.Errorf("reseteando %q: %w", slug, err)
+		return fmt.Errorf("reseteando %q: %w", slug, asUnknownUser(err))
 	}
 	return nil
 }
 
 // NewWorkout es lo que manda la app al terminar una Fragua.
 type NewWorkout struct {
+	// ClientID es la clave de idempotencia: un UUID que genera la app por
+	// cada Fragua. Si el mismo se manda dos veces (un reintento), no se
+	// crea un duplicado. Opcional, para clientes viejos.
+	ClientID   *string      `json:"client_id"`
 	SessionID  int64        `json:"session_id"`
 	StartedAt  time.Time    `json:"started_at"`
 	FinishedAt time.Time    `json:"finished_at"`
 	LocalDate  string       `json:"local_date"` // "2026-10-01", el día en el teléfono
 	Items      []ItemResult `json:"items"`
+	// Amraps son las vueltas completadas en cada bloque AMRAP.
+	Amraps []AmrapResult `json:"amraps"`
 }
 
 // ItemResult es lo que el usuario hizo en un ejercicio de la Fragua.
@@ -220,6 +247,16 @@ type ItemResult struct {
 	Reps        *int16 `json:"reps"`
 	DurationS   *int32 `json:"duration_s"`
 }
+
+// AmrapResult son las vueltas completadas en un bloque AMRAP, identificado
+// por su posición en la sesión.
+type AmrapResult struct {
+	BlockPosition int16 `json:"block_position"`
+	Rounds        int16 `json:"rounds"`
+}
+
+// uuidPattern valida el formato de un UUID (8-4-4-4-12 hexadecimales).
+var uuidPattern = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
 
 const maxWorkoutDuration = 12 * time.Hour
 
@@ -271,24 +308,51 @@ func (w NewWorkout) validate(now time.Time) (localDate time.Time, err error) {
 		}
 		seen[it.BlockItemID] = true
 	}
+
+	if w.ClientID != nil && !uuidPattern.MatchString(*w.ClientID) {
+		return time.Time{}, invalid("client_id tiene que ser un UUID")
+	}
+	seenBlock := make(map[int16]bool, len(w.Amraps))
+	for _, a := range w.Amraps {
+		switch {
+		case seenBlock[a.BlockPosition]:
+			return time.Time{}, invalid("el AMRAP del bloque %d está repetido", a.BlockPosition)
+		case a.Rounds < 0:
+			return time.Time{}, invalid("las vueltas del bloque %d son negativas", a.BlockPosition)
+		}
+		seenBlock[a.BlockPosition] = true
+	}
 	return localDate, nil
 }
 
+// errAlreadyRecorded indica, dentro de la transacción, que el client_id ya
+// estaba registrado (dos reintentos simultáneos): se deshace y se devuelve
+// el existente.
+var errAlreadyRecorded = errors.New("workout ya registrado")
+
 // RecordWorkout registra una Fragua templada y devuelve los Mojones que
-// superó.
-func (s *Service) RecordWorkout(ctx context.Context, userID string, w NewWorkout) (Workout, error) {
+// superó. created es false si la Fragua ya estaba registrada con el mismo
+// client_id (un reintento): en ese caso se devuelve la existente, sin
+// Mojones (ya se informaron la primera vez).
+func (s *Service) RecordWorkout(ctx context.Context, userID string, w NewWorkout) (out Workout, created bool, err error) {
 	localDate, err := w.validate(time.Now())
 	if err != nil {
-		return Workout{}, err
+		return Workout{}, false, err
 	}
 
-	var out Workout
-	err = s.inTx(ctx, func(q *db.Queries) error {
-		session, err := q.GetSession(ctx, w.SessionID)
-		if errors.Is(err, pgx.ErrNoRows) {
-			return invalid("no existe la sesión %d", w.SessionID)
+	// Idempotencia: si ya está, se devuelve la existente sin tocar nada.
+	if w.ClientID != nil {
+		if existing, ok, err := s.workoutByClientID(ctx, userID, *w.ClientID); err != nil || ok {
+			return existing, false, err
 		}
-		if err != nil {
+	}
+
+	var id int64
+	var records []Record
+	err = s.inTx(ctx, func(q *db.Queries) error {
+		if _, err := q.GetSession(ctx, w.SessionID); errors.Is(err, pgx.ErrNoRows) {
+			return invalid("no existe la sesión %d", w.SessionID)
+		} else if err != nil {
 			return fmt.Errorf("leyendo la sesión: %w", err)
 		}
 
@@ -313,43 +377,118 @@ func (s *Service) RecordWorkout(ctx context.Context, userID string, w NewWorkout
 			}
 		}
 
+		// Las vueltas, solo para bloques AMRAP de esta sesión.
+		amrapPositions, err := q.ListSessionAmrapPositions(ctx, w.SessionID)
+		if err != nil {
+			return fmt.Errorf("leyendo los bloques de la sesión: %w", err)
+		}
+		for _, a := range w.Amraps {
+			if !slices.Contains(amrapPositions, a.BlockPosition) {
+				return invalid("el bloque %d no es un AMRAP de la sesión %d", a.BlockPosition, w.SessionID)
+			}
+		}
+
 		// Las marcas previas se leen ANTES de insertar: si no, la Fragua
 		// nueva se compararía contra sí misma.
-		records, err := newRecords(ctx, q, userID, w.Items, byID)
+		records, err = newRecords(ctx, q, userID, w.Items, byID)
 		if err != nil {
 			return err
 		}
 
-		id, err := q.CreateWorkout(ctx, db.CreateWorkoutParams{
-			UserID: userID, SessionID: w.SessionID,
+		id, err = q.CreateWorkout(ctx, db.CreateWorkoutParams{
+			UserID: userID, SessionID: w.SessionID, ClientID: w.ClientID,
 			StartedAt: w.StartedAt, FinishedAt: w.FinishedAt, LocalDate: localDate,
 		})
+		if isUniqueViolation(err, "workout_client_id_per_user") {
+			// Otro request con el mismo client_id ganó la carrera entre
+			// nuestra búsqueda y este insert: la base lo detectó.
+			return errAlreadyRecorded
+		}
 		if err != nil {
-			return fmt.Errorf("creando el workout: %w", err)
+			return fmt.Errorf("creando el workout: %w", asUnknownUser(err))
 		}
 
-		rows := make([]db.CreateWorkoutItemsParams, len(w.Items))
+		items := make([]db.CreateWorkoutItemsParams, len(w.Items))
 		for i, it := range w.Items {
-			rows[i] = db.CreateWorkoutItemsParams{
+			items[i] = db.CreateWorkoutItemsParams{
 				WorkoutID: id, BlockItemID: it.BlockItemID, Reps: it.Reps, DurationS: it.DurationS,
 			}
 		}
-		if _, err := q.CreateWorkoutItems(ctx, rows); err != nil {
+		if _, err := q.CreateWorkoutItems(ctx, items); err != nil {
 			return fmt.Errorf("guardando los ítems: %w", err)
 		}
 
-		out.ID = id
-		out.Session = SessionRef{ID: session.ID, Title: session.Title}
-		out.NewRecords = records
+		amraps := make([]db.CreateWorkoutAmrapsParams, len(w.Amraps))
+		for i, a := range w.Amraps {
+			amraps[i] = db.CreateWorkoutAmrapsParams{WorkoutID: id, BlockPosition: a.BlockPosition, Rounds: a.Rounds}
+		}
+		if _, err := q.CreateWorkoutAmraps(ctx, amraps); err != nil {
+			return fmt.Errorf("guardando las vueltas de los AMRAP: %w", err)
+		}
 		return nil
 	})
-	if err != nil {
-		return Workout{}, err
+	if errors.Is(err, errAlreadyRecorded) {
+		existing, _, err := s.workoutByClientID(ctx, userID, *w.ClientID)
+		return existing, false, err
 	}
-	out.StartedAt, out.FinishedAt = w.StartedAt.UTC(), w.FinishedAt.UTC()
-	out.LocalDate = w.LocalDate
-	out.DurationS = int64(w.FinishedAt.Sub(w.StartedAt).Seconds())
-	return out, nil
+	if err != nil {
+		return Workout{}, false, err
+	}
+
+	out, err = s.workout(ctx, userID, id)
+	if err != nil {
+		return Workout{}, false, err
+	}
+	out.NewRecords = records
+	return out, true, nil
+}
+
+// workoutByClientID devuelve el workout registrado con ese client_id, si
+// existe (ok = false si no).
+func (s *Service) workoutByClientID(ctx context.Context, userID, clientID string) (w Workout, ok bool, err error) {
+	id, err := s.q.GetWorkoutIDByClientID(ctx, db.GetWorkoutIDByClientIDParams{UserID: userID, ClientID: &clientID})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Workout{}, false, nil
+	}
+	if err != nil {
+		return Workout{}, false, fmt.Errorf("buscando el client_id: %w", err)
+	}
+	w, err = s.workout(ctx, userID, id)
+	return w, err == nil, err
+}
+
+// workout lee un workout del usuario con la forma de la respuesta.
+func (s *Service) workout(ctx context.Context, userID string, id int64) (Workout, error) {
+	r, err := s.q.GetWorkout(ctx, db.GetWorkoutParams{UserID: userID, ID: id})
+	if err != nil {
+		return Workout{}, fmt.Errorf("leyendo el workout %d: %w", id, err)
+	}
+	return workoutFromRow(r.ID, r.SessionID, r.SessionTitle, r.ProgramSlug, r.ProgramName,
+		r.StartedAt, r.FinishedAt, r.LocalDate), nil
+}
+
+func workoutFromRow(id, sessionID int64, title, programSlug, programName string,
+	started, finished, localDate time.Time,
+) Workout {
+	w := Workout{
+		ID:         id,
+		Session:    SessionRef{ID: sessionID, Title: title},
+		StartedAt:  started.UTC(),
+		FinishedAt: finished.UTC(),
+		LocalDate:  localDate.Format(time.DateOnly),
+		DurationS:  int64(finished.Sub(started).Seconds()),
+	}
+	if programSlug != "" { // '' = sesión sin Senda (ver la consulta)
+		w.Program = &ProgramRef{Slug: programSlug, Name: programName}
+	}
+	return w
+}
+
+// isUniqueViolation dice si err es una violación de la restricción única
+// indicada (SQLSTATE 23505).
+func isUniqueViolation(err error, constraint string) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == "23505" && pgErr.ConstraintName == constraint
 }
 
 // newRecords compara lo que se hizo en esta Fragua con las marcas previas
@@ -419,18 +558,8 @@ func (s *Service) ListWorkouts(ctx context.Context, userID string, limit int32) 
 	}
 	out := make([]Workout, 0, len(rows))
 	for _, r := range rows {
-		w := Workout{
-			ID:         r.ID,
-			Session:    SessionRef{ID: r.SessionID, Title: r.SessionTitle},
-			StartedAt:  r.StartedAt.UTC(),
-			FinishedAt: r.FinishedAt.UTC(),
-			LocalDate:  r.LocalDate.Format(time.DateOnly),
-			DurationS:  int64(r.FinishedAt.Sub(r.StartedAt).Seconds()),
-		}
-		if r.ProgramSlug != "" { // '' = sesión sin Senda (ver la consulta)
-			w.Program = &ProgramRef{Slug: r.ProgramSlug, Name: r.ProgramName}
-		}
-		out = append(out, w)
+		out = append(out, workoutFromRow(r.ID, r.SessionID, r.SessionTitle, r.ProgramSlug, r.ProgramName,
+			r.StartedAt, r.FinishedAt, r.LocalDate))
 	}
 	return out, nil
 }

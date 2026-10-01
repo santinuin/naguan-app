@@ -1,105 +1,150 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:naguan_app/catalog/catalog_client.dart';
 import 'package:naguan_app/catalog/program.dart';
 import 'package:naguan_app/catalog/program_screen.dart';
-import 'package:naguan_app/catalog/program_summary.dart';
 import 'package:naguan_app/catalog/programs_screen.dart';
+import 'package:naguan_app/common/api_client.dart';
 import 'package:naguan_app/theme/forja_theme.dart';
+import 'package:naguan_app/training/training_models.dart';
 
 import 'fake_catalog_client.dart';
 
-Future<void> pumpScreen(WidgetTester tester, CatalogClient client) {
+const someStats = Stats(brasa: Brasa(days: 4, atRisk: false), totalWorkouts: 9);
+
+ProgramProgress progress(
+  String slug,
+  String name, {
+  int completed = 0,
+  int total = 10,
+  SessionRef? next,
+  Set<int> done = const {},
+}) => ProgramProgress(
+  slug: slug,
+  name: name,
+  completed: completed,
+  total: total,
+  next: next,
+  completedSessionIds: done,
+);
+
+Future<void> pumpScreen(
+  WidgetTester tester,
+  FakeCatalogClient catalog,
+  FakeTrainingClient training,
+) {
   return tester.pumpWidget(
     MaterialApp(
       theme: forjaHierro,
-      home: ProgramsScreen(client: client, onSignOut: () {}),
+      home: ProgramsScreen(
+        catalog: catalog,
+        training: fakeServices(client: training),
+        onSignOut: () {},
+      ),
     ),
   );
 }
 
-void main() {
-  testWidgets('muestra un indicador mientras carga', (tester) async {
-    await pumpScreen(tester, FakeCatalogClient());
+/// Completa la carga de la pantalla de inicio (progreso + stats).
+Future<void> loadHome(
+  WidgetTester tester,
+  FakeTrainingClient training,
+  List<ProgramProgress> programs, {
+  Stats stats = someStats,
+}) async {
+  // El flush de la cola (vacía) y la lectura del disco son asincrónicos:
+  // un pump deja que corran antes de que salgan los requests.
+  await tester.pump();
+  training.progressCalls.last.complete(programs);
+  training.statsCalls.last.complete(stats);
+  await tester.pump();
+}
 
+void main() {
+  testWidgets('pide progreso y stats en paralelo, y muestra un indicador', (
+    tester,
+  ) async {
+    final training = FakeTrainingClient();
+    await pumpScreen(tester, FakeCatalogClient(), training);
+    await tester.pump(); // el flush de la cola (vacía) va primero
+
+    // Los dos requests salieron a la vez (sin esperar uno al otro).
+    expect(training.progressCalls, hasLength(1));
+    expect(training.statsCalls, hasLength(1));
     expect(find.byType(CircularProgressIndicator), findsOneWidget);
   });
 
-  testWidgets('muestra las sendas con su cantidad de fraguas', (tester) async {
-    final client = FakeCatalogClient();
-    await pumpScreen(tester, client);
+  testWidgets('muestra la brasa y las sendas con su progreso', (tester) async {
+    final training = FakeTrainingClient();
+    await pumpScreen(tester, FakeCatalogClient(), training);
 
-    client.programsCalls.single.complete(const [
-      ProgramSummary(
-        slug: 'unbreakable',
-        name: 'Unbreakable',
-        sessionCount: 50,
-      ),
-      ProgramSummary(
-        slug: 'solo',
-        name: 'Solo',
-        sessionCount: 1,
-        description: 'Una prueba.',
-      ),
+    await loadHome(tester, training, [
+      progress('unbreakable', 'Unbreakable', completed: 3, total: 50),
     ]);
-    await tester.pump();
 
     expect(find.text('SENDAS'), findsOneWidget);
+    expect(find.text('4'), findsOneWidget); // días de brasa
     expect(find.text('UNBREAKABLE'), findsOneWidget);
-    expect(find.text('50 FRAGUAS'), findsOneWidget);
-    // Singular y descripción opcional.
-    expect(find.text('1 FRAGUA'), findsOneWidget);
-    expect(find.text('Una prueba.'), findsOneWidget);
+    expect(find.text('3 / 50 FRAGUAS'), findsOneWidget);
+  });
+
+  testWidgets('avisa cuando la brasa está en riesgo', (tester) async {
+    final training = FakeTrainingClient();
+    await pumpScreen(tester, FakeCatalogClient(), training);
+
+    await loadHome(
+      tester,
+      training,
+      [],
+      stats: const Stats(brasa: Brasa(days: 6, atRisk: true), totalWorkouts: 6),
+    );
+
+    expect(find.text('No la dejes apagar.'), findsOneWidget);
   });
 
   testWidgets('ante un error permite reintentar', (tester) async {
-    final client = FakeCatalogClient();
-    await pumpScreen(tester, client);
+    final training = FakeTrainingClient();
+    await pumpScreen(tester, FakeCatalogClient(), training);
 
-    client.programsCalls.single.completeError(
-      const CatalogException('sin red'),
-    );
     await tester.pump();
-
+    training.progressCalls.single.completeError(const ApiException('sin red'));
+    training.statsCalls.single.complete(someStats);
+    await tester.pump();
     expect(find.text('SIN SEÑAL'), findsOneWidget);
 
     await tester.tap(find.text('REINTENTAR'));
     await tester.pump();
-
-    // Un request nuevo, y la pantalla vuelve a "cargando".
-    expect(client.programsCalls, hasLength(2));
-    expect(find.byType(CircularProgressIndicator), findsOneWidget);
-
-    client.programsCalls.last.complete(const []);
     await tester.pump();
 
+    expect(training.progressCalls, hasLength(2));
+    await loadHome(tester, training, []);
     expect(find.text('SENDAS'), findsOneWidget);
   });
 
-  testWidgets('tocar una senda abre su pantalla y "atrás" vuelve', (
+  testWidgets('abre la senda con checks y al volver recarga el inicio', (
     tester,
   ) async {
-    final client = FakeCatalogClient();
-    await pumpScreen(tester, client);
-    client.programsCalls.single.complete(const [
-      ProgramSummary(slug: 'ring-master', name: 'Ring Master', sessionCount: 2),
+    // El árbol de semántica (lo que leen los lectores de pantalla) está
+    // apagado por defecto en los tests: lo encendemos para buscar el check
+    // por su etiqueta, y lo liberamos al final con dispose.
+    final semantics = tester.ensureSemantics();
+    final catalog = FakeCatalogClient();
+    final training = FakeTrainingClient();
+    await pumpScreen(tester, catalog, training);
+    await loadHome(tester, training, [
+      progress('ring-master', 'Ring Master', total: 2),
     ]);
-    await tester.pump();
 
     await tester.tap(find.text('RING MASTER'));
     // Dos frames: en el primero, Flutter construye ProgramScreen fuera de
-    // escena (offstage) para preparar la transición, y los find no lo ven;
-    // en el siguiente ya está en escena. Ojo: acá NO sirve pumpAndSettle.
-    // Espera a que no queden animaciones, y el CircularProgressIndicator de
-    // la carga gira para siempre: el test se colgaría ("pumpAndSettle timed
-    // out").
+    // escena (offstage) para preparar la transición, y los find no lo ven.
+    // Ojo: acá NO sirve pumpAndSettle: espera a que no queden animaciones,
+    // y el indicador de carga gira para siempre.
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 100));
-
     expect(find.byType(ProgramScreen), findsOneWidget);
-    expect(client.requestedSlugs, ['ring-master']);
+    expect(catalog.requestedSlugs, ['ring-master']);
 
-    client.programCalls.single.complete(
+    catalog.programCalls.single.complete(
       const Program(
         slug: 'ring-master',
         name: 'Ring Master',
@@ -109,18 +154,35 @@ void main() {
         ],
       ),
     );
+    training.programProgressCalls.single.complete(
+      progress(
+        'ring-master',
+        'Ring Master',
+        completed: 1,
+        total: 2,
+        next: const SessionRef(position: 2, id: 11, title: 'Fuerza'),
+        done: {10},
+      ),
+    );
     // Con la carga terminada ya no hay animaciones infinitas: pumpAndSettle
-    // bombea frames hasta que termina la transición entre pantallas.
+    // espera a que termine la transición.
     await tester.pumpAndSettle();
 
-    expect(find.text('FRAGUA 01'), findsOneWidget);
-    expect(find.text('Fuerza'), findsOneWidget);
+    // El InkWell de la fila fusiona la semántica de sus hijos en un nodo
+    // ("Templada, FRAGUA 01, Fundamentos"): un lector de pantalla anuncia la
+    // fila entera. Por eso se busca con una expresión regular y no con la
+    // etiqueta exacta. "Sin templar" no matchea: la regex distingue
+    // mayúsculas.
+    expect(find.bySemanticsLabel(RegExp('Templada')), findsOneWidget);
+    expect(find.text('SIGUE'), findsOneWidget);
 
-    // El botón "atrás" del AppBar hace pop: vuelve a la lista.
+    // Volver: la pantalla de inicio se recarga (la key de LoadView cambió).
     await tester.tap(find.byType(BackButton));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pump();
 
-    expect(find.text('SENDAS'), findsOneWidget);
-    expect(find.byType(ProgramScreen), findsNothing);
+    expect(training.progressCalls, hasLength(2));
+    semantics.dispose();
   });
 }

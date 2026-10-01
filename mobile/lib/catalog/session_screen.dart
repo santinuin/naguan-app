@@ -6,17 +6,22 @@ import 'package:naguan_app/common/load_view.dart';
 import 'package:naguan_app/theme/forja_pill.dart';
 import 'package:naguan_app/theme/forja_theme.dart';
 import 'package:naguan_app/theme/forja_tokens.dart';
+import 'package:naguan_app/training/execution/execution_screen.dart';
+import 'package:naguan_app/training/training_services.dart';
 
-/// Una Fragua (sesión): su descripción y sus bloques, vuelta por vuelta.
+/// Una Fragua (sesión): su descripción y sus bloques, vuelta por vuelta, y
+/// el botón para empezarla.
 class SessionScreen extends StatelessWidget {
   const SessionScreen({
     super.key,
-    required this.client,
+    required this.catalog,
+    required this.training,
     required this.id,
     required this.label,
   });
 
-  final CatalogClient client;
+  final CatalogClient catalog;
+  final TrainingServices training;
   final int id;
 
   /// Contexto que viene de la pantalla anterior: "UNBREAKABLE · FRAGUA 01".
@@ -27,9 +32,35 @@ class SessionScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(),
       body: LoadView<Session>(
-        load: () => client.fetchSession(id),
-        builder: (context, session) =>
-            _SessionDetail(label: label, session: session),
+        load: () => catalog.fetchSession(id),
+        builder: (context, session) => Column(
+          children: [
+            Expanded(
+              child: _SessionDetail(label: label, session: session),
+            ),
+            // El CTA fijo abajo, fuera del scroll: siempre a mano.
+            SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.all(ForjaSpace.s4),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => ExecutionScreen(
+                          session: session,
+                          training: training,
+                        ),
+                      ),
+                    ),
+                    child: const Text('A LA FRAGUA'),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

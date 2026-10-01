@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:naguan_app/catalog/format.dart';
@@ -20,6 +22,7 @@ const sessionJson = {
       'type': 'rounds_with_rest',
       'items': [
         {
+          'id': 1,
           'round': 1,
           'position': 1,
           'kind': 'exercise',
@@ -27,8 +30,9 @@ const sessionJson = {
           'side': 'right',
           'duration_s': 60,
         },
-        {'round': 1, 'position': 2, 'kind': 'rest', 'duration_s': 40},
+        {'id': 50, 'round': 1, 'position': 2, 'kind': 'rest', 'duration_s': 40},
         {
+          'id': 2,
           'round': 2,
           'position': 1,
           'kind': 'exercise',
@@ -44,6 +48,7 @@ const sessionJson = {
       'time_cap_s': 900,
       'items': [
         {
+          'id': 3,
           'round': 1,
           'position': 1,
           'kind': 'exercise',
@@ -92,6 +97,7 @@ void main() {
 
   group('Block.roundGroups', () {
     Map<String, dynamic> exercise(int round, {int? reps, int? seconds}) => {
+      'id': round * 10 + 1,
       'round': round,
       'position': 1,
       'kind': 'exercise',
@@ -100,6 +106,7 @@ void main() {
       'duration_s': ?seconds,
     };
     Map<String, dynamic> rest(int round, int seconds) => {
+      'id': round * 10 + 2,
       'round': round,
       'position': 2,
       'kind': 'rest',
@@ -133,6 +140,18 @@ void main() {
     });
   });
 
+  test('toJson es el inverso de fromJson (para guardar en el teléfono)', () {
+    final session = Session.fromJson(sessionJson);
+
+    final again = Session.fromJson(
+      jsonDecode(jsonEncode(session.toJson())) as Map<String, dynamic>,
+    );
+
+    expect(jsonEncode(again.toJson()), jsonEncode(session.toJson()));
+    expect(again.blocks.last.timeCapS, 900);
+    expect(again.blocks.first.items.first.side, Side.right);
+  });
+
   group('formatDuration', () {
     const cases = {
       10: '10 s',
@@ -153,7 +172,12 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         theme: forjaHierro,
-        home: SessionScreen(client: client, id: 1, label: 'X · FRAGUA 01'),
+        home: SessionScreen(
+          catalog: client,
+          training: fakeServices(),
+          id: 1,
+          label: 'X · FRAGUA 01',
+        ),
       ),
     );
 

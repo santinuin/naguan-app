@@ -9,6 +9,40 @@ import (
 	"context"
 )
 
+// iteratorForCreateWorkoutAmraps implements pgx.CopyFromSource.
+type iteratorForCreateWorkoutAmraps struct {
+	rows                 []CreateWorkoutAmrapsParams
+	skippedFirstNextCall bool
+}
+
+func (r *iteratorForCreateWorkoutAmraps) Next() bool {
+	if len(r.rows) == 0 {
+		return false
+	}
+	if !r.skippedFirstNextCall {
+		r.skippedFirstNextCall = true
+		return true
+	}
+	r.rows = r.rows[1:]
+	return len(r.rows) > 0
+}
+
+func (r iteratorForCreateWorkoutAmraps) Values() ([]interface{}, error) {
+	return []interface{}{
+		r.rows[0].WorkoutID,
+		r.rows[0].BlockPosition,
+		r.rows[0].Rounds,
+	}, nil
+}
+
+func (r iteratorForCreateWorkoutAmraps) Err() error {
+	return nil
+}
+
+func (q *Queries) CreateWorkoutAmraps(ctx context.Context, arg []CreateWorkoutAmrapsParams) (int64, error) {
+	return q.db.CopyFrom(ctx, []string{"workout_amrap"}, []string{"workout_id", "block_position", "rounds"}, &iteratorForCreateWorkoutAmraps{rows: arg})
+}
+
 // iteratorForCreateWorkoutItems implements pgx.CopyFromSource.
 type iteratorForCreateWorkoutItems struct {
 	rows                 []CreateWorkoutItemsParams

@@ -14,7 +14,9 @@ import (
 // fakeTraining registra con qué usuario y datos lo llamaron, y devuelve err
 // si está configurado.
 type fakeTraining struct {
-	err        error
+	err error
+	// duplicate simula un client_id ya registrado.
+	duplicate  bool
 	gotUserID  string
 	gotSlug    string
 	gotWorkout training.NewWorkout
@@ -39,9 +41,9 @@ func (f *fakeTraining) ResetProgress(_ context.Context, uid, slug string) error 
 	return f.err
 }
 
-func (f *fakeTraining) RecordWorkout(_ context.Context, uid string, w training.NewWorkout) (training.Workout, error) {
+func (f *fakeTraining) RecordWorkout(_ context.Context, uid string, w training.NewWorkout) (training.Workout, bool, error) {
 	f.gotUserID, f.gotWorkout = uid, w
-	return training.Workout{ID: 7}, f.err
+	return training.Workout{ID: 7}, !f.duplicate, f.err
 }
 
 func (f *fakeTraining) ListWorkouts(_ context.Context, uid string, limit int32) ([]training.Workout, error) {
@@ -91,6 +93,11 @@ func TestProgressEndpoints(t *testing.T) {
 		t.Errorf("DELETE progreso: status %d, want 204", rec.Code)
 	}
 
+	gone := &fakeTraining{err: training.ErrUnknownUser}
+	if rec := doTraining(t, gone, http.MethodDelete, "/v1/me/programs/aurum/progress", ""); rec.Code != http.StatusUnauthorized {
+		t.Errorf("usuario borrado: status %d, want 401", rec.Code)
+	}
+
 	missing := &fakeTraining{err: training.ErrProgramNotFound}
 	if rec := doTraining(t, missing, http.MethodGet, "/v1/me/programs/nada", ""); rec.Code != http.StatusNotFound {
 		t.Errorf("senda inexistente: status %d, want 404", rec.Code)
@@ -116,6 +123,18 @@ func TestRecordWorkoutEndpoint(t *testing.T) {
 	if w.SessionID != 3 || len(w.Items) != 1 || *w.Items[0].Reps != 12 ||
 		!w.FinishedAt.Equal(time.Date(2026, 10, 1, 20, 40, 0, 0, time.UTC)) {
 		t.Errorf("workout decodificado = %+v", w)
+	}
+}
+
+func TestRecordWorkoutIdempotent(t *testing.T) {
+	body := `{"client_id": "0f8fad5b-d9cb-469f-a165-70867728950e", "session_id": 3,
+		"started_at": "2026-10-01T20:00:00Z", "finished_at": "2026-10-01T20:40:00Z",
+		"local_date": "2026-10-01", "items": [], "amraps": [{"block_position": 2, "rounds": 7}]}`
+
+	rec := doTraining(t, &fakeTraining{duplicate: true}, http.MethodPost, "/v1/me/workouts", body)
+
+	if rec.Code != http.StatusOK {
+		t.Errorf("reintento: status = %d, want 200 (no 201)", rec.Code)
 	}
 }
 

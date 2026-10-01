@@ -281,6 +281,13 @@ type Workout struct {
 	StartedAt  time.Time
 	FinishedAt time.Time
 	LocalDate  time.Time
+	ClientID   *string
+}
+
+type WorkoutAmrap struct {
+	WorkoutID     int64
+	BlockPosition int16
+	Rounds        int16
 }
 
 type WorkoutItem struct {

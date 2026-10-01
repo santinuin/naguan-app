@@ -1,40 +1,113 @@
 import 'package:flutter/material.dart';
 import 'package:naguan_app/catalog/catalog_client.dart';
 import 'package:naguan_app/catalog/program_screen.dart';
-import 'package:naguan_app/catalog/program_summary.dart';
 import 'package:naguan_app/common/load_view.dart';
 import 'package:naguan_app/theme/forja_pill.dart';
+import 'package:naguan_app/theme/forja_theme.dart';
 import 'package:naguan_app/theme/forja_tokens.dart';
+import 'package:naguan_app/training/training_services.dart';
+import 'package:naguan_app/training/execution/execution_screen.dart';
+import 'package:naguan_app/training/offline/active_workout_store.dart';
+import 'package:naguan_app/training/training_models.dart';
 
-/// Lista de Sendas (programas) del catálogo. Es la pantalla de inicio.
-///
-/// Ahora es un StatelessWidget: el estado de la carga (el Future en curso)
-/// vive dentro de LoadView.
-class ProgramsScreen extends StatelessWidget {
+/// La pantalla de inicio: la Brasa y las Sendas con el progreso del usuario.
+class ProgramsScreen extends StatefulWidget {
   const ProgramsScreen({
     super.key,
-    required this.client,
+    required this.catalog,
+    required this.training,
     required this.onSignOut,
   });
 
-  final CatalogClient client;
+  final CatalogClient catalog;
+  final TrainingServices training;
 
   /// Qué hacer al tocar SALIR. La pantalla no sabe de autenticación: recibe
-  /// la acción ya armada (un callback), igual que recibe el cliente.
+  /// la acción ya armada (un callback), igual que recibe los clientes.
   final VoidCallback onSignOut;
+
+  @override
+  State<ProgramsScreen> createState() => _ProgramsScreenState();
+}
+
+class _ProgramsScreenState extends State<ProgramsScreen> {
+  /// Sube cada vez que hay que recargar (al volver de una Senda, donde quizá
+  /// se templó una Fragua). Ver la key de LoadView en build().
+  int _version = 0;
+
+  /// Carga el inicio. Primero intenta registrar las Fraguas que quedaron en
+  /// la cola (sin señal al terminarlas): así el progreso y la Brasa ya las
+  /// incluyen. Después, en paralelo, el progreso, la Brasa y la Fragua en
+  /// curso guardada en el teléfono. `(a, b, c).wait` (Dart 3) espera un
+  /// record de Futures y devuelve un record con los resultados.
+  Future<_Home> _load() async {
+    final training = widget.training;
+    final pendingLeft = await training.pending.flush(training.client);
+    final (programs, stats, active) = await (
+      training.client.fetchProgress(),
+      training.client.fetchStats(),
+      training.activeWorkout.load(),
+    ).wait;
+    return (
+      programs: programs,
+      stats: stats,
+      active: active,
+      pendingLeft: pendingLeft,
+    );
+  }
+
+  Future<void> _resume(SavedWorkout saved) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => ExecutionScreen(
+          session: saved.session,
+          training: widget.training,
+          restored: saved.snapshot,
+        ),
+      ),
+    );
+    if (mounted) setState(() => _version++);
+  }
+
+  Future<void> _discardActive() async {
+    await widget.training.activeWorkout.clear();
+    if (mounted) setState(() => _version++);
+  }
+
+  Future<void> _open(ProgramProgress program) async {
+    // push devuelve un Future que se completa cuando esa pantalla hace pop:
+    // así sabemos que el usuario volvió.
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => ProgramScreen(
+          catalog: widget.catalog,
+          training: widget.training,
+          slug: program.slug,
+          name: program.name,
+        ),
+      ),
+    );
+    if (mounted) setState(() => _version++);
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        child: LoadView<List<ProgramSummary>>(
-          // Un tear-off: se pasa el método sin llamarlo (sin paréntesis),
-          // como una method reference `client::fetchPrograms` en Java.
-          load: client.fetchPrograms,
-          builder: (context, programs) => _ProgramList(
-            client: client,
-            programs: programs,
-            onSignOut: onSignOut,
+        child: LoadView<_Home>(
+          // Una key nueva hace que Flutter trate a LoadView como un widget
+          // distinto: desmonta el anterior y monta uno nuevo, que vuelve a
+          // correr initState (y con él, la carga). Es la forma idiomática de
+          // "reiniciar" un widget con estado desde afuera.
+          key: ValueKey(_version),
+          load: _load,
+          // El builder recibe el record y lo desarma con un patrón.
+          builder: (context, home) => _ProgramList(
+            home: home,
+            onOpen: _open,
+            onResume: _resume,
+            onDiscardActive: _discardActive,
+            onSignOut: widget.onSignOut,
           ),
         ),
       ),
@@ -42,64 +115,180 @@ class ProgramsScreen extends StatelessWidget {
   }
 }
 
+/// Lo que muestra el inicio. Un record con nombres (Dart 3): como un struct
+/// liviano, sin declarar una clase.
+typedef _Home = ({
+  List<ProgramProgress> programs,
+  Stats stats,
+  SavedWorkout? active,
+  int pendingLeft,
+});
+
 class _ProgramList extends StatelessWidget {
   const _ProgramList({
-    required this.client,
-    required this.programs,
+    required this.home,
+    required this.onOpen,
+    required this.onResume,
+    required this.onDiscardActive,
     required this.onSignOut,
   });
 
-  final CatalogClient client;
-  final List<ProgramSummary> programs;
+  final _Home home;
+  final void Function(ProgramProgress) onOpen;
+  final void Function(SavedWorkout) onResume;
+  final VoidCallback onDiscardActive;
   final VoidCallback onSignOut;
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
 
-    // ListView.separated (como ListView.builder, más un separador entre
-    // elementos) construye solo los elementos visibles, a medida que se
-    // scrollea, como un RecyclerView.
-    return ListView.separated(
+    // Un ListView con children fijos: con pocas Sendas, construirlas todas
+    // no cuesta nada, y así se arma fácil una columna con elementos
+    // opcionales (la Fragua en curso, la cola).
+    return ListView(
       padding: const EdgeInsets.fromLTRB(
         ForjaSpace.s4,
         ForjaSpace.s12,
         ForjaSpace.s4,
         ForjaSpace.s8,
       ),
-      // +1: el primer elemento es el título de la pantalla, que scrollea
-      // junto con la lista.
-      itemCount: programs.length + 1,
-      separatorBuilder: (_, index) =>
-          SizedBox(height: index == 0 ? ForjaSpace.s8 : ForjaSpace.s6),
-      itemBuilder: (context, index) {
-        if (index == 0) {
-          return Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // La única palabra hero de la pantalla. Expanded le da el
-              // ancho que sobra, y el botón queda a la derecha.
-              Expanded(child: Text('SENDAS', style: textTheme.displayLarge)),
-              TextButton(onPressed: onSignOut, child: const Text('SALIR')),
-            ],
-          );
-        }
-        final program = programs[index - 1];
-        return _ProgramCard(
-          program: program,
-          onTap: () => Navigator.of(context).push(
-            // Una ruta nueva arriba de la pila: la pantalla anterior queda
-            // abajo, y el botón "atrás" la vuelve a mostrar (pop).
-            MaterialPageRoute<void>(
-              builder: (_) => ProgramScreen(
-                client: client,
-                slug: program.slug,
-                name: program.name,
-              ),
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // La única palabra hero de la pantalla.
+            Expanded(child: Text('SENDAS', style: textTheme.displayLarge)),
+            TextButton(onPressed: onSignOut, child: const Text('SALIR')),
+          ],
+        ),
+        const SizedBox(height: ForjaSpace.s8),
+        _BrasaBanner(stats: home.stats),
+        if (home.active case final active?) ...[
+          const SizedBox(height: ForjaSpace.s6),
+          _ActiveWorkoutCard(
+            saved: active,
+            onResume: () => onResume(active),
+            onDiscard: onDiscardActive,
+          ),
+        ],
+        if (home.pendingLeft > 0) ...[
+          const SizedBox(height: ForjaSpace.s6),
+          Text(
+            home.pendingLeft == 1
+                ? '1 fragua sin registrar: se registra cuando vuelva la señal.'
+                : '${home.pendingLeft} fraguas sin registrar: se registran '
+                      'cuando vuelva la señal.',
+            style: textTheme.bodyLarge?.copyWith(
+              color: context.forja.palette.inkMuted,
             ),
           ),
-        );
-      },
+        ],
+        for (final program in home.programs) ...[
+          const SizedBox(height: ForjaSpace.s6),
+          _ProgramCard(program: program, onTap: () => onOpen(program)),
+        ],
+      ],
+    );
+  }
+}
+
+/// Una Fragua que quedó a medias (el sistema cerró la app): retomarla o
+/// descartarla.
+class _ActiveWorkoutCard extends StatelessWidget {
+  const _ActiveWorkoutCard({
+    required this.saved,
+    required this.onResume,
+    required this.onDiscard,
+  });
+
+  final SavedWorkout saved;
+  final VoidCallback onResume;
+  final VoidCallback onDiscard;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(ForjaSpace.s4),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('FRAGUA EN CURSO', style: textTheme.labelSmall),
+            const SizedBox(height: ForjaSpace.s1),
+            Text(
+              saved.session.title.toUpperCase(),
+              style: textTheme.titleLarge,
+            ),
+            const SizedBox(height: ForjaSpace.s4),
+            Row(
+              children: [
+                TextButton(
+                  onPressed: onDiscard,
+                  child: const Text('DESCARTAR'),
+                ),
+                const SizedBox(width: ForjaSpace.s2),
+                Expanded(
+                  child: FilledButton(
+                    onPressed: onResume,
+                    child: const Text('RETOMAR'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// La Brasa: la racha de días, y el aviso si está por apagarse.
+class _BrasaBanner extends StatelessWidget {
+  const _BrasaBanner({required this.stats});
+
+  final Stats stats;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final forja = context.forja;
+    final brasa = stats.brasa;
+
+    final String message;
+    if (!brasa.isLit) {
+      message = 'Prendé la brasa: templá una Fragua.';
+    } else if (brasa.atRisk) {
+      message = 'No la dejes apagar.';
+    } else {
+      message = '${stats.totalWorkouts} fraguas templadas.';
+    }
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Text('${brasa.days}', style: forja.stat),
+        const SizedBox(width: ForjaSpace.s4),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                brasa.days == 1 ? 'BRASA · DÍA' : 'BRASA · DÍAS',
+                style: textTheme.labelSmall,
+              ),
+              const SizedBox(height: ForjaSpace.s1),
+              Text(
+                message,
+                style: brasa.atRisk
+                    ? forja.bodyStrong.copyWith(color: forja.palette.accentText)
+                    : textTheme.bodyLarge,
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
@@ -107,13 +296,12 @@ class _ProgramList extends StatelessWidget {
 class _ProgramCard extends StatelessWidget {
   const _ProgramCard({required this.program, required this.onTap});
 
-  final ProgramSummary program;
+  final ProgramProgress program;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-    final sessions = program.sessionCount;
 
     // Card toma borde, radio y color del cardTheme de Forja. clipBehavior
     // recorta el efecto del toque (InkWell) a las esquinas redondeadas.
@@ -128,13 +316,14 @@ class _ProgramCard extends StatelessWidget {
             children: [
               Text(program.name.toUpperCase(), style: textTheme.titleLarge),
               const SizedBox(height: ForjaSpace.s2),
-              ForjaPill('$sessions ${sessions == 1 ? 'fragua' : 'fraguas'}'),
-              // `if` dentro de una lista de widgets (collection if): el
-              // elemento solo existe si hay descripción.
-              if (program.description case final description?) ...[
-                const SizedBox(height: ForjaSpace.s4),
-                Text(description),
-              ],
+              ForjaPill('${program.completed} / ${program.total} fraguas'),
+              const SizedBox(height: ForjaSpace.s4),
+              // La barra de progreso: el acento marca lo templado.
+              LinearProgressIndicator(
+                value: program.fraction,
+                minHeight: ForjaSpace.s1 + 2,
+                borderRadius: BorderRadius.zero,
+              ),
             ],
           ),
         ),

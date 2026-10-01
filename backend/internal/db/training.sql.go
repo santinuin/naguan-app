@@ -67,8 +67,8 @@ func (q *Queries) CountWorkouts(ctx context.Context, userID string) (int64, erro
 }
 
 const createWorkout = `-- name: CreateWorkout :one
-insert into workout (user_id, session_id, started_at, finished_at, local_date)
-values ($1, $2, $3, $4, $5)
+insert into workout (user_id, session_id, started_at, finished_at, local_date, client_id)
+values ($1, $2, $3, $4, $5, $6)
 returning id
 `
 
@@ -78,6 +78,7 @@ type CreateWorkoutParams struct {
 	StartedAt  time.Time
 	FinishedAt time.Time
 	LocalDate  time.Time
+	ClientID   *string
 }
 
 func (q *Queries) CreateWorkout(ctx context.Context, arg CreateWorkoutParams) (int64, error) {
@@ -87,10 +88,17 @@ func (q *Queries) CreateWorkout(ctx context.Context, arg CreateWorkoutParams) (i
 		arg.StartedAt,
 		arg.FinishedAt,
 		arg.LocalDate,
+		arg.ClientID,
 	)
 	var id int64
 	err := row.Scan(&id)
 	return id, err
+}
+
+type CreateWorkoutAmrapsParams struct {
+	WorkoutID     int64
+	BlockPosition int16
+	Rounds        int16
 }
 
 type CreateWorkoutItemsParams struct {
@@ -98,6 +106,75 @@ type CreateWorkoutItemsParams struct {
 	BlockItemID int64
 	Reps        *int16
 	DurationS   *int32
+}
+
+const getWorkout = `-- name: GetWorkout :one
+select w.id, w.session_id, s.title as session_title,
+       coalesce(prog.slug, '')::text as program_slug,
+       coalesce(prog.name, '')::text as program_name,
+       w.started_at, w.finished_at, w.local_date
+from workout w
+join session s on s.id = w.session_id
+left join lateral (
+  select p.slug, p.name
+  from program_session ps
+  join program p on p.id = ps.program_id
+  where ps.session_id = w.session_id
+  order by p.id
+  limit 1
+) prog on true
+where w.user_id = $1 and w.id = $2
+`
+
+type GetWorkoutParams struct {
+	UserID string
+	ID     int64
+}
+
+type GetWorkoutRow struct {
+	ID           int64
+	SessionID    int64
+	SessionTitle string
+	ProgramSlug  string
+	ProgramName  string
+	StartedAt    time.Time
+	FinishedAt   time.Time
+	LocalDate    time.Time
+}
+
+// Un workout del usuario, con la misma forma que el historial.
+func (q *Queries) GetWorkout(ctx context.Context, arg GetWorkoutParams) (GetWorkoutRow, error) {
+	row := q.db.QueryRow(ctx, getWorkout, arg.UserID, arg.ID)
+	var i GetWorkoutRow
+	err := row.Scan(
+		&i.ID,
+		&i.SessionID,
+		&i.SessionTitle,
+		&i.ProgramSlug,
+		&i.ProgramName,
+		&i.StartedAt,
+		&i.FinishedAt,
+		&i.LocalDate,
+	)
+	return i, err
+}
+
+const getWorkoutIDByClientID = `-- name: GetWorkoutIDByClientID :one
+select id from workout where user_id = $1 and client_id = $2
+`
+
+type GetWorkoutIDByClientIDParams struct {
+	UserID   string
+	ClientID *string
+}
+
+// Para la idempotencia: el id del workout que el usuario ya registró con
+// este client_id, si existe.
+func (q *Queries) GetWorkoutIDByClientID(ctx context.Context, arg GetWorkoutIDByClientIDParams) (int64, error) {
+	row := q.db.QueryRow(ctx, getWorkoutIDByClientID, arg.UserID, arg.ClientID)
+	var id int64
+	err := row.Scan(&id)
+	return id, err
 }
 
 const listCompletedSessions = `-- name: ListCompletedSessions :many
@@ -270,6 +347,32 @@ func (q *Queries) ListRecords(ctx context.Context, userID string) ([]ListRecords
 			return nil, err
 		}
 		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listSessionAmrapPositions = `-- name: ListSessionAmrapPositions :many
+select position from block where session_id = $1 and type = 'amrap'
+`
+
+// Las posiciones de los bloques AMRAP de una sesión: para validar las
+// vueltas que manda la app.
+func (q *Queries) ListSessionAmrapPositions(ctx context.Context, sessionID int64) ([]int16, error) {
+	rows, err := q.db.Query(ctx, listSessionAmrapPositions, sessionID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []int16
+	for rows.Next() {
+		var position int16
+		if err := rows.Scan(&position); err != nil {
+			return nil, err
+		}
+		items = append(items, position)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err

@@ -60,19 +60,21 @@ a la hora de asistir en el desarrollo:
   ("Flexión anillas 1/2/3"), que según el caso son niveles o ejercicios distintos;
   renombrar cada sesión de cada programa con un nombre acorde (hoy muchas quedaron como
   "Sesión N"); sumar el calentamiento y el estiramiento que les faltan a los programas.
-- Próximos pasos (hoja de ruta):
-  1. Lo estructural de la API primero, en este orden: (a) cimientos transversales:
-     hecho; (b) autenticación con Supabase Auth: hecho (ver `docs/autenticacion.md`);
-     pendiente sumar ingreso con biometría (`local_auth` + refresh token en
-     `flutter_secure_storage`); (c) modelo del usuario: hecho (progreso por Senda con
-     checks y reset, Fraguas templadas, Brasa, Mojones; API `/v1/me/...`); falta
-     consumirlo desde la app (checks en la Senda, ejecución de una Fragua con timers y
-     registro al terminar, Brasa en la pantalla principal); (d) endpoints de ejercicio;
-     (e) despliegue (Supabase nube, Docker, Cloud Run, CI). Los ajustes de contenido,
-     después.
-  2. Datos: niveles B y C (ver "Datos fuente").
-  3. Funcionalidades: catálogo de ejercicios, rutinas, ejecución de sesión (timers),
-     historial.
+- Hecho (API y app del usuario):
+  - Cimientos del servidor: config, middleware, rutas `/v1`.
+  - Autenticación con Supabase Auth (ver `docs/autenticacion.md`).
+  - Modelo del usuario: progreso por Senda con checks y reset, Fraguas templadas, Brasa,
+    Mojones (API `/v1/me/...`), todo consumido desde la app.
+  - Ejecución de una Fragua: timers, reps ajustables, pausa, registro y TEMPLADO con
+    Mojones; pantalla encendida, retomar una Fragua interrumpida, cola offline con
+    idempotencia (`client_id`) y vueltas de los AMRAP.
+- Próximos pasos (hoja de ruta), primero lo estructural y después el contenido:
+  1. Ingreso con biometría (`local_auth` + refresh token en `flutter_secure_storage`).
+  2. Endpoints y pantalla de ejercicio (detalle, videos, músculos, progresiones).
+  3. Despliegue: Supabase en la nube, Dockerfile del backend, Cloud Run y CI.
+  4. Historial de Fraguas y Mojones en la app.
+  5. Datos: niveles B y C (ver "Datos fuente"); ajustes de contenido (nombres de
+     sesiones, calentamiento y estiramiento).
 
 ## Forma de trabajo
 
@@ -177,7 +179,8 @@ Reglas de saneamiento ya decididas:
 Detalle y decisiones en `docs/modelo-de-datos.md`. Migraciones en `supabase/migrations/`:
 catálogo, cierre de la API REST de Supabase (RLS + revocar permisos a `anon` y
 `authenticated`: **toda tabla nueva lleva `enable row level security`**) y registro de
-entrenamiento (`workout`, `workout_item`, `program_reset`). Alcance de la app:
+entrenamiento (`workout`, `workout_item`, `program_reset`) e idempotencia + AMRAP
+(`workout.client_id` único por usuario, `workout_amrap`). Alcance de la app:
 calistenia, pero también fuerza con barra (Barra Libre) y movilidad ("flexifuerza").
 
 - **Catálogo:** `exercise` (sin lado; `unilateral` indica que se hace de a un lado),
@@ -231,7 +234,8 @@ calistenia, pero también fuerza con barra (Barra Libre) y movilidad ("flexifuer
     `/health` público y sin versión.
   - `internal/training`: progreso por Senda, Fraguas templadas, Brasa (`brasa.go`, pura)
     y Mojones; transacciones con `inTx` (pgx + `q.WithTx`); errores de dominio
-    `ValidationError` (400) y `ErrProgramNotFound` (404). Tests de integración contra la base local con `TEST_DATABASE_URL` (se saltean
+    `ValidationError` (400), `ErrProgramNotFound` (404) y `ErrUnknownUser` (401: token
+    válido de una cuenta borrada, detectado por la FK a `auth.users`). Tests de integración contra la base local con `TEST_DATABASE_URL` (se saltean
     sin ella).
   - `internal/auth`: valida los JWT de Supabase (ES256, claves públicas del JWKS de
     `SUPABASE_URL`, con `golang-jwt` + `keyfunc`) y lleva el usuario en el `context`
@@ -276,11 +280,17 @@ calistenia, pero también fuerza con barra (Barra Libre) y movilidad ("flexifuer
 - Autenticación en mobile: `supabase_flutter` solo para Auth (los datos van por la API Go).
   `lib/auth/`: `AuthService` (interfaz propia; `SupabaseAuthService` la implementa),
   `LoginScreen` y `AuthGate` (elige ingreso o app escuchando el stream de sesión). El
-  `CatalogClient` recibe una función `accessToken` y manda `Authorization: Bearer`.
+  `ApiClient` recibe una función `accessToken` y manda `Authorization: Bearer`; ante un
+  401 cierra la sesión.
   Configuración en `lib/config.dart` (`String.fromEnvironment` con valores locales por
   defecto; se pisan con `--dart-define`).
-- Mobile organizado por funcionalidad (`lib/catalog/`: modelos, cliente, pantallas),
-  `lib/common/` (piezas compartidas: `LoadView<T>` para cargando/error/datos) y
+- Mobile organizado por funcionalidad: `lib/catalog/` (modelos, cliente, pantallas),
+  `lib/training/` (progreso, Brasa, Mojones; `execution/` con `WorkoutRunner`, el motor
+  de una Fragua: `ChangeNotifier` con lógica pura y reloj inyectable, testeado sin
+  widgets; `offline/` con la Fragua en curso y la cola sin señal; `TrainingServices`
+  agrupa cliente + almacenes), `lib/common/` (`LocalStore`: interfaz sobre
+  `shared_preferences`, en memoria en los tests; `ApiClient`: HTTP compartido por los clientes, token,
+  errores, `onUnauthorized` → cerrar sesión; `LoadView<T>`: cargando/error/datos) y
   `lib/theme/` (tokens, `ThemeData`, widgets propios como `ForjaPill`). Navegación con
   `Navigator.push` + `MaterialPageRoute`, datos por constructor (go_router cuando haya
   deep links). Modelos con

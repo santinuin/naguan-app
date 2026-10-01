@@ -83,9 +83,41 @@ where w.user_id = @user_id
 group by bi.exercise_id;
 
 -- name: CreateWorkout :one
-insert into workout (user_id, session_id, started_at, finished_at, local_date)
-values ($1, $2, $3, $4, $5)
+insert into workout (user_id, session_id, started_at, finished_at, local_date, client_id)
+values ($1, $2, $3, $4, $5, $6)
 returning id;
+
+-- name: GetWorkoutIDByClientID :one
+-- Para la idempotencia: el id del workout que el usuario ya registró con
+-- este client_id, si existe.
+select id from workout where user_id = $1 and client_id = $2;
+
+-- name: GetWorkout :one
+-- Un workout del usuario, con la misma forma que el historial.
+select w.id, w.session_id, s.title as session_title,
+       coalesce(prog.slug, '')::text as program_slug,
+       coalesce(prog.name, '')::text as program_name,
+       w.started_at, w.finished_at, w.local_date
+from workout w
+join session s on s.id = w.session_id
+left join lateral (
+  select p.slug, p.name
+  from program_session ps
+  join program p on p.id = ps.program_id
+  where ps.session_id = w.session_id
+  order by p.id
+  limit 1
+) prog on true
+where w.user_id = @user_id and w.id = @id;
+
+-- name: ListSessionAmrapPositions :many
+-- Las posiciones de los bloques AMRAP de una sesión: para validar las
+-- vueltas que manda la app.
+select position from block where session_id = $1 and type = 'amrap';
+
+-- name: CreateWorkoutAmraps :copyfrom
+insert into workout_amrap (workout_id, block_position, rounds)
+values ($1, $2, $3);
 
 -- name: CreateWorkoutItems :copyfrom
 -- Inserta muchas filas de una con el protocolo COPY de Postgres: mucho más

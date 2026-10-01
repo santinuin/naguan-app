@@ -304,3 +304,17 @@ de integración que fallaba solo de noche.
   (`nil`) y para el detalle (un slug).
 - **`insert ... on conflict do update`**: un *upsert*. Crea la fila o, si ya existe,
   la actualiza, de forma atómica.
+
+## Idempotencia con una clave del cliente
+
+`POST /v1/me/workouts` acepta un `client_id` (UUID). La lógica en `RecordWorkout`:
+
+1. Si ya existe un workout del usuario con ese `client_id`, se devuelve (sin crear nada).
+2. Si no, se crea dentro de la transacción. Si entre el paso 1 y el insert otro request
+   con el mismo id ganó la carrera, el índice único lo rechaza con `23505`
+   (`isUniqueViolation`), se deshace la transacción y se devuelve el que ganó.
+
+La respuesta distingue los casos: **201** si se creó, **200** si ya existía. El paso 2 es
+lo que hace correcta la idempotencia bajo concurrencia: la búsqueda previa es una
+optimización, pero la garantía la da la base. Es el mismo patrón que la cabecera
+`Idempotency-Key` de las APIs de pagos.

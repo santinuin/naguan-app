@@ -13,6 +13,16 @@ class Session {
   final String? description;
   final List<Block> blocks;
 
+  /// El inverso de fromJson: para guardar la sesión en el teléfono (y
+  /// poder retomar una Fragua sin red). Un test verifica la ida y vuelta.
+  Map<String, Object?> toJson() => {
+    'id': id,
+    'kind': 'workout',
+    'title': title,
+    'description': description,
+    'blocks': [for (final b in blocks) b.toJson()],
+  };
+
   factory Session.fromJson(Map<String, dynamic> json) {
     return switch (json) {
       {
@@ -48,6 +58,16 @@ enum BlockType {
   const BlockType(this.label);
 
   final String label;
+
+  /// El valor de la API ("rounds_with_rest"): el inverso de fromApi.
+  String get apiValue => switch (this) {
+    rounds => 'rounds',
+    roundsWithRest => 'rounds_with_rest',
+    tabata => 'tabata',
+    superset => 'superset',
+    ladder => 'ladder',
+    amrap => 'amrap',
+  };
 
   /// Traduce el valor de la API ("rounds_with_rest") al enum.
   static BlockType fromApi(String value) => switch (value) {
@@ -119,6 +139,13 @@ class Block {
     return true;
   }
 
+  Map<String, Object?> toJson() => {
+    'position': position,
+    'type': type.apiValue,
+    'time_cap_s': ?timeCapS,
+    'items': [for (final i in items) i.toJson()],
+  };
+
   factory Block.fromJson(Map<String, dynamic> json) {
     return switch (json) {
       {'position': int position, 'type': String type, 'items': List items} =>
@@ -171,6 +198,7 @@ enum Side {
 /// Un ítem de un bloque: un ejercicio (por tiempo o por reps) o un descanso.
 class Item {
   const Item({
+    required this.id,
     required this.round,
     required this.position,
     this.exercise,
@@ -179,6 +207,9 @@ class Item {
     this.reps,
   });
 
+  /// Identifica el ítem: se manda de vuelta al registrar la Fragua, para
+  /// decir qué se hizo en cada ejercicio.
+  final int id;
   final int round;
   final int position;
 
@@ -200,10 +231,28 @@ class Item {
   ({String? exercise, Side? side, int? durationS, int? reps}) get signature =>
       (exercise: exercise?.slug, side: side, durationS: durationS, reps: reps);
 
+  Map<String, Object?> toJson() => {
+    'id': id,
+    'round': round,
+    'position': position,
+    'kind': isRest ? 'rest' : 'exercise',
+    'exercise': ?exercise?.toJson(),
+    // .name de un enum es su nombre en el código: Side.left → "left".
+    'side': ?side?.name,
+    'duration_s': ?durationS,
+    'reps': ?reps,
+  };
+
   factory Item.fromJson(Map<String, dynamic> json) {
     return switch (json) {
-      {'round': int round, 'position': int position, 'kind': String kind} =>
+      {
+        'id': int id,
+        'round': int round,
+        'position': int position,
+        'kind': String kind,
+      } =>
         Item(
+          id: id,
           round: round,
           position: position,
           exercise: switch (kind) {
@@ -232,6 +281,8 @@ class ExerciseRef {
 
   final String slug;
   final String name;
+
+  Map<String, Object> toJson() => {'slug': slug, 'name': name};
 
   factory ExerciseRef.fromJson(Map<String, dynamic> json) {
     return switch (json) {

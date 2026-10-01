@@ -101,11 +101,11 @@ func TestProgramProgress(t *testing.T) {
 	// Fuera de orden: templar la 3 no mueve la sugerida (sigue la 1), pero
 	// la 3 queda con check.
 	s3, _ := sessionAt(t, pool, "aurum", 3)
-	if _, err := svc.RecordWorkout(ctx, user, workoutFor(s3)); err != nil {
+	if _, _, err := svc.RecordWorkout(ctx, user, workoutFor(s3)); err != nil {
 		t.Fatal(err)
 	}
 	// Repetir una Fragua no suma dos checks.
-	if _, err := svc.RecordWorkout(ctx, user, workoutFor(s3)); err != nil {
+	if _, _, err := svc.RecordWorkout(ctx, user, workoutFor(s3)); err != nil {
 		t.Fatal(err)
 	}
 	p, err = svc.Progress(ctx, user, "aurum")
@@ -118,7 +118,7 @@ func TestProgramProgress(t *testing.T) {
 
 	// Otra Senda en paralelo: cada una lleva su progreso.
 	sp, _ := sessionAt(t, pool, "primal", 1)
-	if _, err := svc.RecordWorkout(ctx, user, workoutFor(sp)); err != nil {
+	if _, _, err := svc.RecordWorkout(ctx, user, workoutFor(sp)); err != nil {
 		t.Fatal(err)
 	}
 	all, err := svc.ListProgress(ctx, user)
@@ -157,7 +157,7 @@ func TestRecordsAndStats(t *testing.T) {
 	s1, item := sessionAt(t, pool, "aurum", 1)
 
 	// La primera vez no hay Mojón: no había marca que superar.
-	w, err := svc.RecordWorkout(ctx, user, workoutFor(s1, ItemResult{BlockItemID: item, Reps: ptr[int16](10)}))
+	w, _, err := svc.RecordWorkout(ctx, user, workoutFor(s1, ItemResult{BlockItemID: item, Reps: ptr[int16](10)}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -166,11 +166,11 @@ func TestRecordsAndStats(t *testing.T) {
 	}
 
 	// Igualar no es Mojón; superar, sí.
-	w, _ = svc.RecordWorkout(ctx, user, workoutFor(s1, ItemResult{BlockItemID: item, Reps: ptr[int16](10)}))
+	w, _, _ = svc.RecordWorkout(ctx, user, workoutFor(s1, ItemResult{BlockItemID: item, Reps: ptr[int16](10)}))
 	if len(w.NewRecords) != 0 {
 		t.Errorf("igualar: new_records = %+v", w.NewRecords)
 	}
-	w, _ = svc.RecordWorkout(ctx, user, workoutFor(s1, ItemResult{BlockItemID: item, Reps: ptr[int16](13)}))
+	w, _, _ = svc.RecordWorkout(ctx, user, workoutFor(s1, ItemResult{BlockItemID: item, Reps: ptr[int16](13)}))
 	if len(w.NewRecords) != 1 || w.NewRecords[0].Value != 13 || w.NewRecords[0].Previous != 10 {
 		t.Errorf("superar: new_records = %+v", w.NewRecords)
 	}
@@ -207,7 +207,7 @@ func TestRecordWorkoutValidatesItems(t *testing.T) {
 
 	// Un ítem de otra sesión no se acepta, y como todo va en una
 	// transacción, no queda ningún workout a medias.
-	_, err := svc.RecordWorkout(ctx, user, workoutFor(s1, ItemResult{BlockItemID: otherItem, Reps: ptr[int16](5)}))
+	_, _, err := svc.RecordWorkout(ctx, user, workoutFor(s1, ItemResult{BlockItemID: otherItem, Reps: ptr[int16](5)}))
 	var verr *ValidationError
 	if !errors.As(err, &verr) {
 		t.Fatalf("err = %v, want *ValidationError", err)
@@ -218,7 +218,7 @@ func TestRecordWorkoutValidatesItems(t *testing.T) {
 		t.Errorf("quedaron %d workouts: la transacción no se deshizo", n)
 	}
 
-	if _, err := svc.RecordWorkout(ctx, user, workoutFor(999999)); !errors.As(err, &verr) {
+	if _, _, err := svc.RecordWorkout(ctx, user, workoutFor(999999)); !errors.As(err, &verr) {
 		t.Errorf("sesión inexistente: err = %v, want *ValidationError", err)
 	}
 }
@@ -229,7 +229,7 @@ func TestWorkoutsAreIsolatedPerUser(t *testing.T) {
 	ctx := context.Background()
 
 	s1, _ := sessionAt(t, pool, "unbreakable", 1)
-	if _, err := svc.RecordWorkout(ctx, alice, workoutFor(s1)); err != nil {
+	if _, _, err := svc.RecordWorkout(ctx, alice, workoutFor(s1)); err != nil {
 		t.Fatal(err)
 	}
 	got, err := svc.ListWorkouts(ctx, alice, 10)
@@ -250,5 +250,82 @@ func TestWorkoutsAreIsolatedPerUser(t *testing.T) {
 	bobProgress, _ := svc.Progress(ctx, bob, "unbreakable")
 	if bobProgress.Completed != 0 {
 		t.Errorf("bob ve el progreso de alice: %+v", bobProgress)
+	}
+}
+
+func TestDeletedUserIsUnknown(t *testing.T) {
+	svc, pool, user := setup(t)
+	ctx := context.Background()
+	s1, _ := sessionAt(t, pool, "aurum", 1)
+
+	// Se borra la cuenta: el token seguiría siendo válido hasta vencer.
+	if _, err := pool.Exec(ctx, `delete from auth.users where id = $1`, user); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, _, err := svc.RecordWorkout(ctx, user, workoutFor(s1)); !errors.Is(err, ErrUnknownUser) {
+		t.Errorf("registrar con un usuario borrado: err = %v, want ErrUnknownUser", err)
+	}
+	if err := svc.ResetProgress(ctx, user, "aurum"); !errors.Is(err, ErrUnknownUser) {
+		t.Errorf("resetear con un usuario borrado: err = %v, want ErrUnknownUser", err)
+	}
+}
+
+func TestRecordWorkoutIsIdempotent(t *testing.T) {
+	svc, pool, user := setup(t)
+	ctx := context.Background()
+	s1, item := sessionAt(t, pool, "aurum", 1)
+
+	clientID := newUUID()
+	w := workoutFor(s1, ItemResult{BlockItemID: item, Reps: ptr[int16](10)})
+	w.ClientID = &clientID
+
+	first, created, err := svc.RecordWorkout(ctx, user, w)
+	if err != nil || !created {
+		t.Fatalf("primer registro: created=%v err=%v", created, err)
+	}
+	// El reintento (sin señal la primera vez, o se perdió la respuesta):
+	// mismo client_id, mismo workout, nada duplicado.
+	again, created, err := svc.RecordWorkout(ctx, user, w)
+	if err != nil || created || again.ID != first.ID {
+		t.Fatalf("reintento: created=%v id=%d (want %d) err=%v", created, again.ID, first.ID, err)
+	}
+	var n int
+	pool.QueryRow(ctx, `select count(*) from workout where user_id = $1`, user).Scan(&n)
+	if n != 1 {
+		t.Errorf("workouts = %d, want 1", n)
+	}
+}
+
+func TestRecordWorkoutAmrapRounds(t *testing.T) {
+	svc, pool, user := setup(t)
+	ctx := context.Background()
+
+	// Una sesión con un bloque AMRAP (los hay en Unbreakable y Ring Master).
+	var sessionID int64
+	var position int16
+	err := pool.QueryRow(ctx, `select session_id, position from block where type = 'amrap' limit 1`).
+		Scan(&sessionID, &position)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	w := workoutFor(sessionID)
+	w.Amraps = []AmrapResult{{BlockPosition: position, Rounds: 7}}
+	saved, _, err := svc.RecordWorkout(ctx, user, w)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var rounds int16
+	pool.QueryRow(ctx, `select rounds from workout_amrap where workout_id = $1`, saved.ID).Scan(&rounds)
+	if rounds != 7 {
+		t.Errorf("vueltas guardadas = %d, want 7", rounds)
+	}
+
+	// Un bloque que no es AMRAP se rechaza.
+	w.Amraps = []AmrapResult{{BlockPosition: 99, Rounds: 1}}
+	var verr *ValidationError
+	if _, _, err := svc.RecordWorkout(ctx, user, w); !errors.As(err, &verr) {
+		t.Errorf("bloque inválido: err = %v, want *ValidationError", err)
 	}
 }

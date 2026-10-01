@@ -148,6 +148,147 @@ Los **campos opcionales** del JSON (`time_cap_s`, `side`, `reps`…) se leen fue
 patrón con un cast nullable (`json['reps'] as int?`): un map pattern exige que la clave
 exista, y la API omite las que no aplican.
 
+## Manejo de estado: `setState`, `ChangeNotifier` y `ListenableBuilder`
+
+Hasta ahora el estado vivía en un `State` y se cambiaba con `setState`. Alcanza para
+estado chico y local (un formulario, un spinner). La ejecución de una Fragua necesita algo
+más: mucha lógica (pasos, tiempos, pausas, resultados) que conviene testear sin widgets.
+
+| Herramienta | Cuándo | En Java/Spring |
+|---|---|---|
+| `setState` | Estado chico, de una sola pantalla | Un campo de un componente |
+| `ChangeNotifier` + `ListenableBuilder` | Lógica con estado, separada de la UI (`WorkoutRunner`) | Un servicio con estado que publica eventos (el patrón Observer) |
+| Paquetes (Provider, Riverpod, Bloc) | Estado compartido entre muchas pantallas | Un contenedor de beans con scopes |
+
+`WorkoutRunner extends ChangeNotifier`: tiene la lógica y llama a `notifyListeners()`
+cuando algo cambia. La pantalla lo escucha con:
+
+```dart
+ListenableBuilder(
+  listenable: _runner,
+  builder: (context, _) => _StepView(runner: _runner),
+)
+```
+
+Solo se reconstruye lo que está dentro del builder, no la pantalla entera. La lógica se
+testea sola (`test/training/workout_runner_test.dart`), sin pantalla ni emulador.
+
+No sumamos un paquete de manejo de estado: con `ChangeNotifier` (que viene con Flutter)
+alcanza, y entenderlo primero hace que después Provider o Riverpod se lean fácil (están
+construidos sobre las mismas ideas).
+
+## Timers y el reloj
+
+La cuenta regresiva **no cuenta ticks**: calcula el tiempo desde la hora real.
+
+```dart
+Duration get remaining => duration - (now() - stepStartedAt - paused);
+```
+
+El `Timer.periodic` de la pantalla (cada 250 ms) solo "le da cuerda" al runner
+(`tick()`): recalcula y avanza si un paso llegó a cero. Si el Timer se atrasa, o si la
+app pasa a segundo plano durante un descanso, el próximo tick corrige solo. Contar ticks
+("le resto 1 segundo cada vez") acumula error y se rompe en segundo plano.
+
+- **El reloj se inyecta** (`clock: DateTime Function()`), igual que en el backend Go. Los
+  tests usan un `FakeClock` que se adelanta a mano: un descanso de 20 s se testea en
+  milisegundos.
+- **`dispose()` cancela el Timer**: un `Timer.periodic` sigue vivo aunque la pantalla se
+  cierre, y seguiría llamando a un objeto descartado.
+- **En un widget test hay dos relojes**: el del runner (el `FakeClock`) y el del test
+  (`tester.pump(duration)` avanza el tiempo simulado que dispara los Timers). Hay que
+  adelantar los dos.
+
+## Recargar un widget: cambiar su `key`
+
+Después de templar una Fragua, la Senda y el inicio tienen que recargar sus datos. La
+forma idiomática de "reiniciar" un widget con estado desde afuera es **cambiarle la
+key**:
+
+```dart
+LoadView(key: ValueKey(_version), load: _load, builder: ...)
+// al volver de otra pantalla:
+setState(() => _version++);
+```
+
+Con otra key, Flutter considera que es otro widget: desmonta el anterior (y su `State`)
+y monta uno nuevo, que vuelve a correr `initState` y la carga. Es la otra cara de lo que
+vimos en los tests de `AuthGate`: con la misma key y el mismo tipo, Flutter *reutiliza* el
+`State`.
+
+`Navigator.push` devuelve un `Future` que se completa cuando esa pantalla hace `pop`: así
+se sabe que el usuario volvió.
+
+## Otras piezas que aparecieron
+
+- **Records de Futures**: `(a(), b()).wait` lanza los dos requests a la vez y espera
+  ambos (como `Mono.zip`). El resultado es un record que se desarma con un patrón:
+  `final (programs, stats) = data;`.
+- **`PopScope`**: intercepta el "atrás" (botón o gesto). La ejecución lo usa para pedir
+  confirmación antes de abandonar una Fragua a la mitad.
+- **`pushReplacement`**: reemplaza la pantalla actual en la pila. TEMPLADO reemplaza a la
+  ejecución, así "atrás" desde el resumen vuelve a la sesión y no a una ejecución
+  terminada.
+- **`HapticFeedback.heavyImpact()`**: una vibración al terminar un tiempo, para avisar sin
+  tener que mirar la pantalla.
+- **`FittedBox(fit: BoxFit.scaleDown)`**: achica un texto si no entra en el ancho, y lo
+  deja igual si entra. "TEMPLADO." a 64 px se cortaba a la mitad de la palabra, algo que
+  el sistema de diseño prohíbe.
+- **`showDialog` / `AlertDialog` y `SnackBar`**: la confirmación de resetear una Senda y
+  el aviso si falla.
+
+## La ejecución en el mundo real: pantalla, interrupciones y señal
+
+Tres problemas que no aparecen en el emulador pero sí en un gimnasio:
+
+### Pantalla encendida (`wakelock_plus`)
+
+Sin intervención, el teléfono apaga la pantalla en un descanso largo y la cuenta
+regresiva no se ve. `WakelockPlus.enable()` en `initState` y `disable()` en `dispose`:
+mientras la pantalla de ejecución exista, la ventana lleva el flag `KEEP_SCREEN_ON` de
+Android. Los tests lo apagan (`keepScreenOn: false`): en un widget test no hay plugin
+nativo.
+
+### Retomar una Fragua interrumpida (snapshot del runner)
+
+El sistema puede cerrar la app en cualquier momento (falta de memoria, una llamada, la
+batería). Para no perder lo hecho:
+
+- `WorkoutRunner.toSnapshot()` saca una "foto" serializable del estado (paso actual,
+  tiempos, reps, resultados, client_id), y `WorkoutRunner.restore(...)` hace el camino
+  inverso.
+- La pantalla guarda el snapshot en el teléfono **cuando cambia algo** (el runner tiene
+  un contador `revision` que sube con cada cambio real, no con cada tick) y, además,
+  **cada 5 segundos** (*heartbeat*). Escribir al disco 4 veces por segundo sería gasto
+  inútil; con el heartbeat, al retomar se pierden como mucho 5 segundos.
+- Se guarda **la sesión completa**, no solo su id: retomar no depende de la red.
+- Al retomar, la Fragua queda **pausada en el momento del último guardado**: el tiempo
+  que la app estuvo cerrada no cuenta (un descanso no "se termina solo" con el teléfono
+  en el bolsillo).
+- El inicio muestra **FRAGUA EN CURSO · RETOMAR / DESCARTAR**. Una Fragua de más de 12
+  horas, o con datos corruptos, se descarta en vez de romper la app.
+
+### Sin señal al terminar (cola offline + idempotencia)
+
+- Si el registro falla **sin conexión** (o con el servidor caído, un 5xx), la Fragua va a
+  una **cola** en el teléfono y TEMPLADO avisa que se registra después. Un 4xx (un dato
+  que la API rechaza) no se encola: reintentar daría el mismo error.
+- El inicio, al cargar, intenta registrar la cola **antes** de pedir el progreso: así la
+  Brasa y los checks ya incluyen lo entrenado sin señal.
+- **Idempotencia:** cada Fragua lleva un `client_id` (un UUID que genera el teléfono). Si
+  el `POST` llegó al servidor pero se perdió la respuesta, el reintento manda el mismo id
+  y la API devuelve la Fragua existente (200) en vez de crear otra (201). Es la misma
+  técnica que usan las APIs de pagos para no cobrar dos veces.
+
+### Almacenamiento local
+
+`LocalStore` es una interfaz propia (leer / escribir / borrar texto por clave), con una
+implementación sobre `shared_preferences` (`SharedPreferencesAsync`) y otra en memoria
+para los tests. Sirve para datos chicos; para muchos datos o consultas haría falta una
+base local (sqflite, drift). Encima van `ActiveWorkoutStore` (la Fragua en curso) y
+`PendingWorkouts` (la cola). Las tres dependencias de entrenamiento viajan juntas en
+`TrainingServices`.
+
 ## Arquitectura de la app
 
 El código se organiza **por funcionalidad** (feature-first), no por tipo de archivo:
@@ -163,7 +304,14 @@ lib/
     program_screen.dart
     session_screen.dart
     format.dart                 formato de duraciones y reps
-  common/                       piezas compartidas entre funcionalidades (LoadView)
+  training/                     progreso, Brasa, Mojones y la ejecución de una Fragua
+    training_models.dart, training_client.dart
+    execution/
+      workout_runner.dart       el motor (lógica pura, ChangeNotifier)
+      execution_screen.dart     la pantalla que lo muestra
+      templado_screen.dart      el resumen al terminar
+    offline/                    la Fragua en curso y la cola sin señal
+  common/                       piezas compartidas: ApiClient (HTTP), LoadView, LocalStore
   theme/                        sistema de diseño: tokens, ThemeData, widgets propios
 ```
 
@@ -196,6 +344,14 @@ En un widget test, Flutter no dibuja solo: `tester.pump()` procesa lo pendiente 
 un frame; `tester.pumpAndSettle()` bombea frames hasta que no queden animaciones. El patrón es acción (`tap`, completar un `Completer`) → `pump()` → `expect`. Los
 fakes se escriben a mano con `implements` (toda clase de Dart es también una interfaz), y
 un `Completer` permite decidir *cuándo* responde el falso, para ver el estado "cargando".
+
+### Trampas al testear
+
+- **El árbol de semántica está apagado por defecto en los tests**: para buscar por
+  etiqueta de accesibilidad (`find.bySemanticsLabel`) hay que encenderlo con
+  `tester.ensureSemantics()` (y liberarlo con `dispose()`). Además, un `InkWell` fusiona
+  la semántica de sus hijos en un solo nodo ("Templada, FRAGUA 01, Fundamentos"): se
+  busca con una expresión regular.
 
 ### Trampas al testear navegación
 

@@ -98,6 +98,22 @@ rígida.
 - Solo ítems de ejercicio de **esa** sesión: lo valida la API dentro de la transacción
   (un ítem de otra sesión o un descanso se rechaza con 400).
 
+### Idempotencia: `workout.client_id`
+
+Cada Fragua lleva un UUID que genera el teléfono. Hay un índice único por
+`(user_id, client_id)`: si la app reintenta el registro (sin señal, o se perdió la
+respuesta aunque el servidor lo había guardado), el mismo `client_id` no crea un
+duplicado y la API devuelve el existente (200 en vez de 201). Si dos reintentos llegan a
+la vez, la base lo detecta (violación de la restricción única) y se devuelve el que ganó.
+Los workouts anteriores a este cambio tienen `client_id` null (un índice único admite
+varios null).
+
+### `workout_amrap`: las vueltas de los AMRAP
+
+Cuántas vueltas completó el usuario en cada bloque AMRAP, por posición del bloque. Van en
+su propia tabla y no en `workout_item`: las reps de un AMRAP no son "una serie", y
+mezclarlas arruinaría los Mojones.
+
 ### `program_reset`: empezar una Senda de cero
 
 Una fila por usuario y Senda con la fecha del último reset. Los checks solo cuentan los

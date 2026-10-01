@@ -53,6 +53,12 @@ func TestValidate(t *testing.T) {
 		{"ítem repetido", func(w *NewWorkout) { w.Items[1].BlockItemID = 10 }, false},
 		{"ítem vacío", func(w *NewWorkout) { w.Items[0].Reps = nil }, false},
 		{"reps negativas", func(w *NewWorkout) { w.Items[0].Reps = ptr[int16](-1) }, false},
+		{"client_id válido", func(w *NewWorkout) { w.ClientID = ptr("0f8fad5b-d9cb-469f-a165-70867728950e") }, true},
+		{"client_id inválido", func(w *NewWorkout) { w.ClientID = ptr("no-es-un-uuid") }, false},
+		{"amrap repetido", func(w *NewWorkout) {
+			w.Amraps = []AmrapResult{{BlockPosition: 2, Rounds: 3}, {BlockPosition: 2, Rounds: 4}}
+		}, false},
+		{"vueltas negativas", func(w *NewWorkout) { w.Amraps = []AmrapResult{{BlockPosition: 2, Rounds: -1}} }, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

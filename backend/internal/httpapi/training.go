@@ -85,13 +85,18 @@ func (h trainingHandlers) recordWorkout(w http.ResponseWriter, r *http.Request) 
 		writeError(w, r, err)
 		return
 	}
-	created, err := h.tr.RecordWorkout(r.Context(), uid, req)
+	workout, created, err := h.tr.RecordWorkout(r.Context(), uid, req)
 	if err != nil {
 		writeError(w, r, err)
 		return
 	}
-	// 201 Created: se creó un recurso nuevo.
-	writeJSON(w, http.StatusCreated, created)
+	// 201 Created: se creó un recurso nuevo. 200 OK: ya existía con ese
+	// client_id (un reintento): se devuelve el mismo, sin duplicarlo.
+	status := http.StatusCreated
+	if !created {
+		status = http.StatusOK
+	}
+	writeJSON(w, status, workout)
 }
 
 const (

@@ -191,7 +191,16 @@ App (supabase_flutter)                     Supabase Auth
 3. Emite "signedOut": `AuthGate` muestra el ingreso.
 
 El access token que estaba en uso **sigue siendo válido hasta que vence** (como mucho una
-hora): un JWT no se puede "des-firmar". Es el costo del modelo stateless. Si alguna vez
+hora): un JWT no se puede "des-firmar". Es el costo del modelo stateless.
+
+**Lo vivimos en desarrollo:** después de un `supabase db reset` (que borra los usuarios),
+la app seguía con el token del usuario borrado, y ese token pasaba la validación. Al
+escribir, la foreign key a `auth.users` lo rechazaba y la API respondía 500. Ahora:
+
+- La API traduce esa violación (`*pgconn.PgError`, código `23503`, restricción
+  `workout_user_id_fkey`) a `training.ErrUnknownUser`, y responde **401**.
+- La app, ante cualquier 401, llama a `ApiClient.onUnauthorized`, que cierra la sesión:
+  `AuthGate` vuelve a mostrar el ingreso. Si alguna vez
 hiciera falta revocación inmediata, el backend tendría que consultar una lista de
 sesiones revocadas, y se perdería parte de la ventaja.
 

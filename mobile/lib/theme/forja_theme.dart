@@ -75,6 +75,12 @@ ThemeData buildForjaTheme(ForjaPalette p) {
       ),
     ),
     dividerTheme: DividerThemeData(color: p.line, thickness: ForjaBorder.hair),
+    // Barras de progreso y spinners: el acento marca el avance sobre `line`.
+    progressIndicatorTheme: ProgressIndicatorThemeData(
+      color: p.accent,
+      linearTrackColor: p.line,
+      circularTrackColor: Colors.transparent,
+    ),
     // Botones de texto (acciones secundarias como SALIR): etiqueta técnica
     // en Space Mono, con el rosa como texto (accentText).
     textButtonTheme: TextButtonThemeData(

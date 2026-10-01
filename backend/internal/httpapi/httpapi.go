@@ -31,7 +31,7 @@ type Training interface {
 	ListProgress(ctx context.Context, userID string) ([]training.ProgramProgress, error)
 	Progress(ctx context.Context, userID, slug string) (training.ProgramProgressDetail, error)
 	ResetProgress(ctx context.Context, userID, slug string) error
-	RecordWorkout(ctx context.Context, userID string, w training.NewWorkout) (training.Workout, error)
+	RecordWorkout(ctx context.Context, userID string, w training.NewWorkout) (w2 training.Workout, created bool, err error)
 	ListWorkouts(ctx context.Context, userID string, limit int32) ([]training.Workout, error)
 	Stats(ctx context.Context, userID string, today time.Time) (training.Stats, error)
 	Records(ctx context.Context, userID string) ([]training.Record, error)
@@ -184,6 +184,11 @@ func writeError(w http.ResponseWriter, r *http.Request, err error) {
 		return
 	case errors.Is(err, catalog.ErrNotFound):
 		writeJSON(w, http.StatusNotFound, errorResponse{Error: "no encontrado"})
+		return
+	case errors.Is(err, training.ErrUnknownUser):
+		// Token válido de una cuenta que ya no existe: que la app vuelva a
+		// iniciar sesión.
+		unauthorized(w, "el usuario no existe")
 		return
 	case errors.Is(err, training.ErrProgramNotFound):
 		writeJSON(w, http.StatusNotFound, errorResponse{Error: "no existe la senda"})
