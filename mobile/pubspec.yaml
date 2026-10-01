@@ -46,6 +46,7 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -89,3 +90,18 @@ flutter:
         - asset: assets/fonts/SpaceMono-Regular.ttf
         - asset: assets/fonts/SpaceMono-Bold.ttf
           weight: 700
+
+# Ícono de la app (variante C del sistema de diseño). Fuentes en branding/icon/.
+# Regenerar con: dart run flutter_launcher_icons
+flutter_launcher_icons:
+  android: true
+  ios: false # todavía no hay proyecto iOS
+  # Ícono clásico (Android < 8): la composición completa, con fondo y grano.
+  image_path: branding/icon/icon_c.png
+  # Ícono adaptativo (Android 8+): fondo plano + primer plano transparente.
+  adaptive_icon_background: "#E0708C"
+  adaptive_icon_foreground: branding/icon/foreground.png
+  # 17% por lado deja el dibujo en el 66% central (zona segura de la máscara).
+  adaptive_icon_foreground_inset: 17
+  # Íconos temáticos (Android 13+): el sistema tiñe esta silueta.
+  adaptive_icon_monochrome: branding/icon/monochrome.png

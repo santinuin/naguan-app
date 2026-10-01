@@ -44,8 +44,7 @@ a la hora de asistir en el desarrollo:
 - Hecho: backend Go mínimo con `GET /health` (con tests); app Flutter con `HealthClient` y
   `HomeScreen` que consulta `/health` desde el emulador; renombre completo a `naguan-app`;
   tema de Forja en Flutter: fuentes empaquetadas y `ThemeData` Hierro/Hueso (ver
-  "Convenciones").
-- En curso: ícono adaptativo de Android (variante C, primer plano al 66%, monocromático).
+  "Convenciones"); ícono adaptativo de Android (variante C, con capa monocromática).
 - Pendiente del tema: widget propio `ForjaButton` con la sombra dura que se hunde al
   presionar (`FilledButton` no la soporta); textura de grano sobre `bg`; registrar las
   licencias OFL de las fuentes con `LicenseRegistry` antes de compartir el APK.
@@ -156,6 +155,11 @@ _Pendiente: definir el modelo completo una vez normalizados los Excel de ejercic
   la `ThemeExtension` `Forja`, accesible con `context.forja`. En las pantallas: estilos
   desde el tema, nunca `TextStyle`/colores escritos a mano. Error = `signal` (el sistema de
   diseño no define un color de error). La app usa `ThemeMode.dark` (Hierro) fijo.
+- Ícono: fuentes en `mobile/branding/icon/` (`icon_c.svg/.png` del sistema de diseño;
+  `foreground` y `monochrome` derivados, sin fondo ni grano, con el rayado como huecos).
+  Los recursos de Android se generan con `flutter_launcher_icons` (config en
+  `pubspec.yaml`, inset 17% → dibujo al 66%): `dart run flutter_launcher_icons`. No editar a
+  mano los `mipmap-*`/`drawable-*` generados.
 - Fuentes: TTF estáticos en `mobile/assets/fonts/` (con sus licencias OFL), declarados en
   `pubspec.yaml`; no se usa `google_fonts` (descarga al primer uso, falla sin señal).
 - Al elegir paquetes de Dart, verificar en pub.dev que soporten iOS además de Android, para
