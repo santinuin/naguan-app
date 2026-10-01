@@ -75,6 +75,31 @@ ThemeData buildForjaTheme(ForjaPalette p) {
       ),
     ),
     dividerTheme: DividerThemeData(color: p.line, thickness: ForjaBorder.hair),
+    // Botones de texto (acciones secundarias como SALIR): etiqueta técnica
+    // en Space Mono, con el rosa como texto (accentText).
+    textButtonTheme: TextButtonThemeData(
+      style: TextButton.styleFrom(
+        foregroundColor: p.accentText,
+        textStyle: text.labelSmall?.copyWith(fontSize: 14),
+      ),
+    ),
+    // Campos de texto: borde grueso en stroke y esquinas rectas. El borde
+    // cambia según el estado (normal, con foco, con error); cada estado es
+    // un InputBorder distinto.
+    inputDecorationTheme: InputDecorationTheme(
+      filled: true,
+      fillColor: p.surface,
+      labelStyle: text.labelSmall,
+      floatingLabelStyle: text.labelSmall?.copyWith(color: p.accentText),
+      hintStyle: text.bodyLarge?.copyWith(color: p.inkMuted),
+      errorStyle: text.bodyLarge?.copyWith(color: p.signal, fontSize: 14),
+      contentPadding: const EdgeInsets.all(ForjaSpace.s4),
+      border: _inputBorder(p.stroke),
+      enabledBorder: _inputBorder(p.stroke),
+      focusedBorder: _inputBorder(p.accent),
+      errorBorder: _inputBorder(p.signal),
+      focusedErrorBorder: _inputBorder(p.signal),
+    ),
     extensions: [
       Forja(
         palette: p,
@@ -92,6 +117,11 @@ ThemeData buildForjaTheme(ForjaPalette p) {
     ],
   );
 }
+
+OutlineInputBorder _inputBorder(Color color) => OutlineInputBorder(
+  borderRadius: BorderRadius.zero,
+  borderSide: BorderSide(color: color, width: ForjaBorder.heavy),
+);
 
 /// Estilos de texto de `tokens.json` mapeados a los roles de Material.
 ///

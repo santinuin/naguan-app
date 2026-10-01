@@ -10,6 +10,7 @@ import 'package:naguan_app/catalog/program_summary.dart';
 CatalogClient clientReturning(http.Response response) {
   return CatalogClient(
     baseUrl: 'http://backend.test',
+    accessToken: () => 'token-de-prueba',
     httpClient: MockClient((_) async => response),
   );
 }
@@ -55,10 +56,13 @@ void main() {
   group('CatalogClient.fetchPrograms', () {
     test('pide GET /programs y devuelve la lista', () async {
       late Uri requested;
+      late Map<String, String> headers;
       final client = CatalogClient(
         baseUrl: 'http://backend.test',
+        accessToken: () => 'token-de-prueba',
         httpClient: MockClient((request) async {
           requested = request.url;
+          headers = request.headers;
           return jsonResponse(
             '[{"slug":"unbreakable","name":"Unbreakable","description":null,"session_count":50}]',
           );
@@ -68,6 +72,7 @@ void main() {
       final programs = await client.fetchPrograms();
 
       expect(requested.toString(), 'http://backend.test/programs');
+      expect(headers['Authorization'], 'Bearer token-de-prueba');
       expect(programs.single.name, 'Unbreakable');
       expect(programs.single.sessionCount, 50);
     });
@@ -99,6 +104,7 @@ void main() {
     test('lanza CatalogException si no hay conexión', () async {
       final client = CatalogClient(
         baseUrl: 'http://backend.test',
+        accessToken: () => null,
         httpClient: MockClient((_) => throw const SocketException('sin red')),
       );
 
@@ -107,5 +113,26 @@ void main() {
         throwsA(isA<CatalogException>()),
       );
     });
+
+    test(
+      'sin sesión no manda Authorization; un 401 es CatalogException',
+      () async {
+        late Map<String, String> headers;
+        final client = CatalogClient(
+          baseUrl: 'http://backend.test',
+          accessToken: () => null,
+          httpClient: MockClient((request) async {
+            headers = request.headers;
+            return jsonResponse('{"error":"falta el token"}', status: 401);
+          }),
+        );
+
+        await expectLater(
+          client.fetchPrograms(),
+          throwsA(isA<CatalogException>()),
+        );
+        expect(headers.containsKey('Authorization'), isFalse);
+      },
+    );
   });
 }

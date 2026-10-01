@@ -11,9 +11,17 @@ import 'package:naguan_app/theme/forja_tokens.dart';
 /// Ahora es un StatelessWidget: el estado de la carga (el Future en curso)
 /// vive dentro de LoadView.
 class ProgramsScreen extends StatelessWidget {
-  const ProgramsScreen({super.key, required this.client});
+  const ProgramsScreen({
+    super.key,
+    required this.client,
+    required this.onSignOut,
+  });
 
   final CatalogClient client;
+
+  /// Qué hacer al tocar SALIR. La pantalla no sabe de autenticación: recibe
+  /// la acción ya armada (un callback), igual que recibe el cliente.
+  final VoidCallback onSignOut;
 
   @override
   Widget build(BuildContext context) {
@@ -23,8 +31,11 @@ class ProgramsScreen extends StatelessWidget {
           // Un tear-off: se pasa el método sin llamarlo (sin paréntesis),
           // como una method reference `client::fetchPrograms` en Java.
           load: client.fetchPrograms,
-          builder: (context, programs) =>
-              _ProgramList(client: client, programs: programs),
+          builder: (context, programs) => _ProgramList(
+            client: client,
+            programs: programs,
+            onSignOut: onSignOut,
+          ),
         ),
       ),
     );
@@ -32,10 +43,15 @@ class ProgramsScreen extends StatelessWidget {
 }
 
 class _ProgramList extends StatelessWidget {
-  const _ProgramList({required this.client, required this.programs});
+  const _ProgramList({
+    required this.client,
+    required this.programs,
+    required this.onSignOut,
+  });
 
   final CatalogClient client;
   final List<ProgramSummary> programs;
+  final VoidCallback onSignOut;
 
   @override
   Widget build(BuildContext context) {
@@ -58,8 +74,15 @@ class _ProgramList extends StatelessWidget {
           SizedBox(height: index == 0 ? ForjaSpace.s8 : ForjaSpace.s6),
       itemBuilder: (context, index) {
         if (index == 0) {
-          // La única palabra hero de la pantalla.
-          return Text('SENDAS', style: textTheme.displayLarge);
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // La única palabra hero de la pantalla. Expanded le da el
+              // ancho que sobra, y el botón queda a la derecha.
+              Expanded(child: Text('SENDAS', style: textTheme.displayLarge)),
+              TextButton(onPressed: onSignOut, child: const Text('SALIR')),
+            ],
+          );
         }
         final program = programs[index - 1];
         return _ProgramCard(

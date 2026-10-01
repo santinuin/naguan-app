@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/santinuin/naguan-app/backend/internal/auth"
 	"github.com/santinuin/naguan-app/backend/internal/catalog"
 )
 
@@ -46,13 +47,34 @@ func (f *fakeCatalog) GetSession(ctx context.Context, id int64) (catalog.Session
 	return f.session, f.err
 }
 
-// do ejecuta un request contra el router y devuelve la respuesta grabada.
-func do(t *testing.T, cat Catalog, method, path string) *httptest.ResponseRecorder {
+// fakeVerifier acepta un único token, "token-valido", y rechaza el resto.
+type fakeVerifier struct{}
+
+func (fakeVerifier) Verify(token string) (auth.User, error) {
+	if token == "token-valido" {
+		return auth.User{ID: "u1", Email: "prueba@naguan.local"}, nil
+	}
+	return auth.User{}, auth.ErrInvalidToken
+}
+
+// doAs ejecuta un request con el header Authorization dado ("" = sin header)
+// y devuelve la respuesta grabada.
+func doAs(t *testing.T, cat Catalog, authorization, method, path string) *httptest.ResponseRecorder {
 	t.Helper()
 	req := httptest.NewRequest(method, path, nil)
+	if authorization != "" {
+		req.Header.Set("Authorization", authorization)
+	}
 	rec := httptest.NewRecorder()
-	NewRouter(cat, time.Second).ServeHTTP(rec, req)
+	NewRouter(cat, fakeVerifier{}, time.Second).ServeHTTP(rec, req)
 	return rec
+}
+
+// do ejecuta un request autenticado: el caso normal de la mayoría de los
+// tests.
+func do(t *testing.T, cat Catalog, method, path string) *httptest.ResponseRecorder {
+	t.Helper()
+	return doAs(t, cat, "Bearer token-valido", method, path)
 }
 
 func TestHealth(t *testing.T) {
@@ -149,9 +171,49 @@ func TestRequestTimeout(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/v1/sessions/7", nil)
 	rec := httptest.NewRecorder()
 
-	NewRouter(cat, 20*time.Millisecond).ServeHTTP(rec, req)
+	req.Header.Set("Authorization", "Bearer token-valido")
+	NewRouter(cat, fakeVerifier{}, 20*time.Millisecond).ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusGatewayTimeout {
 		t.Errorf("status = %d, want %d", rec.Code, http.StatusGatewayTimeout)
+	}
+}
+
+func TestAuthentication(t *testing.T) {
+	tests := []struct {
+		name          string
+		authorization string
+		path          string
+		wantStatus    int
+	}{
+		{"sin token", "", "/v1/programs", http.StatusUnauthorized},
+		{"token inválido", "Bearer cualquiera", "/v1/programs", http.StatusUnauthorized},
+		{"otro esquema", "Basic dXNlcjpwYXNz", "/v1/programs", http.StatusUnauthorized},
+		{"token válido", "Bearer token-valido", "/v1/programs", http.StatusOK},
+		{"health es público", "", "/health", http.StatusOK},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rec := doAs(t, &fakeCatalog{}, tt.authorization, http.MethodGet, tt.path)
+
+			if rec.Code != tt.wantStatus {
+				t.Errorf("status = %d, want %d", rec.Code, tt.wantStatus)
+			}
+			if tt.wantStatus == http.StatusUnauthorized && rec.Header().Get("WWW-Authenticate") == "" {
+				t.Error("un 401 tiene que traer el header WWW-Authenticate")
+			}
+		})
+	}
+}
+
+func TestMe(t *testing.T) {
+	rec := do(t, &fakeCatalog{}, http.MethodGet, "/v1/me")
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", rec.Code)
+	}
+	want := `{"id":"u1","email":"prueba@naguan.local"}`
+	if got := strings.TrimSpace(rec.Body.String()); got != want {
+		t.Errorf("body = %s, want %s", got, want)
 	}
 }

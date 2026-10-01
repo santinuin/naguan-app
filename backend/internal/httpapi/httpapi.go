@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/santinuin/naguan-app/backend/internal/auth"
 	"github.com/santinuin/naguan-app/backend/internal/catalog"
 )
 
@@ -27,20 +28,26 @@ type Catalog interface {
 // NewRouter arma el mux con todas las rutas y le aplica el middleware.
 // Devuelve http.Handler (y no *http.ServeMux) para que main y los tests
 // dependan solo de la interfaz.
-func NewRouter(cat Catalog, requestTimeout time.Duration) http.Handler {
-	mux := http.NewServeMux()
-
-	// /health queda sin versión: lo consulta la infraestructura (Cloud Run,
-	// un balanceador), no la app.
-	mux.HandleFunc("GET /health", handleHealth)
-
-	// Las rutas de la API van bajo /v1: cuando haya que romper el contrato,
-	// conviven /v1 y /v2 mientras la app se actualiza. Desde Go 1.22 el mux
-	// soporta método y wildcards en el patrón; no hace falta Chi ni Gin.
+func NewRouter(cat Catalog, verifier TokenVerifier, requestTimeout time.Duration) http.Handler {
+	// La API de la app (/v1) vive en su propio mux, y todo él pasa por
+	// requireUser: el contenido de los programas solo lo ve quien inició
+	// sesión. Desde Go 1.22 el mux soporta método y wildcards en el patrón;
+	// no hace falta Chi ni Gin.
+	v1 := http.NewServeMux()
 	h := catalogHandlers{cat: cat}
-	mux.HandleFunc("GET /v1/programs", h.listPrograms)
-	mux.HandleFunc("GET /v1/programs/{slug}", h.getProgram)
-	mux.HandleFunc("GET /v1/sessions/{id}", h.getSession)
+	v1.HandleFunc("GET /v1/me", handleMe)
+	v1.HandleFunc("GET /v1/programs", h.listPrograms)
+	v1.HandleFunc("GET /v1/programs/{slug}", h.getProgram)
+	v1.HandleFunc("GET /v1/sessions/{id}", h.getSession)
+
+	mux := http.NewServeMux()
+	// /health es público y sin versión: lo consulta la infraestructura
+	// (Cloud Run, un balanceador), no la app.
+	mux.HandleFunc("GET /health", handleHealth)
+	// Un patrón que termina en "/" captura todo lo que empieza así. Las
+	// rutas bajo /v1 van versionadas: cuando haya que romper el contrato,
+	// conviven /v1 y /v2 mientras la app se actualiza.
+	mux.Handle("/v1/", requireUser(verifier)(v1))
 
 	// El orden importa: logRequests va afuera de todo para registrar
 	// también los 500 que genera recoverPanics.
@@ -49,6 +56,24 @@ func NewRouter(cat Catalog, requestTimeout time.Duration) http.Handler {
 		recoverPanics,
 		withTimeout(requestTimeout),
 	)
+}
+
+type meResponse struct {
+	ID    string `json:"id"`
+	Email string `json:"email"`
+}
+
+// handleMe devuelve el usuario del token: sirve para que la app (y nosotros)
+// verifiquen que la autenticación funciona de punta a punta.
+func handleMe(w http.ResponseWriter, r *http.Request) {
+	user, ok := auth.UserFrom(r.Context())
+	if !ok {
+		// No debería pasar: requireUser corre antes. Si pasa, es un bug de
+		// cableado de rutas, no un error del cliente.
+		writeError(w, r, errors.New("handleMe sin usuario en el contexto"))
+		return
+	}
+	writeJSON(w, http.StatusOK, meResponse{ID: user.ID, Email: user.Email})
 }
 
 type healthResponse struct {

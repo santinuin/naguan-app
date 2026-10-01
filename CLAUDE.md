@@ -62,8 +62,9 @@ a la hora de asistir en el desarrollo:
   "Sesión N"); sumar el calentamiento y el estiramiento que les faltan a los programas.
 - Próximos pasos (hoja de ruta):
   1. Lo estructural de la API primero, en este orden: (a) cimientos transversales:
-     hecho; (b) autenticación con Supabase Auth (gotrue local + validación del JWT en un
-     middleware de Go + login en Flutter); (c) modelo del usuario: Senda que sigue,
+     hecho; (b) autenticación con Supabase Auth: hecho (ver `docs/autenticacion.md`);
+     pendiente sumar ingreso con biometría (`local_auth` + refresh token en
+     `flutter_secure_storage`); (c) modelo del usuario: Senda que sigue,
      registro de Fraguas templadas, Brasa y Mojones; (d) endpoints de ejercicio;
      (e) despliegue (Supabase nube, Docker, Cloud Run, CI). Los ajustes de contenido,
      después.
@@ -89,7 +90,7 @@ a la hora de asistir en el desarrollo:
 - **Documentos explicativos en `docs/`** (versionados): todo lo que valga la pena dejar
   por escrito sobre diseño, arquitectura o cómo funcionan los frameworks por debajo (Go,
   Flutter, Supabase). Se crean o amplían a medida que aparecen los temas. Hoy:
-  `docs/go-para-devs-spring.md`, `docs/flutter-como-funciona.md`.
+  `docs/go-para-devs-spring.md`, `docs/flutter-como-funciona.md`, `docs/autenticacion.md`.
 - Guía de entorno, emulador y comandos útiles: `mobile/README.md`.
 
 ## Stack decidido
@@ -204,10 +205,17 @@ calistenia, pero también fuerza con barra (Barra Libre) y movilidad ("flexifuer
   - `cmd/api`: arranque; arma las dependencias a mano (config → pool → `db.Queries` →
     `catalog.Service` → router).
   - `internal/config`: configuración desde el entorno, validada al arrancar: `PORT`
-    (8080), `DATABASE_URL` (el Postgres de `supabase start`), `REQUEST_TIMEOUT` (10s),
+    (8080), `DATABASE_URL` (el Postgres de `supabase start`), `SUPABASE_URL`
+    (`http://127.0.0.1:54321`), `REQUEST_TIMEOUT` (10s),
     `SHUTDOWN_TIMEOUT` (10s).
   - `internal/httpapi`: router, handlers y middleware (`logRequests` → `recoverPanics` →
-    `withTimeout`, en ese orden). Rutas de la app bajo **`/v1`**; `/health` sin versión.
+    `withTimeout`, en ese orden). Rutas de la app bajo **`/v1`**, todas detrás de
+    `requireUser` (token de Supabase obligatorio; `GET /v1/me` devuelve el usuario);
+    `/health` público y sin versión.
+  - `internal/auth`: valida los JWT de Supabase (ES256, claves públicas del JWKS de
+    `SUPABASE_URL`, con `golang-jwt` + `keyfunc`) y lleva el usuario en el `context`
+    (`auth.WithUser` / `auth.UserFrom`). La autorización por usuario se hace en Go (la API
+    se conecta como `postgres` y no usa RLS).
     Define las interfaces que consume (`Catalog`) y traduce errores a status
     (`ErrNotFound` → 404, `DeadlineExceeded` → 504, `Canceled` → sin respuesta; el resto,
     500 sin detalle).
@@ -242,6 +250,12 @@ calistenia, pero también fuerza con barra (Barra Libre) y movilidad ("flexifuer
   `supabase/seed.sql` se genera con `backend/cmd/seed` y **no se versiona** (contenido de
   la fuente; el repo es público por ahora). Sí se versiona `backend/seed/exercise_names.csv`
   (solo nombres). Ver `backend/README.md`.
+- Autenticación en mobile: `supabase_flutter` solo para Auth (los datos van por la API Go).
+  `lib/auth/`: `AuthService` (interfaz propia; `SupabaseAuthService` la implementa),
+  `LoginScreen` y `AuthGate` (elige ingreso o app escuchando el stream de sesión). El
+  `CatalogClient` recibe una función `accessToken` y manda `Authorization: Bearer`.
+  Configuración en `lib/config.dart` (`String.fromEnvironment` con valores locales por
+  defecto; se pisan con `--dart-define`).
 - Mobile organizado por funcionalidad (`lib/catalog/`: modelos, cliente, pantallas),
   `lib/common/` (piezas compartidas: `LoadView<T>` para cargando/error/datos) y
   `lib/theme/` (tokens, `ThemeData`, widgets propios como `ForjaPill`). Navegación con
@@ -249,8 +263,8 @@ calistenia, pero también fuerza con barra (Barra Libre) y movilidad ("flexifuer
   deep links). Modelos con
   `fromJson` a mano (pattern matching de Dart 3), sin generación de código por ahora. Los
   clientes decodifican el cuerpo con `utf8.decode(bodyBytes)` (la API no manda charset).
-  La URL base de la API es `apiBaseUrl` en `main.dart` (`http://10.0.2.2:8080/v1` en el
-  emulador); los clientes agregan la ruta.
+  La URL base de la API es `apiBaseUrl` en `lib/config.dart` (`http://10.0.2.2:8080/v1` en
+  el emulador); los clientes agregan la ruta.
 - Fuentes: TTF estáticos en `mobile/assets/fonts/` (con sus licencias OFL), declarados en
   `pubspec.yaml`; no se usa `google_fonts` (descarga al primer uso, falla sin señal).
 - Al elegir paquetes de Dart, verificar en pub.dev que soporten iOS además de Android, para
@@ -275,8 +289,10 @@ calistenia, pero también fuerza con barra (Barra Libre) y movilidad ("flexifuer
   mano. No hay `psql` en el host: usar `docker exec supabase_db_naguan-app psql -U postgres`.
 - Supabase local: CLI 2.119 en `~/.local/bin/supabase`; sqlc en `~/.local/bin/sqlc`
   (binarios de los releases de GitHub).
-  Se levanta solo lo necesario por ahora (Postgres 17 + Studio):
-  `supabase start -x gotrue,realtime,storage-api,imgproxy,mailpit,edge-runtime,logflare,vector,supavisor`.
+  Se levanta solo lo necesario por ahora (Postgres 17, Auth y Studio):
+  `supabase start -x realtime,storage-api,imgproxy,mailpit,edge-runtime,logflare,vector,supavisor`.
+  Usuario de prueba local: `prueba@naguan.local` / `forja-local-123`. Los tokens se firman
+  con ES256; el JWKS está en `http://127.0.0.1:54321/auth/v1/.well-known/jwks.json`.
   Postgres en `127.0.0.1:54322` (postgres/postgres), Studio en `http://127.0.0.1:54323`.
   `supabase db reset` reaplica migraciones + `supabase/seed.sql`; `supabase stop` lo apaga.
 

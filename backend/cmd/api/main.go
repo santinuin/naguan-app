@@ -14,6 +14,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/santinuin/naguan-app/backend/internal/auth"
 	"github.com/santinuin/naguan-app/backend/internal/catalog"
 	"github.com/santinuin/naguan-app/backend/internal/config"
 	"github.com/santinuin/naguan-app/backend/internal/db"
@@ -35,6 +36,12 @@ func run() error {
 		return fmt.Errorf("configuración: %w", err)
 	}
 
+	// ctx vive mientras viva el servidor: se cancela al recibir Ctrl+C
+	// (SIGINT) o SIGTERM. Cloud Run manda SIGTERM antes de apagar una
+	// instancia, y queremos terminar limpio.
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
 	// El pool de conexiones (el HikariCP de pgx). pgxpool.New no se conecta
 	// todavía: Ping verifica al arrancar que la base responde, para fallar
 	// rápido en vez de en el primer request.
@@ -51,11 +58,18 @@ func run() error {
 		return fmt.Errorf("conectando a Postgres: %w", err)
 	}
 
+	// El verificador de tokens descarga las claves públicas de Supabase y
+	// las refresca en segundo plano mientras ctx no se cancele.
+	verifier, err := auth.NewVerifier(ctx, cfg.SupabaseURL)
+	if err != nil {
+		return err
+	}
+
 	// El "contenedor de dependencias", a mano: cada pieza recibe lo que
 	// necesita por constructor.
 	queries := db.New(pool)
 	catalogService := catalog.NewService(queries)
-	router := httpapi.NewRouter(catalogService, cfg.RequestTimeout)
+	router := httpapi.NewRouter(catalogService, verifier, cfg.RequestTimeout)
 
 	srv := &http.Server{
 		Addr:    ":" + cfg.Port,
@@ -65,11 +79,6 @@ func run() error {
 		ReadHeaderTimeout: 5 * time.Second,
 		IdleTimeout:       60 * time.Second,
 	}
-
-	// ctx se cancela al recibir Ctrl+C (SIGINT) o SIGTERM. Cloud Run manda
-	// SIGTERM antes de apagar una instancia, y queremos terminar limpio.
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
 
 	errCh := make(chan error, 1)
 	go func() {

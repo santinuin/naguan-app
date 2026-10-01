@@ -19,12 +19,23 @@ class CatalogException implements Exception {
 
 /// Cliente de la API del catálogo (programas y sesiones).
 class CatalogClient {
+  /// [accessToken] devuelve el token de acceso vigente (o null sin sesión).
+  /// Es una función y no un String porque el token cambia: se renueva cada
+  /// hora, y se lee recién al hacer cada request.
+  ///
   /// [httpClient] es opcional: en la app se usa uno real; en los tests, un
   /// `MockClient`.
-  CatalogClient({required this.baseUrl, http.Client? httpClient})
-    : _http = httpClient ?? http.Client();
+  ///
+  /// `this._accessToken` inicializa el campo privado directamente; quien
+  /// llama escribe `accessToken:` (sin el guion bajo).
+  CatalogClient({
+    required this.baseUrl,
+    required this._accessToken,
+    http.Client? httpClient,
+  }) : _http = httpClient ?? http.Client();
 
   final String baseUrl;
+  final String? Function() _accessToken;
   final http.Client _http;
 
   static const _timeout = Duration(seconds: 8);
@@ -57,12 +68,23 @@ class CatalogClient {
   Future<Object?> _getJson(String path) async {
     final http.Response response;
     try {
-      response = await _http.get(Uri.parse('$baseUrl$path')).timeout(_timeout);
+      final token = _accessToken();
+      response = await _http
+          .get(
+            Uri.parse('$baseUrl$path'),
+            // El token viaja en cada request: la API no guarda sesión
+            // (stateless), solo valida la firma del token.
+            headers: {if (token != null) 'Authorization': 'Bearer $token'},
+          )
+          .timeout(_timeout);
     } on Exception catch (e) {
       // Sin red, conexión rechazada, timeout...
       throw CatalogException('no se pudo conectar con el servidor ($e)');
     }
 
+    if (response.statusCode == 401) {
+      throw const CatalogException('sesión vencida o inválida');
+    }
     if (response.statusCode != 200) {
       throw CatalogException('el servidor respondió ${response.statusCode}');
     }

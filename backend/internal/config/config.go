@@ -17,6 +17,9 @@ type Config struct {
 	Port string
 	// DatabaseURL es la conexión a Postgres (el spring.datasource.url).
 	DatabaseURL string
+	// SupabaseURL es la URL del proyecto de Supabase: de ahí salen las
+	// claves públicas para validar los tokens y el emisor esperado.
+	SupabaseURL string
 	// RequestTimeout es el tiempo máximo para atender un request: pasado
 	// ese tiempo se cancela su contexto (y con él, las consultas en curso).
 	RequestTimeout time.Duration
@@ -24,8 +27,11 @@ type Config struct {
 	ShutdownTimeout time.Duration
 }
 
-// localDatabaseURL es el Postgres de `supabase start`.
-const localDatabaseURL = "postgres://postgres:postgres@127.0.0.1:54322/postgres"
+// Valores locales de `supabase start`.
+const (
+	localDatabaseURL = "postgres://postgres:postgres@127.0.0.1:54322/postgres"
+	localSupabaseURL = "http://127.0.0.1:54321"
+)
 
 // Load lee la configuración del entorno del proceso.
 func Load() (Config, error) {
@@ -47,6 +53,7 @@ func load(lookup func(string) (string, bool)) (Config, error) {
 	cfg := Config{
 		Port:        get("PORT", "8080"),
 		DatabaseURL: get("DATABASE_URL", localDatabaseURL),
+		SupabaseURL: get("SUPABASE_URL", localSupabaseURL),
 	}
 
 	// Como en el importador, se juntan todos los errores: si faltan tres

@@ -5,7 +5,10 @@ import (
 	"log/slog"
 	"net/http"
 	"runtime/debug"
+	"strings"
 	"time"
+
+	"github.com/santinuin/naguan-app/backend/internal/auth"
 )
 
 // Middleware envuelve un handler con comportamiento extra (logging,
@@ -123,4 +126,46 @@ func withTimeout(d time.Duration) Middleware {
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
+}
+
+// TokenVerifier valida un token de acceso y devuelve su usuario. Es la
+// interfaz que este paquete necesita de auth.Verifier (definida del lado del
+// consumidor, como Catalog): los tests le pasan un fake sin criptografía.
+type TokenVerifier interface {
+	Verify(token string) (auth.User, error)
+}
+
+// requireUser exige un token válido en el header Authorization ("Bearer
+// <token>") y deja el usuario en el contexto del request. Sin token o con
+// uno inválido, responde 401 y no llama al handler.
+//
+// Es el equivalente a la cadena de seguridad de Spring Security
+// (ServerHttpSecurity + un ReactiveAuthenticationManager para JWT), escrita
+// a mano en 20 líneas.
+func requireUser(v TokenVerifier) Middleware {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			token, ok := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
+			if !ok || token == "" {
+				unauthorized(w, "falta el token de acceso")
+				return
+			}
+			user, err := v.Verify(token)
+			if err != nil {
+				// El detalle (vencido, mala firma...) va al log, no al
+				// cliente.
+				slog.Info("token rechazado", "path", r.URL.Path, "err", err)
+				unauthorized(w, "token inválido o vencido")
+				return
+			}
+			next.ServeHTTP(w, r.WithContext(auth.WithUser(r.Context(), user)))
+		})
+	}
+}
+
+func unauthorized(w http.ResponseWriter, msg string) {
+	// WWW-Authenticate le dice al cliente qué esquema de autenticación
+	// espera el servidor (lo exige la especificación de HTTP para el 401).
+	w.Header().Set("WWW-Authenticate", `Bearer realm="naguan"`)
+	writeJSON(w, http.StatusUnauthorized, errorResponse{Error: msg})
 }

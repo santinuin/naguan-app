@@ -9,8 +9,9 @@ go test ./...
 sqlc generate         # regenera internal/db a partir de internal/db/queries/*.sql
 ```
 
-Endpoints: `GET /health` y, bajo `/v1`: `GET /programs`, `GET /programs/{slug}`,
-`GET /sessions/{id}`. Configuración por entorno: ver `internal/config`.
+Endpoints: `GET /health` (público) y, bajo `/v1` y con `Authorization: Bearer <token de
+Supabase>`: `GET /me`, `GET /programs`, `GET /programs/{slug}`, `GET /sessions/{id}`.
+Ver `/docs/autenticacion.md`. Configuración por entorno: ver `internal/config`.
 La base local se levanta con `supabase start` desde la raíz (ver `/CLAUDE.md`).
 
 ## Importar los programas (`cmd/seed`)

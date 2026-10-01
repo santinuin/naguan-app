@@ -22,6 +22,7 @@ func TestLoadDefaults(t *testing.T) {
 	want := Config{
 		Port:            "8080",
 		DatabaseURL:     localDatabaseURL,
+		SupabaseURL:     localSupabaseURL,
 		RequestTimeout:  10 * time.Second,
 		ShutdownTimeout: 10 * time.Second,
 	}

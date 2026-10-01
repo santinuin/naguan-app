@@ -13,7 +13,7 @@ Future<void> pumpScreen(WidgetTester tester, CatalogClient client) {
   return tester.pumpWidget(
     MaterialApp(
       theme: forjaHierro,
-      home: ProgramsScreen(client: client),
+      home: ProgramsScreen(client: client, onSignOut: () {}),
     ),
   );
 }
