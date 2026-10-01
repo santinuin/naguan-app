@@ -1,0 +1,5 @@
+{
+  // android/ es el proyecto Gradle que genera Flutter: no hace falta que la
+  // extensión de Java lo importe (y falla con el JRE del sistema, sin javac).
+  "java.import.gradle.enabled": false
+}
