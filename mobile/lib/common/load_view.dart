@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:naguan_app/theme/forja_tokens.dart';
+import 'package:naguan_app/theme/one_line_text.dart';
 
 /// Carga un dato asíncrono y muestra sus tres estados: cargando, error (con
 /// reintento) y el dato listo, que dibuja [builder].
@@ -79,7 +80,10 @@ class ErrorView extends StatelessWidget {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: ForjaSpace.s6),
-            FilledButton(onPressed: onRetry, child: const Text('REINTENTAR')),
+            FilledButton(
+              onPressed: onRetry,
+              child: const OneLineText('REINTENTAR'),
+            ),
           ],
         ),
       ),

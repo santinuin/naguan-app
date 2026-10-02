@@ -8,6 +8,7 @@ import 'package:naguan_app/theme/forja_theme.dart';
 import 'package:naguan_app/theme/forja_tokens.dart';
 import 'package:naguan_app/theme/forja_headline.dart';
 import 'package:naguan_app/theme/forja_sheet.dart';
+import 'package:naguan_app/theme/one_line_text.dart';
 
 /// Lo que elige el usuario en el editor: el ejercicio (el mismo u otro) y
 /// el objetivo (reps o segundos, según cómo se mida el ítem).
@@ -95,7 +96,7 @@ class _ItemEditorSheetState extends State<ItemEditorSheet> {
             TextButton(
               style: forjaInlineButton,
               onPressed: () => setState(() => _exercise = original),
-              child: Text('VOLVER A ${original.name.toUpperCase()}'),
+              child: OneLineText('VOLVER A ${original.name.toUpperCase()}'),
             ),
           TextButton(
             style: forjaInlineButton,
@@ -107,7 +108,7 @@ class _ItemEditorSheetState extends State<ItemEditorSheet> {
                 ),
               ),
             ),
-            child: const Text('CÓMO SE HACE'),
+            child: const OneLineText('CÓMO SE HACE'),
           ),
           const SizedBox(height: ForjaSpace.s4),
           Row(
@@ -163,7 +164,7 @@ class _ItemEditorSheetState extends State<ItemEditorSheet> {
               onPressed: () =>
                   Navigator.of(context)
                       .pop<ItemEdit>((exercise: _exercise, value: _value)),
-              child: const Text('LISTO'),
+              child: const OneLineText('LISTO'),
             ),
           ),
         ],

@@ -16,6 +16,7 @@ import 'package:naguan_app/theme/forja_pill.dart';
 import 'package:naguan_app/theme/forja_theme.dart';
 import 'package:naguan_app/theme/forja_tokens.dart';
 import 'package:naguan_app/theme/forja_headline.dart';
+import 'package:naguan_app/theme/one_line_text.dart';
 
 /// La ejecución de una Fragua: paso a paso, con cuenta regresiva en los
 /// ejercicios por tiempo y en los descansos.
@@ -200,11 +201,11 @@ class _ExecutionScreenState extends State<ExecutionScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('SEGUIR'),
+            child: const OneLineText('SEGUIR'),
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('DEJAR'),
+            child: const OneLineText('DEJAR'),
           ),
         ],
       ),
@@ -398,7 +399,7 @@ class _ExerciseHeader extends StatelessWidget {
         const SizedBox(height: ForjaSpace.s2),
         TextButton(
           onPressed: () => onOpenExercise(item.exercise!),
-          child: const Text('CÓMO SE HACE'),
+          child: const OneLineText('CÓMO SE HACE'),
         ),
       ],
     );
@@ -556,7 +557,7 @@ class _AmrapStep extends StatelessWidget {
         const SizedBox(height: ForjaSpace.s6),
         OutlinedButton(
           onPressed: runner.addAmrapRound,
-          child: Text('+1 VUELTA · ${runner.amrapRounds}'),
+          child: OneLineText('+1 VUELTA · ${runner.amrapRounds}'),
         ),
       ],
     );
@@ -584,13 +585,13 @@ class _Controls extends StatelessWidget {
             tooltip: runner.isPaused ? 'Seguir' : 'Pausar',
           ),
         if (hasTimer) const SizedBox(width: ForjaSpace.s2),
-        TextButton(onPressed: runner.skip, child: const Text('SALTEAR')),
+        TextButton(onPressed: runner.skip, child: const OneLineText('SALTEAR')),
         const SizedBox(width: ForjaSpace.s2),
         // El CTA principal: el único bloque de acento grande de la pantalla.
         Expanded(
           child: FilledButton(
             onPressed: runner.complete,
-            child: Text(switch (kind) {
+            child: OneLineText(switch (kind) {
               StepKind.reps => 'LISTO',
               StepKind.timed => 'TERMINÉ',
               StepKind.rest => 'SEGUIR',
@@ -639,12 +640,12 @@ class _SavingView extends StatelessWidget {
                   const SizedBox(height: ForjaSpace.s6),
                   FilledButton(
                     onPressed: onRetry,
-                    child: const Text('REINTENTAR'),
+                    child: const OneLineText('REINTENTAR'),
                   ),
                   const SizedBox(height: ForjaSpace.s2),
                   TextButton(
                     onPressed: onDiscard,
-                    child: const Text('DESCARTAR'),
+                    child: const OneLineText('DESCARTAR'),
                   ),
                 ],
               ),

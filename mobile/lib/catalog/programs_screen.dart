@@ -12,6 +12,8 @@ import 'package:naguan_app/training/history/records_screen.dart';
 import 'package:naguan_app/training/offline/active_workout_store.dart';
 import 'package:naguan_app/training/training_models.dart';
 import 'package:naguan_app/theme/forja_headline.dart';
+import 'package:naguan_app/theme/one_line_text.dart';
+import 'package:naguan_app/theme/forja_pill_button.dart';
 
 /// La pantalla de inicio: la Brasa y las Sendas con el progreso del usuario.
 class ProgramsScreen extends StatefulWidget {
@@ -186,26 +188,29 @@ class _ProgramList extends StatelessWidget {
             Expanded(
               child: ForjaHeadline('SENDAS', style: textTheme.displayLarge),
             ),
-            TextButton(onPressed: onSignOut, child: const Text('SALIR')),
+            TextButton(onPressed: onSignOut, child: const OneLineText('SALIR')),
           ],
         ),
         const SizedBox(height: ForjaSpace.s8),
         _BrasaBanner(stats: home.stats),
-        const SizedBox(height: ForjaSpace.s2),
-        // Botones de texto, sin relleno: el único bloque de acento de la
-        // pantalla es el de la Fragua (en cada Senda), no la navegación.
+        const SizedBox(height: ForjaSpace.s6),
+        // Los accesos, como pills del mismo ancho que llenan el renglón:
+        // fáciles de tocar y sin dejar media pantalla vacía. Sin relleno
+        // de acento: el bloque rosa de la pantalla es el de cada Senda.
         Row(
           children: [
-            TextButton(
-              style: forjaInlineButton,
-              onPressed: onOpenHistory,
-              child: const Text('HISTORIAL'),
+            Expanded(
+              child: ForjaPillButton(
+                label: 'HISTORIAL',
+                onPressed: onOpenHistory,
+              ),
             ),
-            const SizedBox(width: ForjaSpace.s6),
-            TextButton(
-              style: forjaInlineButton,
-              onPressed: onOpenRecords,
-              child: const Text('MOJONES'),
+            const SizedBox(width: ForjaSpace.s2),
+            Expanded(
+              child: ForjaPillButton(
+                label: 'MOJONES',
+                onPressed: onOpenRecords,
+              ),
             ),
           ],
         ),
@@ -242,7 +247,7 @@ class _ProgramList extends StatelessWidget {
               context: context,
               applicationName: 'FORJA DEL NAGUAN',
             ),
-            child: const Text('LICENCIAS'),
+            child: const OneLineText('LICENCIAS'),
           ),
         ),
       ],
@@ -283,13 +288,13 @@ class _ActiveWorkoutCard extends StatelessWidget {
               children: [
                 TextButton(
                   onPressed: onDiscard,
-                  child: const Text('DESCARTAR'),
+                  child: const OneLineText('DESCARTAR'),
                 ),
                 const SizedBox(width: ForjaSpace.s2),
                 Expanded(
                   child: FilledButton(
                     onPressed: onResume,
-                    child: const Text('RETOMAR'),
+                    child: const OneLineText('RETOMAR'),
                   ),
                 ),
               ],
@@ -322,10 +327,16 @@ class _BrasaBanner extends StatelessWidget {
       message = '${stats.totalWorkouts} fraguas templadas.';
     }
 
+    // Lo primero que se ve al abrir la app: el número grande (stat, "se
+    // lee a un metro") y el mensaje en el estilo de subtítulo, ocupando el
+    // ancho.
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.end,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Text('${brasa.days}', style: forja.stat),
+        Text(
+          '${brasa.days}',
+          style: forja.stat.copyWith(fontSize: 72, height: 1),
+        ),
         const SizedBox(width: ForjaSpace.s4),
         Expanded(
           child: Column(
@@ -333,14 +344,16 @@ class _BrasaBanner extends StatelessWidget {
             children: [
               Text(
                 brasa.days == 1 ? 'BRASA · DÍA' : 'BRASA · DÍAS',
-                style: textTheme.labelSmall,
+                style: textTheme.labelSmall?.copyWith(fontSize: 14),
               ),
               const SizedBox(height: ForjaSpace.s1),
               Text(
                 message,
                 style: brasa.atRisk
-                    ? forja.bodyStrong.copyWith(color: forja.palette.accentText)
-                    : textTheme.bodyLarge,
+                    ? textTheme.headlineSmall?.copyWith(
+                        color: forja.palette.accentText,
+                      )
+                    : textTheme.headlineSmall,
               ),
             ],
           ),

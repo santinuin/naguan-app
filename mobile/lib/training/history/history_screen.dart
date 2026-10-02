@@ -9,6 +9,7 @@ import 'package:naguan_app/training/history/dates.dart';
 import 'package:naguan_app/training/history/workout_history.dart';
 import 'package:naguan_app/training/training_models.dart';
 import 'package:naguan_app/training/training_services.dart';
+import 'package:naguan_app/theme/one_line_text.dart';
 
 /// El historial: las Fraguas templadas, de la más reciente a la más vieja,
 /// agrupadas por mes. Se cargan de a páginas a medida que se baja.
@@ -280,7 +281,7 @@ class _Footer extends StatelessWidget {
             ),
             TextButton(
               onPressed: history.loadMore,
-              child: const Text('REINTENTAR'),
+              child: const OneLineText('REINTENTAR'),
             ),
           ],
         ),

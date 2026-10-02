@@ -5,6 +5,7 @@ import 'package:naguan_app/theme/forja_theme.dart';
 import 'package:naguan_app/theme/forja_tokens.dart';
 import 'package:naguan_app/training/training_models.dart';
 import 'package:naguan_app/theme/forja_headline.dart';
+import 'package:naguan_app/theme/one_line_text.dart';
 
 /// El resumen de una Fragua templada: duración, golpes y los Mojones
 /// superados.
@@ -79,7 +80,7 @@ class TempladoScreen extends StatelessWidget {
               // pop vuelve a la sesión: la ejecución ya no está en la pila
               // (se reemplazó por esta pantalla).
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('LISTO'),
+              child: const OneLineText('LISTO'),
             ),
           ],
         ),

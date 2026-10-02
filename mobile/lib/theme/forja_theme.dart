@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:naguan_app/theme/forja_tokens.dart';
+import 'package:naguan_app/theme/forja_background.dart';
 
 final forjaHierro = buildForjaTheme(ForjaPalette.hierro);
 final forjaHueso = buildForjaTheme(ForjaPalette.hueso);
@@ -21,7 +22,15 @@ ThemeData buildForjaTheme(ForjaPalette p) {
 
   return ThemeData(
     brightness: p.brightness,
-    scaffoldBackgroundColor: p.bg,
+    // Transparente: el fondo (bg + grano) lo pinta ForjaBackground debajo
+    // de cada pantalla, a través de las transiciones de página.
+    scaffoldBackgroundColor: Colors.transparent,
+    pageTransitionsTheme: const PageTransitionsTheme(
+      builders: {
+        TargetPlatform.android: ForjaPageTransitionsBuilder(),
+        TargetPlatform.iOS: ForjaPageTransitionsBuilder(),
+      },
+    ),
     colorScheme: ColorScheme(
       brightness: p.brightness,
       primary: p.accent,
@@ -45,7 +54,9 @@ ThemeData buildForjaTheme(ForjaPalette p) {
     ),
     textTheme: text,
     appBarTheme: AppBarTheme(
-      backgroundColor: p.bg,
+      // Transparente para que se vea el grano. El contenido no pasa por
+      // debajo: el body del Scaffold empieza donde termina el AppBar.
+      backgroundColor: Colors.transparent,
       foregroundColor: p.ink,
       elevation: 0,
       scrolledUnderElevation: 0,

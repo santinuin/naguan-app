@@ -50,7 +50,13 @@ a la hora de asistir en el desarrollo:
   tema de Forja en Flutter: fuentes empaquetadas y `ThemeData` Hierro/Hueso (ver
   "Convenciones"); ícono adaptativo de Android (variante C, con capa monocromática).
 - Pendiente del tema: widget propio `ForjaButton` con la sombra dura que se hunde al
-  presionar (`FilledButton` no la soporta); textura de grano sobre `bg`.
+  presionar (`FilledButton` no la soporta).
+- Grano sobre `bg`: `assets/textures/grain.png`, generada con
+  `dart run tool/make_grain.dart` (desde `mobile/`; value noise periódico, semilla
+  fija). La pinta `ForjaBackground` debajo de cada pantalla vía
+  `ForjaPageTransitionsBuilder` (por eso los `Scaffold` y el `AppBar` son
+  transparentes); lo que no es una ruta del Navigator (el candado de `LockGate`) lo
+  envuelve a mano. Intensidad por tema: `ForjaPalette.grainOpacity`.
 - Hecho (datos): esquema del catálogo y el importador `backend/cmd/seed` del nivel A
   (470 ejercicios, 209 progresiones, 5 programas, 191 sesiones), cargado en Supabase
   local (Postgres 17). API de lectura: `GET /programs`, `GET /programs/{slug}`,
@@ -285,6 +291,13 @@ calistenia, pero también fuerza con barra (Barra Libre) y movilidad ("flexifuer
   la `ThemeExtension` `Forja`, accesible con `context.forja`. En las pantallas: estilos
   desde el tema, nunca `TextStyle`/colores escritos a mano. Error = `signal` (el sistema de
   diseño no define un color de error). La app usa `ThemeMode.dark` (Hierro) fijo.
+  **Ninguna palabra se corta, en ningún teléfono**: los títulos con texto variable van
+  con `ForjaHeadline` (achica la fuente hasta que entre la palabra más larga); las
+  etiquetas de botones, pills y selectores, con `OneLineText` (una línea; si no entra, se
+  achica), nunca con un `Text` suelto. Dos cosas que pueden no entrar en un renglón, en
+  un `Wrap`. Probar en 360 dp: `adb shell wm density 480` (y `wm density reset`).
+  Filtros, selectores y accesos secundarios (HISTORIAL, MOJONES): `ForjaPillButton`
+  (pills del mismo ancho con `Expanded`).
 - Ícono: fuentes en `mobile/branding/icon/` (`icon_c.svg/.png` del sistema de diseño;
   `foreground` y `monochrome` derivados, sin fondo ni grano, con el rayado como huecos).
   Los recursos de Android se generan con `flutter_launcher_icons` (config en

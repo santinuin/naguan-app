@@ -9,6 +9,7 @@ import 'package:naguan_app/theme/forja_pill.dart';
 import 'package:naguan_app/theme/forja_theme.dart';
 import 'package:naguan_app/theme/forja_tokens.dart';
 import 'package:naguan_app/theme/forja_headline.dart';
+import 'package:naguan_app/theme/forja_pill_button.dart';
 
 /// Construye el reproductor para una URL. Un `typedef` le pone nombre a un
 /// tipo de función, como una interfaz funcional de Java
@@ -151,21 +152,19 @@ class _VideosState extends State<_Videos> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         if (videos.length > 1) ...[
+          // Un filtro, según el sistema de diseño: pills con borde y texto
+          // label. Las dos con el mismo ancho (Expanded) y el mismo estilo;
+          // la elegida, rellena de acento.
           Row(
             children: [
               for (final (i, video) in videos.indexed) ...[
                 if (i > 0) const SizedBox(width: ForjaSpace.s2),
                 Expanded(
-                  // El elegido, relleno; el otro, solo con borde.
-                  child: i == _selected
-                      ? FilledButton(
-                          onPressed: () {},
-                          child: Text(video.side?.label ?? 'VIDEO ${i + 1}'),
-                        )
-                      : OutlinedButton(
-                          onPressed: () => setState(() => _selected = i),
-                          child: Text(video.side?.label ?? 'VIDEO ${i + 1}'),
-                        ),
+                  child: ForjaPillButton(
+                    label: video.side?.label ?? 'VIDEO ${i + 1}',
+                    selected: i == _selected,
+                    onPressed: () => setState(() => _selected = i),
+                  ),
                 ),
               ],
             ],

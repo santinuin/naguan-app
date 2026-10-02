@@ -20,6 +20,7 @@ class ForjaPalette {
     required this.accentSoft,
     required this.onAccent,
     required this.signal,
+    required this.grainOpacity,
   });
 
   final Brightness brightness;
@@ -61,6 +62,12 @@ class ForjaPalette {
   /// Amarillo señal: récord, fin de descanso. Siempre con texto.
   final Color signal;
 
+  /// Cuánto se ve el grano sobre [bg] (ver ForjaBackground). La textura
+  /// tiene su propia transparencia (alfa promedio ~12%): esto la escala. El
+  /// sistema de diseño sugiere un efecto de 6–8% en Hierro y 4–5% en Hueso;
+  /// se eligió uno más sutil (menos motas), probado en el teléfono.
+  final double grainOpacity;
+
   /// Tema oscuro, el principal.
   static const hierro = ForjaPalette(
     brightness: Brightness.dark,
@@ -76,6 +83,7 @@ class ForjaPalette {
     accentSoft: Color(0xFF3D2229),
     onAccent: Color(0xFF141213),
     signal: Color(0xFFF2D16B),
+    grainOpacity: 0.28, // 0.12 × 0.28 ≈ 3.4%
   );
 
   /// Tema claro: el mismo sistema invertido.
@@ -93,6 +101,7 @@ class ForjaPalette {
     accentSoft: Color(0xFFF2C4CF),
     onAccent: Color(0xFF141213),
     signal: Color(0xFFF2D16B),
+    grainOpacity: 0.18, // 0.12 × 0.18 ≈ 2.2%
   );
 }
 

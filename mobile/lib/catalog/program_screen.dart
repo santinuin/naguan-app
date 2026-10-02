@@ -9,6 +9,7 @@ import 'package:naguan_app/theme/forja_tokens.dart';
 import 'package:naguan_app/training/training_services.dart';
 import 'package:naguan_app/training/training_models.dart';
 import 'package:naguan_app/theme/forja_headline.dart';
+import 'package:naguan_app/theme/one_line_text.dart';
 
 /// Una Senda (programa): sus Fraguas con el check de las templadas, la
 /// sugerida para hoy y la opción de resetearla.
@@ -72,11 +73,11 @@ class _ProgramScreenState extends State<ProgramScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('CANCELAR'),
+            child: const OneLineText('CANCELAR'),
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('RESETEAR'),
+            child: const OneLineText('RESETEAR'),
           ),
         ],
       ),
@@ -105,7 +106,10 @@ class _ProgramScreenState extends State<ProgramScreen> {
       // pila) y, a la derecha, la acción de resetear.
       appBar: AppBar(
         actions: [
-          TextButton(onPressed: _confirmReset, child: const Text('RESETEAR')),
+          TextButton(
+            onPressed: _confirmReset,
+            child: const OneLineText('RESETEAR'),
+          ),
         ],
       ),
       body: Column(

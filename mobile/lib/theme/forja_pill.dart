@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:naguan_app/theme/forja_theme.dart';
 import 'package:naguan_app/theme/forja_tokens.dart';
+import 'package:naguan_app/theme/one_line_text.dart';
 
 /// Etiqueta técnica del sistema de diseño: texto `label` (Space Mono en
 /// mayúsculas, con tracking) dentro de una pill con borde fino en `stroke`.
@@ -29,7 +30,8 @@ class ForjaPill extends StatelessWidget {
           horizontal: ForjaSpace.s2 + ForjaSpace.s1,
           vertical: ForjaSpace.s1,
         ),
-        child: Text(
+        // Una pill nunca salta de línea: si no entra, se achica.
+        child: OneLineText(
           text.toUpperCase(),
           style: Theme.of(context).textTheme.labelSmall,
         ),

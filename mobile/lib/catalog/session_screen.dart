@@ -12,6 +12,7 @@ import 'package:naguan_app/training/execution/execution_screen.dart';
 import 'package:naguan_app/training/training_services.dart';
 import 'package:naguan_app/theme/forja_headline.dart';
 import 'package:naguan_app/common/markdown_text.dart';
+import 'package:naguan_app/theme/one_line_text.dart';
 
 /// Lo que hay que hacer al tocar un ejercicio: el bloque donde está, para
 /// saber qué ítems ajustar.
@@ -87,7 +88,7 @@ class _SessionScreenState extends State<SessionScreen> {
           if (_plan != null)
             TextButton(
               onPressed: () => setState(() => _plan = null),
-              child: const Text('ORIGINAL'),
+              child: const OneLineText('ORIGINAL'),
             ),
         ],
       ),
@@ -128,7 +129,7 @@ class _SessionScreenState extends State<SessionScreen> {
                           ),
                         ),
                       ),
-                      child: const Text('A LA FRAGUA'),
+                      child: const OneLineText('A LA FRAGUA'),
                     ),
                   ),
                 ),
@@ -241,15 +242,23 @@ class _BlockCard extends StatelessWidget {
             // (VUELTAS CON PAUSA en un teléfono angosto), la pill baja al
             // siguiente en vez de pisar el título. spaceBetween la manda a
             // la derecha cuando sí entran, como hacía el Spacer.
-            Wrap(
-              alignment: WrapAlignment.spaceBetween,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              spacing: ForjaSpace.s4,
-              runSpacing: ForjaSpace.s2,
-              children: [
-                Text('BLOQUE ${block.position}', style: textTheme.titleLarge),
-                ForjaPill(typeLabel),
-              ],
+            //
+            // El SizedBox le da el ancho completo: dentro de una Column con
+            // alineación start, el Wrap mediría solo su contenido, y
+            // spaceBetween no tendría espacio que repartir (la pill quedaba
+            // pegada al título).
+            SizedBox(
+              width: double.infinity,
+              child: Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: ForjaSpace.s4,
+                runSpacing: ForjaSpace.s2,
+                children: [
+                  Text('BLOQUE ${block.position}', style: textTheme.titleLarge),
+                  ForjaPill(typeLabel),
+                ],
+              ),
             ),
             if (isAmrap) ...[
               const SizedBox(height: ForjaSpace.s2),
@@ -348,24 +357,15 @@ class _ItemRow extends StatelessWidget {
         children: [
           Expanded(child: name),
           const SizedBox(width: ForjaSpace.s4),
+          // Las reps y los tiempos contra el borde derecho, en columna: el
+          // último hijo de la Row después de un Expanded termina siempre en
+          // el mismo lugar. (No hay chevron que avise que la fila se toca:
+          // lo dice el texto de arriba de los bloques.)
           Text(
             metric,
             style: retargeted
                 ? metricStyle.copyWith(color: forja.palette.accentText)
                 : metricStyle,
-          ),
-          // El chevron avisa que la fila se puede tocar. En los descansos
-          // va un hueco del mismo ancho, para que las métricas queden
-          // alineadas en columna.
-          SizedBox(
-            width: ForjaSpace.s6,
-            child: exercise == null
-                ? null
-                : Icon(
-                    Icons.chevron_right,
-                    size: 20,
-                    color: forja.palette.inkMuted,
-                  ),
           ),
         ],
       ),

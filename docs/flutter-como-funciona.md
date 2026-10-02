@@ -409,6 +409,43 @@ cambiarlo por una progresión). Los ajustes valen solo para esa vez.
 - **El ejercicio hecho viaja en cada resultado** (`ItemResult.exerciseSlug`), para que la
   API le atribuya el Mojón al ejercicio correcto.
 
+## Pulido visual: medir texto, pantallas angostas y textura
+
+- **Probar en un teléfono angosto.** Muchos Android tienen 360 dp de ancho. En el
+  emulador se simula sin crear otro: `adb shell wm density 480` (1080 px / 480 × 160 =
+  360 dp) y `adb shell wm density reset` para volver. Ahí aparecieron los desbordes que
+  en el Pixel (411 dp) no se veían.
+- **Nunca cortar una palabra** (`lib/theme/forja_headline.dart`). Flutter salta de línea
+  entre palabras, pero si una sola no entra, la parte. `ForjaHeadline` usa
+  `LayoutBuilder` (el ancho disponible, que recién se conoce en el layout) y
+  `TextPainter` (el motor de `Text`, que mide sin dibujar) para achicar la fuente lo justo.
+  Mide con `MediaQuery.textScalerOf(context)`: la letra del sistema también agranda.
+- **`FittedBox` para la marca** (`forja_wordmark.dart`): escala su hijo hasta llenar el
+  ancho. Dos líneas con `BoxFit.fitWidth` quedan del mismo ancho, y la de menos letras,
+  más grande.
+- **`Wrap` en vez de `Row`** cuando dos cosas pueden no entrar en un renglón (el título
+  de un bloque y su pill): la segunda baja. Ojo: `WrapAlignment.spaceBetween` necesita
+  ancho para repartir; dentro de una `Column` con alineación `start`, el `Wrap` se
+  encoge a su contenido, y hay que darle el ancho completo (`SizedBox(width:
+  double.infinity)`).
+- **Contenido abajo pero con scroll** (el login): un `Spacer` no funciona dentro de un
+  `SingleChildScrollView` (el alto es infinito). La receta: `LayoutBuilder` +
+  `ConstrainedBox(minHeight: alto)` + `Column` con `spaceBetween`. La alternativa común,
+  `IntrinsicHeight`, pregunta el alto de cada hijo sin hacer el layout, y un `FittedBox`
+  responde con su alto sin escalar: desborda.
+- **Área segura**: `MediaQuery.viewPaddingOf(context).bottom` es lo que ocupa la barra de
+  gestos. Una hoja inferior que no lo respeta queda con el botón debajo de la barra
+  (`ForjaSheet` dibuja el panel por encima).
+- **El grano del fondo.** `ForjaBackground` pinta `bg` y la textura
+  (`DecorationImage` en mosaico, teñida con `ColorFilter.mode(ink, BlendMode.srcIn)`,
+  sin suavizado con `FilterQuality.none`). Va debajo de cada pantalla gracias a un
+  `PageTransitionsBuilder` propio en el tema: cada `MaterialPageRoute` envuelve su
+  página en la animación de transición, y ahí se agrega el fondo; por eso los `Scaffold`
+  son transparentes. `RepaintBoundary` separa el contenido en otra capa: la cuenta
+  regresiva de una Fragua se redibuja varias veces por segundo sin repintar el mosaico.
+  La textura se genera con `dart run tool/make_grain.dart` (`tool/` es la convención de
+  Dart para scripts de desarrollo).
+
 ## Arquitectura de la app
 
 El código se organiza **por funcionalidad** (feature-first), no por tipo de archivo:

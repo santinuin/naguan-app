@@ -3,6 +3,8 @@ import 'package:naguan_app/auth/auth_service.dart';
 import 'package:naguan_app/auth/device_lock.dart';
 import 'package:naguan_app/theme/forja_tokens.dart';
 import 'package:naguan_app/theme/forja_wordmark.dart';
+import 'package:naguan_app/theme/forja_background.dart';
+import 'package:naguan_app/theme/one_line_text.dart';
 
 /// Candado de la app: con una sesión guardada, pide huella (o el PIN del
 /// teléfono) antes de mostrar nada.
@@ -190,41 +192,48 @@ class _LockScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Scaffold(
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(
-            ForjaSpace.s4,
-            ForjaSpace.s12,
-            ForjaSpace.s4,
-            ForjaSpace.s8,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const ForjaWordmark(),
-              const SizedBox(height: ForjaSpace.s4),
-              Text(
-                failed ? 'No se pudo desbloquear.' : 'Desbloqueá para entrar.',
-                style: failed
-                    ? theme.textTheme.bodyLarge?.copyWith(
-                        color: theme.colorScheme.error,
-                      )
-                    : theme.textTheme.bodyLarge,
-              ),
-              // Spacer ocupa el espacio libre: empuja los botones abajo, a
-              // mano del pulgar.
-              const Spacer(),
-              FilledButton(
-                onPressed: unlocking ? null : onUnlock,
-                child: const Text('DESBLOQUEAR'),
-              ),
-              const SizedBox(height: ForjaSpace.s2),
-              TextButton(
-                onPressed: unlocking ? null : onSignOut,
-                child: const Text('ENTRAR CON CONTRASEÑA'),
-              ),
-            ],
+    // Esta pantalla no es una ruta del Navigator (está por encima, en
+    // MaterialApp.builder): no recibe el fondo de las transiciones, y con el
+    // Scaffold transparente se vería la app de abajo. Lleva el suyo.
+    return ForjaBackground(
+      child: Scaffold(
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(
+              ForjaSpace.s4,
+              ForjaSpace.s12,
+              ForjaSpace.s4,
+              ForjaSpace.s8,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const ForjaWordmark(),
+                const SizedBox(height: ForjaSpace.s4),
+                Text(
+                  failed
+                      ? 'No se pudo desbloquear.'
+                      : 'Desbloqueá para entrar.',
+                  style: failed
+                      ? theme.textTheme.bodyLarge?.copyWith(
+                          color: theme.colorScheme.error,
+                        )
+                      : theme.textTheme.bodyLarge,
+                ),
+                // Spacer ocupa el espacio libre: empuja los botones abajo, a
+                // mano del pulgar.
+                const Spacer(),
+                FilledButton(
+                  onPressed: unlocking ? null : onUnlock,
+                  child: const OneLineText('DESBLOQUEAR'),
+                ),
+                const SizedBox(height: ForjaSpace.s2),
+                TextButton(
+                  onPressed: unlocking ? null : onSignOut,
+                  child: const OneLineText('ENTRAR CON CONTRASEÑA'),
+                ),
+              ],
+            ),
           ),
         ),
       ),

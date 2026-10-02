@@ -3,6 +3,7 @@ import 'package:naguan_app/auth/auth_service.dart';
 import 'package:naguan_app/theme/forja_theme.dart';
 import 'package:naguan_app/theme/forja_tokens.dart';
 import 'package:naguan_app/theme/forja_wordmark.dart';
+import 'package:naguan_app/theme/one_line_text.dart';
 
 /// Ingreso con email y contraseña.
 ///
@@ -71,73 +72,122 @@ class _LoginScreenState extends State<LoginScreen> {
 
     return Scaffold(
       body: SafeArea(
-        // SingleChildScrollView: al abrirse el teclado, el formulario puede
-        // no entrar en la pantalla; así se puede scrollear en vez de
-        // desbordar.
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(
-            ForjaSpace.s4,
-            ForjaSpace.s12,
-            ForjaSpace.s4,
-            ForjaSpace.s8,
-          ),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const ForjaWordmark(),
-                const SizedBox(height: ForjaSpace.s4),
-                // La tagline, como en la portada del sistema de diseño: en
-                // texto secundario (ink-muted) debajo de la marca.
-                Text(
-                  'El título se gana. Serie a serie.',
-                  style: textTheme.bodyLarge?.copyWith(
-                    color: context.forja.palette.inkMuted,
-                  ),
-                ),
-                const SizedBox(height: ForjaSpace.s12),
-                TextFormField(
-                  controller: _email,
-                  decoration: const InputDecoration(labelText: 'EMAIL'),
-                  keyboardType: TextInputType.emailAddress,
-                  autocorrect: false,
-                  autofillHints: const [AutofillHints.email],
-                  // "Siguiente" en el teclado pasa al campo de contraseña.
-                  textInputAction: TextInputAction.next,
-                  validator: (value) => (value == null || !value.contains('@'))
-                      ? 'Ingresá un email válido.'
-                      : null,
-                ),
-                const SizedBox(height: ForjaSpace.s4),
-                TextFormField(
-                  controller: _password,
-                  decoration: const InputDecoration(labelText: 'CONTRASEÑA'),
-                  obscureText: true,
-                  autofillHints: const [AutofillHints.password],
-                  textInputAction: TextInputAction.done,
-                  onFieldSubmitted: (_) => _loading ? null : _submit(),
-                  validator: (value) => (value == null || value.isEmpty)
-                      ? 'Ingresá tu contraseña.'
-                      : null,
-                ),
-                if (_error case final error?) ...[
-                  const SizedBox(height: ForjaSpace.s4),
-                  Text(
-                    error,
-                    style: textTheme.bodyLarge?.copyWith(
-                      color: Theme.of(context).colorScheme.error,
+        // La marca arriba y el formulario abajo, a mano del pulgar (como
+        // la pantalla de bloqueo). Pero con el teclado abierto el
+        // formulario tiene que poder subir: hace falta scroll.
+        //
+        // El problema: dentro de un SingleChildScrollView el alto es
+        // infinito, y un Spacer no tiene "espacio sobrante" que ocupar. La
+        // receta:
+        // - LayoutBuilder da el alto real de la pantalla;
+        // - ConstrainedBox(minHeight) hace que el contenido mida AL MENOS
+        //   eso (si es más alto, scrollea);
+        // - una Column con alto máximo infinito mide lo que su contenido o
+        //   el mínimo, lo que sea mayor; MainAxisAlignment.center pone sus
+        //   hijos en el medio y reparte lo que sobra arriba y abajo. La
+        //   marca y el formulario van juntos, como un solo bloque, con una
+        //   separación fija entre ellos.
+        //
+        // (La receta que más se ve en internet usa IntrinsicHeight + Spacer,
+        // pero IntrinsicHeight le pregunta a cada hijo su alto sin hacer el
+        // layout, y la marca, que se escala para llenar el ancho, responde
+        // con su alto sin escalar: la Column desbordaba.)
+        child: LayoutBuilder(
+          builder: (context, constraints) => SingleChildScrollView(
+            // Simétrico arriba y abajo: el bloque va centrado.
+            padding: const EdgeInsets.symmetric(
+              horizontal: ForjaSpace.s4,
+              vertical: ForjaSpace.s8,
+            ),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                // El padding vertical del scroll se descuenta: si no, el
+                // contenido mediría la pantalla MÁS el padding y siempre
+                // scrollearía un poco.
+                minHeight: constraints.maxHeight - 2 * ForjaSpace.s8,
+              ),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const ForjaWordmark(),
+                        const SizedBox(height: ForjaSpace.s4),
+                        // La tagline, como en la portada del sistema de
+                        // diseño: en texto secundario debajo de la marca.
+                        Text(
+                          'El título se gana. Serie a serie.',
+                          style: textTheme.bodyLarge?.copyWith(
+                            color: context.forja.palette.inkMuted,
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                ],
-                const SizedBox(height: ForjaSpace.s6),
-                FilledButton(
-                  // onPressed null deshabilita el botón: no se puede tocar
-                  // dos veces mientras se espera la respuesta.
-                  onPressed: _loading ? null : _submit,
-                  child: Text(_loading ? 'ENTRANDO' : 'ENTRAR'),
+                    // El formulario, a una distancia fija de la marca.
+                    Padding(
+                      padding: const EdgeInsets.only(top: ForjaSpace.s12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          TextFormField(
+                            controller: _email,
+                            decoration: const InputDecoration(
+                              labelText: 'EMAIL',
+                            ),
+                            keyboardType: TextInputType.emailAddress,
+                            autocorrect: false,
+                            autofillHints: const [AutofillHints.email],
+                            // "Siguiente" en el teclado pasa a la contraseña.
+                            textInputAction: TextInputAction.next,
+                            validator: (value) =>
+                                (value == null || !value.contains('@'))
+                                ? 'Ingresá un email válido.'
+                                : null,
+                          ),
+                          const SizedBox(height: ForjaSpace.s4),
+                          TextFormField(
+                            controller: _password,
+                            decoration: const InputDecoration(
+                              labelText: 'CONTRASEÑA',
+                            ),
+                            obscureText: true,
+                            autofillHints: const [AutofillHints.password],
+                            textInputAction: TextInputAction.done,
+                            onFieldSubmitted: (_) =>
+                                _loading ? null : _submit(),
+                            validator: (value) =>
+                                (value == null || value.isEmpty)
+                                ? 'Ingresá tu contraseña.'
+                                : null,
+                          ),
+                          if (_error case final error?) ...[
+                            const SizedBox(height: ForjaSpace.s4),
+                            Text(
+                              error,
+                              style: textTheme.bodyLarge?.copyWith(
+                                color: Theme.of(context).colorScheme.error,
+                              ),
+                            ),
+                          ],
+                          const SizedBox(height: ForjaSpace.s6),
+                          FilledButton(
+                            // onPressed null deshabilita el botón: no se puede
+                            // tocar dos veces mientras se espera la respuesta.
+                            onPressed: _loading ? null : _submit,
+                            child: OneLineText(
+                              _loading ? 'ENTRANDO' : 'ENTRAR',
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
         ),
