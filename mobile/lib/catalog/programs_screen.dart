@@ -188,6 +188,18 @@ class _ProgramList extends StatelessWidget {
           const SizedBox(height: ForjaSpace.s6),
           _ProgramCard(program: program, onTap: () => onOpen(program)),
         ],
+        const SizedBox(height: ForjaSpace.s8),
+        // Los avisos legales: licencias de los paquetes y de las fuentes.
+        // showLicensePage es una pantalla que ya trae Flutter.
+        Center(
+          child: TextButton(
+            onPressed: () => showLicensePage(
+              context: context,
+              applicationName: 'FORJA DEL NAGUAN',
+            ),
+            child: const Text('LICENCIAS'),
+          ),
+        ),
       ],
     );
   }

@@ -8,6 +8,7 @@ import 'package:naguan_app/catalog/catalog_client.dart';
 import 'package:naguan_app/common/api_client.dart';
 import 'package:naguan_app/catalog/programs_screen.dart';
 import 'package:naguan_app/config.dart';
+import 'package:naguan_app/theme/font_licenses.dart';
 import 'package:naguan_app/theme/forja_theme.dart';
 import 'package:naguan_app/common/local_store.dart';
 import 'package:naguan_app/training/offline/active_workout_store.dart';
@@ -23,6 +24,8 @@ Future<void> main() async {
   // tiene que existir el "binding" entre Flutter y la plataforma; runApp lo
   // crea solo, pero acá lo necesitamos antes.
   WidgetsFlutterBinding.ensureInitialized();
+  // Las licencias OFL de las fuentes, para la página de LICENCIAS.
+  registerFontLicenses();
   await Supabase.initialize(
     url: supabaseUrl,
     publishableKey: supabasePublishableKey,

@@ -50,8 +50,7 @@ a la hora de asistir en el desarrollo:
   tema de Forja en Flutter: fuentes empaquetadas y `ThemeData` Hierro/Hueso (ver
   "Convenciones"); ícono adaptativo de Android (variante C, con capa monocromática).
 - Pendiente del tema: widget propio `ForjaButton` con la sombra dura que se hunde al
-  presionar (`FilledButton` no la soporta); textura de grano sobre `bg`; registrar las
-  licencias OFL de las fuentes con `LicenseRegistry` antes de compartir el APK.
+  presionar (`FilledButton` no la soporta); textura de grano sobre `bg`.
 - Hecho (datos): esquema del catálogo y el importador `backend/cmd/seed` del nivel A
   (470 ejercicios, 209 progresiones, 5 programas, 191 sesiones), cargado en Supabase
   local (Postgres 17). API de lectura: `GET /programs`, `GET /programs/{slug}`,
@@ -310,6 +309,11 @@ calistenia, pero también fuerza con barra (Barra Libre) y movilidad ("flexifuer
   el emulador); los clientes agregan la ruta.
 - Fuentes: TTF estáticos en `mobile/assets/fonts/` (con sus licencias OFL), declarados en
   `pubspec.yaml`; no se usa `google_fonts` (descarga al primer uso, falla sin señal).
+  Las licencias OFL van como assets y se registran con `LicenseRegistry`
+  (`lib/theme/font_licenses.dart`); se ven en LICENCIAS, al pie de SENDAS
+  (`showLicensePage`), provisoriamente: mudar el botón a la pantalla de inicio (o a
+  "Acerca de"/perfil) cuando exista. Una fuente nueva suma su `.txt` ahí y en
+  `pubspec.yaml`.
 - Al elegir paquetes de Dart, verificar en pub.dev que soporten iOS además de Android, para
   no cerrar esa puerta (agregar iOS después es `flutter create --platforms=ios .`, pero
   compilarlo requiere una Mac o CI en la nube, p. ej. Codemagic).

@@ -65,10 +65,13 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
-  # To add assets to your application, add an assets section, like this:
-  # assets:
-  #   - images/a_dot_burr.jpeg
-  #   - images/a_dot_ham.jpeg
+  # Archivos que viajan dentro del APK y se leen con rootBundle. Las licencias
+  # OFL de las fuentes: la licencia exige distribuirlas junto con las fuentes
+  # (se muestran en LICENCIAS; ver lib/theme/font_licenses.dart).
+  assets:
+    - assets/fonts/OFL-Archivo.txt
+    - assets/fonts/OFL-ArchivoBlack.txt
+    - assets/fonts/OFL-SpaceMono.txt
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

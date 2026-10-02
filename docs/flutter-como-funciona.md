@@ -313,6 +313,20 @@ Dos detalles más:
   un diálogo del sistema al arrancar, porque la Activity tiene que estar dibujada, y para
   llamar a `setState`, que no se puede usar dentro de `initState`.
 
+## Licencias: `LicenseRegistry` y `async*`
+
+Flutter trae una pantalla de licencias (`showLicensePage`). Las de los paquetes de pub.dev
+las junta solo al compilar, en el archivo `NOTICES` del APK. Las fuentes que empaquetamos
+no son paquetes: su licencia (SIL OFL 1.1) permite distribuirlas libremente, siempre que
+viajen con el aviso de copyright y el texto de la licencia. Por eso se registran a mano en
+`lib/theme/font_licenses.dart`.
+
+`LicenseRegistry.addLicense` recibe una función que devuelve un `Stream`, y la llama
+recién cuando se abre la pantalla. La función es `async*`, un **generador asíncrono**: cada
+`yield` emite un elemento del Stream, parecido a emitir en un `Flux.create`, y puede haber
+`await` en el medio (leer el `.txt` con `rootBundle`). La versión sincrónica es `sync*`,
+que produce un `Iterable` perezoso.
+
 ## Arquitectura de la app
 
 El código se organiza **por funcionalidad** (feature-first), no por tipo de archivo:
