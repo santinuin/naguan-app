@@ -38,6 +38,9 @@ dependencies:
   supabase_flutter: ^2.18.0
   wakelock_plus: ^1.8.1
   shared_preferences: ^2.5.5
+  local_auth: ^3.0.2
+  flutter_secure_storage: ^11.2.0
+  local_auth_android: ^2.2.0
 
 dev_dependencies:
   flutter_test:

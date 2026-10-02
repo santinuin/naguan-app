@@ -168,10 +168,56 @@ teléfono (habilitando "instalar apps de orígenes desconocidos") o con
 
 - Producción es todo **HTTPS**: el permiso de HTTP sin cifrar está solo en el manifiesto
   de debug.
-- **Firma:** hoy el APK de release se firma con la clave de debug (lo deja así la
-  plantilla de Flutter). Para uso personal alcanza; antes de compartirlo con amigos
-  conviene crear una clave propia (*keystore*), porque Android solo instala una
-  actualización si está firmada con la **misma** clave que la versión instalada.
+- **Firma:** con la clave propia (ver la sección siguiente). Sin `key.properties`, el
+  build cae a la clave de debug.
+
+### Clave de firma (keystore)
+
+Android exige que todo APK esté firmado, y **solo instala una actualización si viene
+firmada con la misma clave que la versión instalada**. La firma no dice quién sos (no hay
+autoridad certificante como en HTTPS): dice que esta versión viene del mismo dueño que la
+anterior. Por eso:
+
+- La clave de debug que usa la plantilla de Flutter es distinta en cada PC (vive en
+  `~/.android/debug.keystore`): si cambiás de máquina, tus amigos no pueden actualizar.
+- **Perder la clave propia es definitivo**: no hay forma de recuperarla ni de reemplazarla
+  sin que todos desinstalen la app (y pierdan sus datos locales). Hacé un backup.
+
+Se crea una sola vez, con `keytool` (viene con el JDK):
+
+```bash
+mkdir -p ~/.android-keys
+keytool -genkeypair -v -keystore ~/.android-keys/naguan-release.jks \
+  -keyalg RSA -keysize 2048 -validity 10000 -alias naguan
+```
+
+Pide una contraseña y unos datos (nombre, organización...; podés poner solo tu nombre).
+`-validity 10000` son ~27 años: la clave tiene que durar lo que dure la app. Después, el
+archivo `mobile/android/key.properties` (ignorado por git, igual que los `.jks`):
+
+```properties
+storeFile=/home/<usuario>/.android-keys/naguan-release.jks
+storePassword=<la contraseña>
+keyAlias=naguan
+keyPassword=<la contraseña>
+```
+
+`mobile/android/app/build.gradle.kts` lo lee y firma el release con esa clave. Sin el
+archivo (en CI o en otra PC), cae a la de debug para que el build no falle. Para verificar
+con qué clave quedó firmado un APK:
+
+```bash
+~/Android/Sdk/build-tools/<versión>/apksigner verify --print-certs \
+  build/app/outputs/flutter-apk/app-release.apk
+```
+
+**Backup:** el `.jks` y las contraseñas, juntos, en un gestor de contraseñas o un
+almacenamiento cifrado, fuera de esta PC.
+
+**El primer APK con la clave nueva** no se instala encima del firmado con la de debug
+(error `INSTALL_FAILED_UPDATE_INCOMPATIBLE`). Hay que desinstalar la app una vez, lo que
+borra sus datos locales. Antes, abrila con señal para que se registren las Fraguas que
+hayan quedado en la cola offline.
 
 ### Si el build de release muere con "exit code 137"
 

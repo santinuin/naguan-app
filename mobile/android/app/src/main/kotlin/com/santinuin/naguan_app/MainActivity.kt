@@ -1,5 +1,8 @@
 package com.santinuin.naguan_app
 
-import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.android.FlutterFragmentActivity
 
-class MainActivity : FlutterActivity()
+// FlutterFragmentActivity y no FlutterActivity: el diálogo de huella de
+// Android (BiometricPrompt, que usa local_auth) se muestra como un Fragment,
+// y necesita una Activity que los soporte.
+class MainActivity : FlutterFragmentActivity()

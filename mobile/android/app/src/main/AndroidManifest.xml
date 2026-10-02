@@ -3,7 +3,14 @@
          el manifiesto de debug (src/debug), así que un APK de release no
          podía conectarse a nada. -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Huella o cara para el candado de la app (local_auth). -->
+    <uses-permission android:name="android.permission.USE_BIOMETRIC"/>
+    <!-- allowBackup="false": sin backup automático a Google Drive. La sesión
+         está cifrada con una clave del Keystore que no viaja en el backup:
+         restaurada en otro teléfono sería basura que no se puede descifrar
+         (flutter_secure_storage falla con "Failed to unwrap key"). -->
     <application
+        android:allowBackup="false"
         android:label="Naguan"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">

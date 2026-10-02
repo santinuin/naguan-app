@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:naguan_app/auth/auth_gate.dart';
 import 'package:naguan_app/auth/auth_service.dart';
+import 'package:naguan_app/auth/device_lock.dart';
+import 'package:naguan_app/auth/lock_gate.dart';
+import 'package:naguan_app/auth/secure_session_storage.dart';
 import 'package:naguan_app/catalog/catalog_client.dart';
 import 'package:naguan_app/common/api_client.dart';
 import 'package:naguan_app/catalog/programs_screen.dart';
@@ -23,6 +26,11 @@ Future<void> main() async {
   await Supabase.initialize(
     url: supabaseUrl,
     publishableKey: supabasePublishableKey,
+    // La sesión (con el refresh token) va al almacén cifrado del sistema,
+    // no a shared_preferences en texto plano. Ver docs/autenticacion.md.
+    authOptions: FlutterAuthClientOptions(
+      localStorage: SecureSessionStorage(SecureLocalStore()),
+    ),
   );
 
   // El cableado de dependencias, a mano (como el main del backend Go).
@@ -42,6 +50,7 @@ Future<void> main() async {
   runApp(
     NaguanApp(
       auth: auth,
+      lock: LocalAuthDeviceLock(),
       catalog: CatalogClient(api),
       training: TrainingServices(
         client: TrainingClient(api),
@@ -56,11 +65,13 @@ class NaguanApp extends StatelessWidget {
   const NaguanApp({
     super.key,
     required this.auth,
+    required this.lock,
     required this.catalog,
     required this.training,
   });
 
   final AuthService auth;
+  final DeviceLock lock;
   final CatalogClient catalog;
   final TrainingServices training;
 
@@ -73,6 +84,11 @@ class NaguanApp extends StatelessWidget {
       // Hierro es el tema principal. Con ThemeMode.system seguiría al
       // sistema operativo.
       themeMode: ThemeMode.dark,
+      // builder envuelve al Navigator (`child`): lo que se ponga acá queda
+      // por encima de todas las pantallas, también de las que se abren con
+      // Navigator.push. Ahí va el candado.
+      builder: (context, child) =>
+          LockGate(auth: auth, lock: lock, child: child!),
       home: AuthGate(
         auth: auth,
         signedIn: (_) => ProgramsScreen(

@@ -69,10 +69,12 @@ a la hora de asistir en el desarrollo:
     Mojones; pantalla encendida, retomar una Fragua interrumpida, cola offline con
     idempotencia (`client_id`) y vueltas de los AMRAP.
 - Próximos pasos (hoja de ruta), primero lo estructural y después el contenido:
-  1. Ingreso con biometría (`local_auth` + refresh token en `flutter_secure_storage`).
+  1. ~~Ingreso con biometría~~: hecho (sesión en `flutter_secure_storage` + candado
+     `LockGate` con `local_auth`; ver `docs/autenticacion.md`).
   2. Endpoints y pantalla de ejercicio (detalle, videos, músculos, progresiones).
-  3. ~~Despliegue~~: hecho (ver "Producción" en Convenciones). Pendiente menor: clave de
-     firma propia (keystore) antes de compartir el APK con amigos.
+  3. ~~Despliegue~~: hecho (ver "Producción" en Convenciones), con firma de release por
+     clave propia (`mobile/android/key.properties`, no versionado; ver
+     `docs/despliegue.md`, "Clave de firma").
   4. Historial de Fraguas y Mojones en la app.
   5. Datos: niveles B y C (ver "Datos fuente"); ajustes de contenido (nombres de
      sesiones, calentamiento y estiramiento).
@@ -282,7 +284,12 @@ calistenia, pero también fuerza con barra (Barra Libre) y movilidad ("flexifuer
   (solo nombres). Ver `backend/README.md`.
 - Autenticación en mobile: `supabase_flutter` solo para Auth (los datos van por la API Go).
   `lib/auth/`: `AuthService` (interfaz propia; `SupabaseAuthService` la implementa),
-  `LoginScreen` y `AuthGate` (elige ingreso o app escuchando el stream de sesión). El
+  `LoginScreen` y `AuthGate` (elige ingreso o app escuchando el stream de sesión). La
+  sesión se guarda cifrada (`SecureSessionStorage` sobre `SecureLocalStore`, con
+  `flutter_secure_storage`). `LockGate` (en `MaterialApp.builder`, por encima del
+  Navigator) pide huella/PIN vía `DeviceLock` (`local_auth`) al abrir con sesión guardada y
+  al volver tras 5 min en segundo plano; Android: `FlutterFragmentActivity`, temas
+  AppCompat, `allowBackup="false"`. El
   `ApiClient` recibe una función `accessToken` y manda `Authorization: Bearer`; ante un
   401 cierra la sesión.
   Configuración en `lib/config.dart` (`String.fromEnvironment` con valores locales por

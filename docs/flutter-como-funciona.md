@@ -283,11 +283,35 @@ batería). Para no perder lo hecho:
 ### Almacenamiento local
 
 `LocalStore` es una interfaz propia (leer / escribir / borrar texto por clave), con una
-implementación sobre `shared_preferences` (`SharedPreferencesAsync`) y otra en memoria
+implementación sobre `shared_preferences` (`SharedPreferencesAsync`), otra cifrada
+(`SecureLocalStore`, sobre `flutter_secure_storage`, para la sesión) y otra en memoria
 para los tests. Sirve para datos chicos; para muchos datos o consultas haría falta una
 base local (sqflite, drift). Encima van `ActiveWorkoutStore` (la Fragua en curso) y
 `PendingWorkouts` (la cola). Las tres dependencias de entrenamiento viajan juntas en
 `TrainingServices`.
+
+## El ciclo de vida de la app y los mixins (`LockGate`)
+
+Para saber cuándo la app pasa a segundo plano, un `State` se registra como
+**observador** del binding: `WidgetsBinding.instance.addObserver(this)` en `initState`, y
+`removeObserver` en `dispose` (lo que se registra se libera, como los controllers).
+Flutter llama a `didChangeAppLifecycleState` con `resumed` (al frente), `inactive`
+(tapada por algo del sistema, como el diálogo de huella), `hidden` y `paused` (en segundo
+plano).
+
+`class _LockGateState extends State<LockGate> with WidgetsBindingObserver`: el `with`
+mezcla un **mixin**, un bloque de código reutilizable que se incorpora a la clase. Java no
+tiene equivalente exacto: se parece a los métodos `default` de una interfaz, pero un mixin
+también puede tener campos. `WidgetsBindingObserver` trae todos los callbacks vacíos y se
+sobrescribe solo el que interesa.
+
+Dos detalles más:
+
+- **`MaterialApp.builder`** envuelve al `Navigator`. Lo que se ponga ahí queda por encima
+  de todas las rutas: sirve para cosas globales, como el candado.
+- **`addPostFrameCallback`** corre algo después del primer frame. Hace falta para mostrar
+  un diálogo del sistema al arrancar, porque la Activity tiene que estar dibujada, y para
+  llamar a `setState`, que no se puede usar dentro de `initState`.
 
 ## Arquitectura de la app
 
@@ -352,6 +376,11 @@ un `Completer` permite decidir *cuándo* responde el falso, para ver el estado "
   `tester.ensureSemantics()` (y liberarlo con `dispose()`). Además, un `InkWell` fusiona
   la semántica de sus hijos en un solo nodo ("Templada, FRAGUA 01, Fundamentos"): se
   busca con una expresión regular.
+
+- **Un `setState` que llega después de un `await` puede necesitar un frame más**: si la
+  microtarea corre después del frame del `pump`, el cambio recién se ve en el siguiente.
+  Pasó en los tests de `LockGate` al resolver el fake del candado. `pumpAndSettle()` bombea
+  hasta que no quede nada pendiente.
 
 ### Trampas al testear navegación
 

@@ -206,14 +206,47 @@ sesiones revocadas, y se perdería parte de la ventaja.
 
 ## Dónde se guarda la sesión en el teléfono
 
-`supabase_flutter` persiste la sesión (incluido el refresh token) con
-`shared_preferences`: un archivo privado de la app, **no cifrado**. En Android, otras
-apps no pueden leerlo, pero en un teléfono rooteado o con un backup sin cifrar sí.
+La sesión (token de acceso, **refresh token** y datos del usuario, en un JSON) va al
+**almacenamiento cifrado del sistema**: `flutter_secure_storage`, que en Android cifra con
+AES-GCM y guarda la clave AES envuelta con una clave RSA del **Android Keystore** (en iOS,
+el Keychain). La clave del Keystore no sale del teléfono, así que copiar los archivos de
+la app a otro lado (un backup, un volcado) solo da texto cifrado.
 
-**Mejora prevista (biometría):** mover el refresh token al **Android Keystore / iOS
-Keychain** (`flutter_secure_storage`, cifrado por hardware) y exigir huella o cara
-(`local_auth`) para usarlo al abrir la app. La biometría es un candado local: el servidor
-nunca ve la huella, y la app solo recibe un "sí/no" del sistema operativo.
+Por defecto, `supabase_flutter` la guardaría en `shared_preferences`, en texto plano. Se
+cambia con su punto de extensión: `Supabase.initialize(authOptions:
+FlutterAuthClientOptions(localStorage: ...))` recibe una subclase de `LocalStorage`. La
+nuestra es `SecureSessionStorage` (`mobile/lib/auth/`), un adaptador sobre el
+`SecureLocalStore` de `lib/common/local_store.dart`.
+
+- **Backup automático deshabilitado** (`android:allowBackup="false"`): restaurada en otro
+  teléfono, la sesión cifrada no se podría descifrar (la clave quedó en el Keystore del
+  viejo) y `flutter_secure_storage` fallaría al leerla.
+- **No se ató el cifrado a la huella** (existe `AndroidOptions.biometric()`): supabase
+  renueva el token de acceso en segundo plano, y si para descifrar el refresh token
+  hiciera falta el dedo, la renovación fallaría. El candado va aparte.
+
+## Candado con huella (`LockGate`)
+
+Con una sesión guardada, la app pide **huella, cara o el PIN del teléfono** antes de
+mostrar nada. Es un candado **local**: el servidor no se entera y la huella nunca sale del
+teléfono. `local_auth` le pide al sistema (BiometricPrompt en Android) que verifique a quien
+tiene el teléfono, y la app recibe un sí o un no.
+
+- **Cuándo bloquea:** al abrir la app con una sesión recuperada del disco (si recién
+  entraste con contraseña, no) y al volver después de 5 minutos o más en segundo plano.
+  Salir un momento, por ejemplo para cambiar la música en medio de una Fragua, no bloquea.
+- **Dónde está:** en `MaterialApp.builder`, por encima del `Navigator`. Las pantallas que
+  se abren con `Navigator.push` quedan arriba de `home`; un candado puesto ahí quedaría
+  tapado. La app sigue viva debajo, así que una Fragua en curso no pierde su estado.
+- **PIN como alternativa** (`biometricOnly: false`): sin huella cargada, o con el dedo
+  lastimado, se entra con el bloqueo del teléfono.
+- **Sin bloqueo de pantalla** en el teléfono, se deja pasar. El candado de la app no puede
+  valer más que el del teléfono: quien lo tiene desbloqueado ya puede todo.
+- **Salida:** si no podés verificarte, "ENTRAR CON CONTRASEÑA" cierra la sesión y vuelve
+  al ingreso.
+- **Requisitos de Android:** `MainActivity` hereda de `FlutterFragmentActivity` (el diálogo
+  es un Fragment), el permiso `USE_BIOMETRIC` y temas AppCompat en `styles.xml` (sin ellos,
+  el diálogo cierra la app en Android 8 o anterior).
 
 ## La clave publicable no es un secreto
 

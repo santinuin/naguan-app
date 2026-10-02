@@ -1,3 +1,4 @@
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Almacenamiento local simple (texto por clave): lo que la app necesita del
@@ -29,4 +30,35 @@ class PrefsLocalStore implements LocalStore {
 
   @override
   Future<void> remove(String key) => _prefs.remove(key);
+}
+
+/// LocalStore cifrado, para secretos (la sesión con su refresh token).
+///
+/// En Android, flutter_secure_storage cifra cada valor con AES-GCM; la clave
+/// AES está a su vez cifrada con una clave RSA que vive en el **Android
+/// Keystore**: un almacén del sistema, respaldado por hardware en la mayoría
+/// de los teléfonos, del que la clave privada no se puede extraer. Si alguien
+/// copia los archivos de la app a otro equipo (un backup, un volcado), solo
+/// ve texto cifrado: la clave para descifrarlo nunca sale del teléfono. En
+/// iOS usa el Keychain.
+///
+/// Es más lento que PrefsLocalStore (cada operación cifra o descifra), así
+/// que va solo para lo que lo justifica.
+class SecureLocalStore implements LocalStore {
+  // AndroidOptions() es el cifrado recomendado desde la versión 10 del
+  // paquete (RSA OAEP + AES-GCM). Existe AndroidOptions.biometric(), que
+  // pide la huella para descifrar, pero el candado de la app ya lo hace
+  // LockGate; atar el cifrado a la huella haría que el refresco del token
+  // en segundo plano dependiera de que el usuario ponga el dedo.
+  final _storage = const FlutterSecureStorage(aOptions: AndroidOptions());
+
+  @override
+  Future<String?> read(String key) => _storage.read(key: key);
+
+  @override
+  Future<void> write(String key, String value) =>
+      _storage.write(key: key, value: value);
+
+  @override
+  Future<void> remove(String key) => _storage.delete(key: key);
 }
