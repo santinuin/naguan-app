@@ -33,7 +33,7 @@ type Training interface {
 	Progress(ctx context.Context, userID, slug string) (training.ProgramProgressDetail, error)
 	ResetProgress(ctx context.Context, userID, slug string) error
 	RecordWorkout(ctx context.Context, userID string, w training.NewWorkout) (w2 training.Workout, created bool, err error)
-	ListWorkouts(ctx context.Context, userID string, limit int32) ([]training.Workout, error)
+	ListWorkouts(ctx context.Context, userID string, limit int32, before int64) ([]training.Workout, error)
 	Stats(ctx context.Context, userID string, today time.Time) (training.Stats, error)
 	Records(ctx context.Context, userID string) ([]training.Record, error)
 }

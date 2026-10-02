@@ -236,11 +236,21 @@ class WorkoutRunner extends ChangeNotifier {
     final item = step.item;
     switch (step.kind) {
       case StepKind.reps:
-        _results[item!.id] = ItemResult.reps(item.id, _repsDraft);
+        _results[item!.id] = ItemResult.reps(
+          item.id,
+          _repsDraft,
+          exerciseSlug: item.exercise!.slug,
+        );
       case StepKind.timed:
         // Terminó antes de tiempo: se registra lo que hizo.
         final done = min(stepElapsed.inSeconds, step.duration!.inSeconds);
-        if (done > 0) _results[item!.id] = ItemResult.duration(item.id, done);
+        if (done > 0) {
+          _results[item!.id] = ItemResult.duration(
+            item.id,
+            done,
+            exerciseSlug: item.exercise!.slug,
+          );
+        }
       case StepKind.amrap:
         _amrapsDone[step.block.position] = _amrapRounds;
       case StepKind.rest:
@@ -275,7 +285,11 @@ class WorkoutRunner extends ChangeNotifier {
       switch (current.kind) {
         case StepKind.timed:
           final item = current.item!;
-          _results[item.id] = ItemResult.duration(item.id, item.durationS!);
+          _results[item.id] = ItemResult.duration(
+            item.id,
+            item.durationS!,
+            exerciseSlug: item.exercise!.slug,
+          );
         case StepKind.amrap:
           _amrapsDone[current.block.position] = _amrapRounds;
         case StepKind.reps || StepKind.rest:

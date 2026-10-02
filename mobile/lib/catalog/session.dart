@@ -13,6 +13,16 @@ class Session {
   final String? description;
   final List<Block> blocks;
 
+  /// Una copia con otros bloques. Los modelos son inmutables (todos sus
+  /// campos son final): "editar" una sesión es armar otra. Ver
+  /// session_edits.dart.
+  Session copyWith({List<Block>? blocks}) => Session(
+    id: id,
+    title: title,
+    description: description,
+    blocks: blocks ?? this.blocks,
+  );
+
   /// El inverso de fromJson: para guardar la sesión en el teléfono (y
   /// poder retomar una Fragua sin red). Un test verifica la ida y vuelta.
   Map<String, Object?> toJson() => {
@@ -97,6 +107,13 @@ class Block {
 
   /// Todos los ítems del bloque, ordenados por vuelta y posición.
   final List<Item> items;
+
+  Block copyWith({List<Item>? items}) => Block(
+    position: position,
+    type: type,
+    timeCapS: timeCapS,
+    items: items ?? this.items,
+  );
 
   /// Los ítems agrupados por vuelta: `rounds[0]` es la vuelta 1. Es un getter
   /// calculado (como un método sin paréntesis): no se guarda, se arma cuando
@@ -220,6 +237,19 @@ class Item {
   final int? reps;
 
   bool get isRest => exercise == null;
+
+  /// Una copia con otro ejercicio o con otro objetivo. El `??` deja el valor
+  /// actual si no se pasa uno nuevo; por eso un copyWith así no sirve para
+  /// poner un campo en null (acá nunca hace falta).
+  Item copyWith({ExerciseRef? exercise, int? durationS, int? reps}) => Item(
+    id: id,
+    round: round,
+    position: position,
+    exercise: exercise ?? this.exercise,
+    side: side,
+    durationS: durationS ?? this.durationS,
+    reps: reps ?? this.reps,
+  );
 
   /// Lo que define a un ítem dentro de su vuelta, sin la vuelta ni la
   /// posición: sirve para comparar vueltas.

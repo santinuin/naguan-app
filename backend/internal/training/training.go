@@ -113,10 +113,13 @@ type Workout struct {
 
 // Record es un Mojón: la mejor marca en un ejercicio, en reps o en segundos.
 type Record struct {
-	Exercise string `json:"exercise"`
+	Exercise     string `json:"exercise"`
+	ExerciseSlug string `json:"exercise_slug"`
 	// Metric es "reps" o "duration_s".
 	Metric string `json:"metric"`
 	Value  int32  `json:"value"`
+	// AchievedOn es el día (local) en que se logró la marca.
+	AchievedOn string `json:"achieved_on"`
 	// Previous es la marca anterior (solo en los Mojones nuevos).
 	Previous int32 `json:"previous,omitempty"`
 }
@@ -243,9 +246,29 @@ type NewWorkout struct {
 
 // ItemResult es lo que el usuario hizo en un ejercicio de la Fragua.
 type ItemResult struct {
-	BlockItemID int64  `json:"block_item_id"`
-	Reps        *int16 `json:"reps"`
-	DurationS   *int32 `json:"duration_s"`
+	BlockItemID int64 `json:"block_item_id"`
+	// ExerciseSlug es el ejercicio que se hizo, si no fue el del bloque (se
+	// cambió por una progresión más fácil o más difícil). Opcional: sin él,
+	// cuenta el del bloque (y así siguen valiendo las Fraguas que una app
+	// vieja dejó en su cola offline).
+	ExerciseSlug *string `json:"exercise_slug"`
+	Reps         *int16  `json:"reps"`
+	DurationS    *int32  `json:"duration_s"`
+}
+
+// exerciseRef es un ejercicio ya resuelto: el id para la base, el nombre y
+// el slug para la respuesta.
+type exerciseRef struct {
+	id         int64
+	name, slug string
+}
+
+// performedItem es un ItemResult validado, con el ejercicio que de verdad
+// se hizo. De acá salen tanto las filas a insertar como los Mojones: la
+// regla de "qué ejercicio cuenta" se decide una sola vez.
+type performedItem struct {
+	ItemResult
+	exercise exerciseRef
 }
 
 // AmrapResult son las vueltas completadas en un bloque AMRAP, identificado
@@ -367,6 +390,11 @@ func (s *Service) RecordWorkout(ctx context.Context, userID string, w NewWorkout
 		for _, it := range sessionItems {
 			byID[it.ID] = it
 		}
+		swaps, err := swappedExercises(ctx, q, w.Items)
+		if err != nil {
+			return err
+		}
+		performed := make([]performedItem, 0, len(w.Items))
 		for _, it := range w.Items {
 			si, ok := byID[it.BlockItemID]
 			if !ok {
@@ -375,6 +403,13 @@ func (s *Service) RecordWorkout(ctx context.Context, userID string, w NewWorkout
 			if si.Kind != db.ItemKindExercise {
 				return invalid("el ítem %d es un descanso", it.BlockItemID)
 			}
+			// Por defecto, el ejercicio del bloque; si la app mandó otro,
+			// ese.
+			ex := exerciseRef{id: *si.ExerciseID, name: *si.ExerciseName, slug: *si.ExerciseSlug}
+			if it.ExerciseSlug != nil {
+				ex = swaps[*it.ExerciseSlug]
+			}
+			performed = append(performed, performedItem{ItemResult: it, exercise: ex})
 		}
 
 		// Las vueltas, solo para bloques AMRAP de esta sesión.
@@ -390,7 +425,7 @@ func (s *Service) RecordWorkout(ctx context.Context, userID string, w NewWorkout
 
 		// Las marcas previas se leen ANTES de insertar: si no, la Fragua
 		// nueva se compararía contra sí misma.
-		records, err = newRecords(ctx, q, userID, w.Items, byID)
+		records, err = newRecords(ctx, q, userID, performed, w.LocalDate)
 		if err != nil {
 			return err
 		}
@@ -408,10 +443,11 @@ func (s *Service) RecordWorkout(ctx context.Context, userID string, w NewWorkout
 			return fmt.Errorf("creando el workout: %w", asUnknownUser(err))
 		}
 
-		items := make([]db.CreateWorkoutItemsParams, len(w.Items))
-		for i, it := range w.Items {
+		items := make([]db.CreateWorkoutItemsParams, len(performed))
+		for i, it := range performed {
 			items[i] = db.CreateWorkoutItemsParams{
-				WorkoutID: id, BlockItemID: it.BlockItemID, Reps: it.Reps, DurationS: it.DurationS,
+				WorkoutID: id, BlockItemID: it.BlockItemID, ExerciseID: it.exercise.id,
+				Reps: it.Reps, DurationS: it.DurationS,
 			}
 		}
 		if _, err := q.CreateWorkoutItems(ctx, items); err != nil {
@@ -491,25 +527,57 @@ func isUniqueViolation(err error, constraint string) bool {
 	return errors.As(err, &pgErr) && pgErr.Code == "23505" && pgErr.ConstraintName == constraint
 }
 
+// swappedExercises resuelve los ejercicios que la app dice haber hecho en
+// lugar de los del bloque, por slug. Un slug que no existe es un 400.
+//
+// Se acepta cualquier ejercicio del catálogo, no solo las progresiones
+// vecinas: la app encadena cambios (la más fácil de la más fácil), y validar
+// el grafo entero no protege nada que importe (los datos son del propio
+// usuario).
+func swappedExercises(ctx context.Context, q *db.Queries, items []ItemResult) (map[string]exerciseRef, error) {
+	var slugs []string
+	for _, it := range items {
+		if it.ExerciseSlug != nil && !slices.Contains(slugs, *it.ExerciseSlug) {
+			slugs = append(slugs, *it.ExerciseSlug)
+		}
+	}
+	if len(slugs) == 0 {
+		return nil, nil // leer de un map nil es válido: devuelve el valor cero
+	}
+	rows, err := q.ListExercisesBySlug(ctx, slugs)
+	if err != nil {
+		return nil, fmt.Errorf("leyendo los ejercicios cambiados: %w", err)
+	}
+	out := make(map[string]exerciseRef, len(rows))
+	for _, r := range rows {
+		out[r.Slug] = exerciseRef{id: r.ID, name: r.Name, slug: r.Slug}
+	}
+	for _, slug := range slugs {
+		if _, ok := out[slug]; !ok {
+			return nil, invalid("no existe el ejercicio %q", slug)
+		}
+	}
+	return out, nil
+}
+
 // newRecords compara lo que se hizo en esta Fragua con las marcas previas
-// del usuario y devuelve los Mojones superados. La primera vez que se hace un
-// ejercicio no cuenta como Mojón (no había marca que superar).
+// del usuario y devuelve los Mojones superados (logrados en localDate). La
+// primera vez que se hace un ejercicio no cuenta como Mojón (no había marca
+// que superar).
 func newRecords(
-	ctx context.Context, q *db.Queries, userID string,
-	items []ItemResult, byID map[int64]db.ListSessionItemsForWorkoutRow,
+	ctx context.Context, q *db.Queries, userID string, items []performedItem, localDate string,
 ) ([]Record, error) {
 	// La mejor marca de ESTA Fragua por ejercicio (juntando ambos lados).
 	type best struct {
-		name           string
+		name, slug     string
 		reps, duration int32
 	}
 	current := map[int64]*best{}
 	for _, it := range items {
-		si := byID[it.BlockItemID]
-		b := current[*si.ExerciseID]
+		b := current[it.exercise.id]
 		if b == nil {
-			b = &best{name: *si.ExerciseName}
-			current[*si.ExerciseID] = b
+			b = &best{name: it.exercise.name, slug: it.exercise.slug}
+			current[it.exercise.id] = b
 		}
 		if it.Reps != nil {
 			b.reps = max(b.reps, int32(*it.Reps))
@@ -534,11 +602,17 @@ func newRecords(
 	var out []Record
 	for _, p := range prev {
 		c := current[p.ExerciseID]
+		// r es un valor, no una referencia: append guarda una copia, así que
+		// reusarlo para la segunda métrica no pisa la primera (en Java, con
+		// un objeto, la lista tendría dos veces el mismo).
+		r := Record{Exercise: c.name, ExerciseSlug: c.slug, AchievedOn: localDate}
 		if p.BestReps > 0 && c.reps > p.BestReps {
-			out = append(out, Record{Exercise: c.name, Metric: "reps", Value: c.reps, Previous: p.BestReps})
+			r.Metric, r.Value, r.Previous = "reps", c.reps, p.BestReps
+			out = append(out, r)
 		}
 		if p.BestDurationS > 0 && c.duration > p.BestDurationS {
-			out = append(out, Record{Exercise: c.name, Metric: "duration_s", Value: c.duration, Previous: p.BestDurationS})
+			r.Metric, r.Value, r.Previous = "duration_s", c.duration, p.BestDurationS
+			out = append(out, r)
 		}
 	}
 	// Orden estable para la respuesta (las filas de la base no tienen orden).
@@ -550,9 +624,17 @@ func newRecords(
 	return out, nil
 }
 
-// ListWorkouts devuelve las últimas Fraguas templadas del usuario.
-func (s *Service) ListWorkouts(ctx context.Context, userID string, limit int32) ([]Workout, error) {
-	rows, err := s.q.ListWorkouts(ctx, db.ListWorkoutsParams{UserID: userID, MaxRows: limit})
+// ListWorkouts devuelve una página del historial: hasta limit Fraguas
+// templadas, de la más reciente a la más vieja. before es el id de la última
+// Fragua de la página anterior (0 = la primera página): ver la consulta.
+func (s *Service) ListWorkouts(ctx context.Context, userID string, limit int32, before int64) ([]Workout, error) {
+	params := db.ListWorkoutsParams{UserID: userID, MaxRows: limit}
+	// El cero de un int64 hace de "sin cursor" (los ids empiezan en 1); la
+	// consulta lo espera como null, que en Go es un puntero nil.
+	if before > 0 {
+		params.Before = &before
+	}
+	rows, err := s.q.ListWorkouts(ctx, params)
 	if err != nil {
 		return nil, fmt.Errorf("listando workouts: %w", err)
 	}
@@ -585,14 +667,12 @@ func (s *Service) Records(ctx context.Context, userID string) ([]Record, error) 
 	if err != nil {
 		return nil, fmt.Errorf("leyendo los mojones: %w", err)
 	}
-	out := []Record{}
+	out := make([]Record, 0, len(rows))
 	for _, r := range rows {
-		if r.BestReps > 0 {
-			out = append(out, Record{Exercise: r.Name, Metric: "reps", Value: r.BestReps})
-		}
-		if r.BestDurationS > 0 {
-			out = append(out, Record{Exercise: r.Name, Metric: "duration_s", Value: r.BestDurationS})
-		}
+		out = append(out, Record{
+			Exercise: r.Name, ExerciseSlug: r.Slug, Metric: r.Metric, Value: r.Value,
+			AchievedOn: r.LocalDate.Format(time.DateOnly),
+		})
 	}
 	return out, nil
 }

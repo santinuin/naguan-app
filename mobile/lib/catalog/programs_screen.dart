@@ -7,6 +7,8 @@ import 'package:naguan_app/theme/forja_theme.dart';
 import 'package:naguan_app/theme/forja_tokens.dart';
 import 'package:naguan_app/training/training_services.dart';
 import 'package:naguan_app/training/execution/execution_screen.dart';
+import 'package:naguan_app/training/history/history_screen.dart';
+import 'package:naguan_app/training/history/records_screen.dart';
 import 'package:naguan_app/training/offline/active_workout_store.dart';
 import 'package:naguan_app/training/training_models.dart';
 
@@ -91,6 +93,14 @@ class _ProgramsScreenState extends State<ProgramsScreen> {
     if (mounted) setState(() => _version++);
   }
 
+  /// Abre una pantalla y, al volver, recarga el inicio: desde el historial
+  /// se puede volver a templar una Fragua (cambian la Brasa y el progreso).
+  Future<void> _push(Widget screen) async {
+    await Navigator.of(context)
+        .push(MaterialPageRoute<void>(builder: (_) => screen));
+    if (mounted) setState(() => _version++);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -109,6 +119,15 @@ class _ProgramsScreenState extends State<ProgramsScreen> {
             onResume: _resume,
             onDiscardActive: _discardActive,
             onSignOut: widget.onSignOut,
+            onOpenHistory: () => _push(
+              HistoryScreen(catalog: widget.catalog, training: widget.training),
+            ),
+            onOpenRecords: () => _push(
+              RecordsScreen(
+                catalog: widget.catalog,
+                client: widget.training.client,
+              ),
+            ),
           ),
         ),
       ),
@@ -132,6 +151,8 @@ class _ProgramList extends StatelessWidget {
     required this.onResume,
     required this.onDiscardActive,
     required this.onSignOut,
+    required this.onOpenHistory,
+    required this.onOpenRecords,
   });
 
   final _Home home;
@@ -139,6 +160,8 @@ class _ProgramList extends StatelessWidget {
   final void Function(SavedWorkout) onResume;
   final VoidCallback onDiscardActive;
   final VoidCallback onSignOut;
+  final VoidCallback onOpenHistory;
+  final VoidCallback onOpenRecords;
 
   @override
   Widget build(BuildContext context) {
@@ -165,6 +188,18 @@ class _ProgramList extends StatelessWidget {
         ),
         const SizedBox(height: ForjaSpace.s8),
         _BrasaBanner(stats: home.stats),
+        const SizedBox(height: ForjaSpace.s2),
+        // Botones de texto, sin relleno: el único bloque de acento de la
+        // pantalla es el de la Fragua (en cada Senda), no la navegación.
+        Row(
+          children: [
+            TextButton(
+              onPressed: onOpenHistory,
+              child: const Text('HISTORIAL'),
+            ),
+            TextButton(onPressed: onOpenRecords, child: const Text('MOJONES')),
+          ],
+        ),
         if (home.active case final active?) ...[
           const SizedBox(height: ForjaSpace.s6),
           _ActiveWorkoutCard(

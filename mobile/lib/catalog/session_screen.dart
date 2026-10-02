@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:naguan_app/catalog/catalog_client.dart';
-import 'package:naguan_app/catalog/exercise_screen.dart';
 import 'package:naguan_app/catalog/format.dart';
+import 'package:naguan_app/catalog/item_editor_sheet.dart';
 import 'package:naguan_app/catalog/session.dart';
+import 'package:naguan_app/catalog/session_edits.dart';
 import 'package:naguan_app/common/load_view.dart';
 import 'package:naguan_app/theme/forja_pill.dart';
 import 'package:naguan_app/theme/forja_theme.dart';
@@ -10,9 +11,17 @@ import 'package:naguan_app/theme/forja_tokens.dart';
 import 'package:naguan_app/training/execution/execution_screen.dart';
 import 'package:naguan_app/training/training_services.dart';
 
+/// Lo que hay que hacer al tocar un ejercicio: el bloque donde está, para
+/// saber qué ítems ajustar.
+typedef OnEditItem = void Function(Block block, Item item);
+
 /// Una Fragua (sesión): su descripción y sus bloques, vuelta por vuelta, y
 /// el botón para empezarla.
-class SessionScreen extends StatelessWidget {
+///
+/// Antes de empezar, cada ejercicio se puede ajustar (reps, segundos, o
+/// cambiarlo por una progresión). Los ajustes valen solo para esta vez:
+/// viven en el State de esta pantalla y se pierden al salir.
+class SessionScreen extends StatefulWidget {
   const SessionScreen({
     super.key,
     required this.catalog,
@@ -29,53 +38,93 @@ class SessionScreen extends StatelessWidget {
   final String label;
 
   @override
+  State<SessionScreen> createState() => _SessionScreenState();
+}
+
+class _SessionScreenState extends State<SessionScreen> {
+  /// La Fragua ajustada; null mientras no se tocó nada (se usa la que vino
+  /// de la API). Así "volver al original" es simplemente volver a null.
+  Session? _plan;
+
+  /// Se guarda la función de carga (y no se escribe como lambda en build):
+  /// LoadView la llama una vez al montarse y en cada reintento.
+  Future<Session> _load() => widget.catalog.fetchSession(widget.id);
+
+  Future<void> _edit(Session plan, Block block, Item item) async {
+    final edit = await showItemEditor(
+      context,
+      catalog: widget.catalog,
+      item: item,
+    );
+    // null: la hoja se cerró sin LISTO. mounted: la pantalla pudo cerrarse
+    // mientras la hoja estaba abierta.
+    if (edit == null || !mounted) return;
+    setState(() {
+      _plan = plan.adjust(
+        blockPosition: block.position,
+        item: item,
+        value: edit.value,
+        exercise: edit.exercise,
+      );
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(),
+      appBar: AppBar(
+        actions: [
+          if (_plan != null)
+            TextButton(
+              onPressed: () => setState(() => _plan = null),
+              child: const Text('ORIGINAL'),
+            ),
+        ],
+      ),
       body: LoadView<Session>(
-        load: () => catalog.fetchSession(id),
-        builder: (context, session) => Column(
-          children: [
-            Expanded(
-              child: _SessionDetail(
-                label: label,
-                session: session,
-                // Tocar un ejercicio abre su pantalla (video, cómo se hace).
-                // Las filas no saben navegar ni conocen el cliente: reciben
-                // qué hacer al tocarlas, como un @Output de Angular o un
-                // callback de React.
-                onOpenExercise: (exercise) => Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder: (_) =>
-                        ExerciseScreen(catalog: catalog, slug: exercise.slug),
-                  ),
+        load: _load,
+        builder: (context, original) {
+          final plan = _plan ?? original;
+          return Column(
+            children: [
+              Expanded(
+                child: _SessionDetail(
+                  label: widget.label,
+                  session: plan,
+                  original: original,
+                  // Las filas no saben editar ni conocen el cliente: reciben
+                  // qué hacer al tocarlas, como un @Output de Angular o un
+                  // callback de React.
+                  onEditItem: (block, item) => _edit(plan, block, item),
                 ),
               ),
-            ),
-            // El CTA fijo abajo, fuera del scroll: siempre a mano.
-            SafeArea(
-              top: false,
-              child: Padding(
-                padding: const EdgeInsets.all(ForjaSpace.s4),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: FilledButton(
-                    onPressed: () => Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => ExecutionScreen(
-                          session: session,
-                          catalog: catalog,
-                          training: training,
+              // El CTA fijo abajo, fuera del scroll: siempre a mano.
+              SafeArea(
+                top: false,
+                child: Padding(
+                  padding: const EdgeInsets.all(ForjaSpace.s4),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      // Se ejecuta el plan (ajustado o no): para el motor
+                      // es una sesión como cualquier otra.
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => ExecutionScreen(
+                            session: plan,
+                            catalog: widget.catalog,
+                            training: widget.training,
+                          ),
                         ),
                       ),
+                      child: const Text('A LA FRAGUA'),
                     ),
-                    child: const Text('A LA FRAGUA'),
                   ),
                 ),
               ),
-            ),
-          ],
-        ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -85,16 +134,26 @@ class _SessionDetail extends StatelessWidget {
   const _SessionDetail({
     required this.label,
     required this.session,
-    required this.onOpenExercise,
+    required this.original,
+    required this.onEditItem,
   });
 
   final String label;
   final Session session;
-  final ValueChanged<ExerciseRef> onOpenExercise;
+
+  /// La Fragua sin ajustes, para marcar qué filas cambiaron.
+  final Session original;
+  final OnEditItem onEditItem;
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
+    // Los ítems originales por id, armado una vez por build: cada fila
+    // busca el suyo para saber si cambió (y por cuál ejercicio).
+    final originals = {
+      for (final b in original.blocks)
+        for (final i in b.items) i.id: i,
+    };
 
     // Un ListView con children fijos (no .builder): la sesión tiene pocos
     // bloques, y así el contenido se arma como una columna que scrollea.
@@ -113,10 +172,21 @@ class _SessionDetail extends StatelessWidget {
           const SizedBox(height: ForjaSpace.s4),
           Text(description),
         ],
+        const SizedBox(height: ForjaSpace.s4),
+        Text(
+          'Tocá un ejercicio para ajustar las reps o cambiarlo.',
+          style: textTheme.bodyLarge?.copyWith(
+            color: context.forja.palette.inkMuted,
+          ),
+        ),
         // Collection for: un _BlockCard (y su separación) por bloque.
         for (final block in session.blocks) ...[
           const SizedBox(height: ForjaSpace.s6),
-          _BlockCard(block: block, onOpenExercise: onOpenExercise),
+          _BlockCard(
+            block: block,
+            originals: originals,
+            onEditItem: onEditItem,
+          ),
         ],
       ],
     );
@@ -124,10 +194,15 @@ class _SessionDetail extends StatelessWidget {
 }
 
 class _BlockCard extends StatelessWidget {
-  const _BlockCard({required this.block, required this.onOpenExercise});
+  const _BlockCard({
+    required this.block,
+    required this.originals,
+    required this.onEditItem,
+  });
 
   final Block block;
-  final ValueChanged<ExerciseRef> onOpenExercise;
+  final Map<int, Item> originals;
+  final OnEditItem onEditItem;
 
   @override
   Widget build(BuildContext context) {
@@ -164,7 +239,11 @@ class _BlockCard extends StatelessWidget {
               if (!isAmrap)
                 Text(_roundsLabel(group), style: textTheme.labelSmall),
               for (final item in group.items)
-                _ItemRow(item: item, onOpenExercise: onOpenExercise),
+                _ItemRow(
+                  item: item,
+                  original: originals[item.id],
+                  onTap: () => onEditItem(block, item),
+                ),
             ],
           ],
         ),
@@ -180,10 +259,17 @@ String _roundsLabel(RoundGroup group) {
 }
 
 class _ItemRow extends StatelessWidget {
-  const _ItemRow({required this.item, required this.onOpenExercise});
+  const _ItemRow({
+    required this.item,
+    required this.original,
+    required this.onTap,
+  });
 
   final Item item;
-  final ValueChanged<ExerciseRef> onOpenExercise;
+
+  /// El ítem como vino de la API, para marcar lo ajustado.
+  final Item? original;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -197,6 +283,18 @@ class _ItemRow extends StatelessWidget {
       Item(:final durationS?) => formatDuration(durationS),
       _ => '',
     };
+    // Lo ajustado va en rosa (accentText): "esto no es lo que indica la
+    // Senda". Siempre acompañado de texto (EN LUGAR DE...) o del número,
+    // nunca solo el color.
+    final swappedFrom = original?.exercise?.slug != item.exercise?.slug
+        ? original?.exercise
+        : null;
+    final retargeted =
+        original != null &&
+        (original!.reps != item.reps || original!.durationS != item.durationS);
+    final accentLabel = textTheme.labelSmall?.copyWith(
+      color: forja.palette.accentText,
+    );
 
     final Widget name;
     if (item.exercise case final exercise?) {
@@ -204,6 +302,11 @@ class _ItemRow extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(exercise.name, style: forja.bodyStrong),
+          if (swappedFrom != null)
+            Text(
+              'EN LUGAR DE ${swappedFrom.name.toUpperCase()}',
+              style: accentLabel,
+            ),
           if (item.side case final side?)
             Text(side.label, style: textTheme.labelSmall),
         ],
@@ -222,7 +325,12 @@ class _ItemRow extends StatelessWidget {
         children: [
           Expanded(child: name),
           const SizedBox(width: ForjaSpace.s4),
-          Text(metric, style: metricStyle),
+          Text(
+            metric,
+            style: retargeted
+                ? metricStyle.copyWith(color: forja.palette.accentText)
+                : metricStyle,
+          ),
           // El chevron avisa que la fila se puede tocar. En los descansos
           // va un hueco del mismo ancho, para que las métricas queden
           // alineadas en columna.
@@ -240,8 +348,8 @@ class _ItemRow extends StatelessWidget {
       ),
     );
 
-    // Los descansos no llevan a ningún lado.
+    // Los descansos no se ajustan.
     if (exercise == null) return row;
-    return InkWell(onTap: () => onOpenExercise(exercise), child: row);
+    return InkWell(onTap: onTap, child: row);
   }
 }

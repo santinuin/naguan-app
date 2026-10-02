@@ -295,4 +295,5 @@ type WorkoutItem struct {
 	BlockItemID int64
 	Reps        *int16
 	DurationS   *int32
+	ExerciseID  int64
 }

@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:naguan_app/catalog/session.dart';
+import 'package:naguan_app/catalog/session_edits.dart';
 import 'package:naguan_app/training/execution/workout_runner.dart';
 import 'package:naguan_app/training/training_models.dart';
 
@@ -152,6 +153,27 @@ void main() {
     // Ejercicios 1, 2, 4 y 5 (el AMRAP no registra ítems sueltos).
     expect(workout.items.map((it) => it.blockItemId).toSet(), {1, 2, 4, 5});
     expect(workout.duration, greaterThan(Duration.zero));
+  });
+
+  test('cada resultado lleva el ejercicio que se hizo', () {
+    // Una sesión ajustada antes de empezar: el ítem 1 cambió de ejercicio.
+    final session = testSession().swapExercise(
+      blockPosition: 1,
+      from: 'x1',
+      to: const ExerciseRef(slug: 'otro', name: 'Otro'),
+    );
+    final adjusted = WorkoutRunner(session, clock: clock.now)..start();
+
+    final workout = _finish(adjusted, clock);
+    final bySlug = {
+      for (final it in workout.items) it.blockItemId: it.exerciseSlug,
+    };
+    expect(bySlug[1], 'otro');
+    expect(bySlug[2], 'x2');
+    // Y viaja en el JSON (para la API y para la cola offline).
+    final first = workout.items.firstWhere((it) => it.blockItemId == 1);
+    expect(first.toJson()['exercise_slug'], 'otro');
+    expect(ItemResult.fromJson(first.toJson()).exerciseSlug, 'otro');
   });
 
   test('registra las vueltas del AMRAP y el client_id', () {

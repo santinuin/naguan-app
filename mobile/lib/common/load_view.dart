@@ -47,7 +47,7 @@ class _LoadViewState<T> extends State<LoadView<T>> {
           return const Center(child: CircularProgressIndicator());
         }
         if (snapshot.hasError) {
-          return _ErrorView(onRetry: _retry);
+          return ErrorView(onRetry: _retry);
         }
         return widget.builder(context, snapshot.requireData);
       },
@@ -55,8 +55,10 @@ class _LoadViewState<T> extends State<LoadView<T>> {
   }
 }
 
-class _ErrorView extends StatelessWidget {
-  const _ErrorView({required this.onRetry});
+/// "SIN SEÑAL" con un botón para reintentar. Pública porque también la usan
+/// las pantallas que cargan por su cuenta (el historial, de a páginas).
+class ErrorView extends StatelessWidget {
+  const ErrorView({super.key, required this.onRetry});
 
   final VoidCallback onRetry;
 

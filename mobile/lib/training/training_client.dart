@@ -36,6 +36,29 @@ class TrainingClient {
     return Stats.fromJson(json as Map<String, dynamic>);
   }
 
+  /// Una página del historial, de la Fragua más reciente a la más vieja.
+  /// [before] es el id de la última Fragua de la página anterior (null = la
+  /// primera página).
+  Future<List<Workout>> fetchWorkouts({int? before, int limit = 20}) async {
+    final query = before == null
+        ? 'limit=$limit'
+        : 'limit=$limit&before=$before';
+    final json = await _api.getJson('/me/workouts?$query');
+    if (json is! List) {
+      throw const ApiException('se esperaba una lista de fraguas');
+    }
+    return [for (final w in json) Workout.fromJson(w as Map<String, dynamic>)];
+  }
+
+  /// Los Mojones: la mejor marca en cada ejercicio.
+  Future<List<Record>> fetchRecords() async {
+    final json = await _api.getJson('/me/records');
+    if (json is! List) {
+      throw const ApiException('se esperaba una lista de mojones');
+    }
+    return [for (final r in json) Record.fromJson(r as Map<String, dynamic>)];
+  }
+
   Future<WorkoutResult> recordWorkout(NewWorkout workout) async {
     final json = await _api.postJson('/me/workouts', workout.toJson());
     return WorkoutResult.fromJson(json as Map<String, dynamic>);

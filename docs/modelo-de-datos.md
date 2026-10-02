@@ -101,6 +101,17 @@ rígida.
 - Las reps o los segundos **reales**, que pueden diferir de lo indicado en la sesión.
 - Solo ítems de ejercicio de **esa** sesión: lo valida la API dentro de la transacción
   (un ítem de otra sesión o un descanso se rechaza con 400).
+- **`exercise_id`: el ejercicio que se hizo de verdad.** Antes de empezar, la app permite
+  cambiar un ejercicio por una progresión más fácil o más difícil; el ítem del bloque es
+  el mismo, pero el ejercicio no. La app manda `exercise_slug` por ítem (opcional: sin él
+  cuenta el del bloque, así valen las Fraguas viejas de la cola offline) y la API lo
+  resuelve a un id (un slug inexistente es un 400). Los Mojones salen de esta columna, no
+  del bloque: si no, las reps de una dominada asistida contarían como Mojón de la
+  dominada. Se acepta cualquier ejercicio del catálogo, no solo los vecinos en el grafo
+  de progresiones: la app encadena cambios, y los datos son del propio usuario.
+- La migración que agregó la columna lo hizo en tres pasos (columna nullable → `update`
+  con el ejercicio del bloque → `set not null`), porque una columna obligatoria nueva no
+  puede quedar vacía en las filas que ya existían.
 
 ### Idempotencia: `workout.client_id`
 
@@ -150,6 +161,26 @@ el servidor no sabe en qué zona horaria está el teléfono.
   marca anterior, para que la app lo celebre.
 - **La primera vez** que se hace un ejercicio no es Mojón (no había marca que superar);
   igualar tampoco. Hay Mojón cuando se supera.
+- `GET /v1/me/records` lista la mejor marca de cada ejercicio y métrica, con
+  `exercise_slug` (para abrir el ejercicio) y `achieved_on`: el `local_date` del día en
+  que se logró **por primera vez** (si después se igualó, cuenta el primero). La consulta
+  usa `distinct on`, de Postgres: `max()` da el valor pero no dice de qué fila salió.
+
+### El historial: paginación por cursor
+
+`GET /v1/me/workouts?limit=20&before=<id>` devuelve las Fraguas templadas de la más
+reciente a la más vieja, de a páginas. La página siguiente pide "las anteriores a la
+última que ya tengo" (`before` = su id): **paginación por cursor** (*keyset*), no por
+`offset`.
+
+- Se ordena y se compara por el par `(finished_at, id)`: dos Fraguas pueden terminar en el
+  mismo instante, y el id desempata para que ninguna se repita ni se pierda entre páginas.
+- Con `offset` ("saltear 40"), una Fragua nueva registrada mientras se pagina corre todo
+  un lugar y la página siguiente repite una. Además, Postgres tiene que leer y descartar
+  las filas salteadas; con el cursor va directo por el índice `workout_user_recent`.
+- No hay total ni "hay más": la app deduce que terminó cuando una página llega incompleta.
+- Un `before` que no es del usuario devuelve una página vacía (la subconsulta del cursor
+  también filtra por `user_id`).
 
 ## Seguridad: la base no se expone
 

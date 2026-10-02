@@ -119,7 +119,17 @@ func (h trainingHandlers) listWorkouts(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	workouts, err := h.tr.ListWorkouts(r.Context(), uid, int32(limit))
+	// ?before=<id>: la página siguiente, las Fraguas anteriores a esa (el
+	// último id que la app ya tiene). Sin before, la primera página.
+	var before int64
+	if v := r.URL.Query().Get("before"); v != "" {
+		before, err = strconv.ParseInt(v, 10, 64)
+		if err != nil || before < 1 {
+			writeError(w, r, badRequest("before tiene que ser el id de una fragua"))
+			return
+		}
+	}
+	workouts, err := h.tr.ListWorkouts(r.Context(), uid, int32(limit), before)
 	if err != nil {
 		writeError(w, r, err)
 		return

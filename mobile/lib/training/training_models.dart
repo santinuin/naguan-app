@@ -112,14 +112,23 @@ class Record {
     required this.exercise,
     required this.isReps,
     required this.value,
+    this.exerciseSlug,
+    this.achievedOn,
     this.previous,
   });
 
   final String exercise;
 
+  /// Para abrir la pantalla del ejercicio. Opcional (como [achievedOn]):
+  /// una API anterior no lo manda, y el Mojón se muestra igual.
+  final String? exerciseSlug;
+
   /// true: reps; false: segundos.
   final bool isReps;
   final int value;
+
+  /// El día (en el teléfono) en que se logró la marca.
+  final DateTime? achievedOn;
 
   /// La marca anterior (solo en los Mojones nuevos).
   final int? previous;
@@ -133,8 +142,13 @@ class Record {
       } =>
         Record(
           exercise: exercise,
+          exerciseSlug: json['exercise_slug'] as String?,
           isReps: metric == 'reps',
           value: value,
+          // tryParse devuelve null (en vez de lanzar, como parse) si el
+          // texto no es una fecha; si el campo no vino, `?? ''` le pasa un
+          // texto vacío, que tampoco lo es.
+          achievedOn: DateTime.tryParse((json['achieved_on'] as String?) ?? ''),
           previous: json['previous'] as int?,
         ),
       _ => throw FormatException('Mojón con formato inválido: $json'),
@@ -142,27 +156,100 @@ class Record {
   }
 }
 
+/// Una Fragua templada, como aparece en el historial.
+class Workout {
+  const Workout({
+    required this.id,
+    required this.sessionId,
+    required this.sessionTitle,
+    required this.finishedAt,
+    required this.localDate,
+    required this.durationS,
+    this.programName,
+  });
+
+  final int id;
+  final int sessionId;
+  final String sessionTitle;
+
+  /// La Senda de la Fragua; null si es una sesión suelta.
+  final String? programName;
+  final DateTime finishedAt;
+
+  /// El día en el teléfono al templarla. Es una fecha sin hora:
+  /// `DateTime.parse('2026-10-01')` da la medianoche local de ese día.
+  final DateTime localDate;
+  final int durationS;
+
+  factory Workout.fromJson(Map<String, dynamic> json) {
+    return switch (json) {
+      {
+        'id': int id,
+        'session': {'id': int sessionId, 'title': String title},
+        'finished_at': String finishedAt,
+        'local_date': String localDate,
+        'duration_s': int durationS,
+      } =>
+        Workout(
+          id: id,
+          sessionId: sessionId,
+          sessionTitle: title,
+          // Un patrón también sirve para un campo que puede ser null: si
+          // 'program' es un mapa con 'name', se extrae; si no (null), cae
+          // en el segundo caso.
+          programName: switch (json['program']) {
+            {'name': String name} => name,
+            _ => null,
+          },
+          finishedAt: DateTime.parse(finishedAt),
+          localDate: DateTime.parse(localDate),
+          durationS: durationS,
+        ),
+      _ => throw FormatException('Fragua templada con formato inválido: $json'),
+    };
+  }
+}
+
 /// Lo que se hizo en un ejercicio de la Fragua.
 class ItemResult {
-  const ItemResult.reps(this.blockItemId, int this.reps) : durationS = null;
-  const ItemResult.duration(this.blockItemId, int this.durationS) : reps = null;
+  // {this.exerciseSlug} entre llaves: un parámetro con nombre y opcional,
+  // que se pasa como `exerciseSlug: 'dominada'`.
+  const ItemResult.reps(this.blockItemId, int this.reps, {this.exerciseSlug})
+    : durationS = null;
+  const ItemResult.duration(
+    this.blockItemId,
+    int this.durationS, {
+    this.exerciseSlug,
+  }) : reps = null;
 
   final int blockItemId;
+
+  /// El ejercicio que se hizo: puede no ser el del bloque, si antes de
+  /// empezar se cambió por una progresión. Null en las Fraguas que una
+  /// versión vieja de la app dejó en la cola (la API usa el del bloque).
+  final String? exerciseSlug;
   final int? reps;
   final int? durationS;
 
   Map<String, Object> toJson() => {
     'block_item_id': blockItemId,
+    'exercise_slug': ?exerciseSlug,
     'reps': ?reps,
     'duration_s': ?durationS,
   };
 
   factory ItemResult.fromJson(Map<String, dynamic> json) {
+    final slug = json['exercise_slug'] as String?;
     return switch (json) {
-      {'block_item_id': int id, 'reps': int reps} => ItemResult.reps(id, reps),
+      {'block_item_id': int id, 'reps': int reps} => ItemResult.reps(
+        id,
+        reps,
+        exerciseSlug: slug,
+      ),
       {'block_item_id': int id, 'duration_s': int s} => ItemResult.duration(
         id,
         s,
+        exerciseSlug: slug,
       ),
       _ => throw FormatException('Resultado con formato inválido: $json'),
     };

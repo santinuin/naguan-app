@@ -21,6 +21,7 @@ type fakeTraining struct {
 	gotSlug    string
 	gotWorkout training.NewWorkout
 	gotLimit   int32
+	gotBefore  int64
 	gotToday   time.Time
 }
 
@@ -46,8 +47,8 @@ func (f *fakeTraining) RecordWorkout(_ context.Context, uid string, w training.N
 	return training.Workout{ID: 7}, !f.duplicate, f.err
 }
 
-func (f *fakeTraining) ListWorkouts(_ context.Context, uid string, limit int32) ([]training.Workout, error) {
-	f.gotUserID, f.gotLimit = uid, limit
+func (f *fakeTraining) ListWorkouts(_ context.Context, uid string, limit int32, before int64) ([]training.Workout, error) {
+	f.gotUserID, f.gotLimit, f.gotBefore = uid, limit, before
 	return []training.Workout{}, f.err
 }
 
@@ -188,5 +189,24 @@ func TestListWorkoutsLimit(t *testing.T) {
 	doTraining(t, tr, http.MethodGet, "/v1/me/workouts?limit=5", "")
 	if tr.gotLimit != 5 {
 		t.Errorf("limit = %d, want 5", tr.gotLimit)
+	}
+}
+
+func TestListWorkoutsBefore(t *testing.T) {
+	tr := &fakeTraining{}
+
+	doTraining(t, tr, http.MethodGet, "/v1/me/workouts", "")
+	if tr.gotBefore != 0 {
+		t.Errorf("sin before: gotBefore = %d, want 0", tr.gotBefore)
+	}
+	doTraining(t, tr, http.MethodGet, "/v1/me/workouts?before=42&limit=10", "")
+	if tr.gotBefore != 42 || tr.gotLimit != 10 {
+		t.Errorf("before = %d, limit = %d; want 42 y 10", tr.gotBefore, tr.gotLimit)
+	}
+
+	for _, v := range []string{"abc", "0", "-3"} {
+		if rec := doTraining(t, tr, http.MethodGet, "/v1/me/workouts?before="+v, ""); rec.Code != http.StatusBadRequest {
+			t.Errorf("before=%s: status %d, want 400", v, rec.Code)
+		}
 	}
 }

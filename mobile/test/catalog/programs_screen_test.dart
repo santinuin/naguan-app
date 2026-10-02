@@ -5,6 +5,7 @@ import 'package:naguan_app/catalog/program_screen.dart';
 import 'package:naguan_app/catalog/programs_screen.dart';
 import 'package:naguan_app/common/api_client.dart';
 import 'package:naguan_app/theme/forja_theme.dart';
+import 'package:naguan_app/training/history/history_screen.dart';
 import 'package:naguan_app/training/training_models.dart';
 
 import 'fake_catalog_client.dart';
@@ -99,6 +100,29 @@ void main() {
     );
 
     expect(find.text('No la dejes apagar.'), findsOneWidget);
+  });
+
+  testWidgets('abre el historial y al volver recarga el inicio', (
+    tester,
+  ) async {
+    final training = FakeTrainingClient();
+    await pumpScreen(tester, FakeCatalogClient(), training);
+    await loadHome(tester, training, []);
+
+    await tester.tap(find.text('HISTORIAL'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.byType(HistoryScreen), findsOneWidget);
+    expect(training.workoutsCalls, hasLength(1));
+
+    training.workoutsCalls.single.complete(const []);
+    await tester.pump();
+    await tester.pageBack();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+
+    // Volvió: el inicio pide de nuevo el progreso.
+    expect(training.progressCalls, hasLength(2));
   });
 
   testWidgets('ante un error permite reintentar', (tester) async {

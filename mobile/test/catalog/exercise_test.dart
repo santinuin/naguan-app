@@ -3,11 +3,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:naguan_app/catalog/exercise.dart';
 import 'package:naguan_app/catalog/exercise_screen.dart';
 import 'package:naguan_app/catalog/session.dart';
-import 'package:naguan_app/catalog/session_screen.dart';
 import 'package:naguan_app/theme/forja_theme.dart';
 
 import 'fake_catalog_client.dart';
-import 'session_test.dart' show sessionJson;
 
 /// Un ejercicio como lo manda la API.
 Map<String, dynamic> exerciseJson({
@@ -107,30 +105,5 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.text('PLANCHA LATERAL RODILLAS'), findsOneWidget);
-  });
-
-  testWidgets('desde la Fragua, tocar un ejercicio abre su pantalla', (
-    tester,
-  ) async {
-    final client = FakeCatalogClient();
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: forjaHierro,
-        home: SessionScreen(
-          catalog: client,
-          training: fakeServices(),
-          id: 1,
-          label: 'X · FRAGUA 01',
-        ),
-      ),
-    );
-    client.sessionCalls.single.complete(Session.fromJson(sessionJson));
-    await tester.pump();
-
-    await tester.tap(find.text('Plancha lateral').first);
-    await tester.pump();
-
-    expect(client.requestedSlugs, ['plancha-lateral']);
-    expect(find.byType(ExerciseScreen, skipOffstage: false), findsOneWidget);
   });
 }

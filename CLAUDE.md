@@ -68,6 +68,9 @@ a la hora de asistir en el desarrollo:
   - Ejecución de una Fragua: timers, reps ajustables, pausa, registro y TEMPLADO con
     Mojones; pantalla encendida, retomar una Fragua interrumpida, cola offline con
     idempotencia (`client_id`) y vueltas de los AMRAP.
+  - Ajustar una Fragua antes de empezar (solo para esa vez): reps/segundos y cambiar un
+    ejercicio por una progresión (`session_edits.dart`, editor en hoja inferior); el
+    ejercicio hecho se registra en `workout_item.exercise_id` y de ahí salen los Mojones.
 - Próximos pasos (hoja de ruta), primero lo estructural y después el contenido:
   1. ~~Ingreso con biometría~~: hecho (sesión en `flutter_secure_storage` + candado
      `LockGate` con `local_auth`; ver `docs/autenticacion.md`).
@@ -77,7 +80,10 @@ a la hora de asistir en el desarrollo:
   3. ~~Despliegue~~: hecho (ver "Producción" en Convenciones), con firma de release por
      clave propia (`mobile/android/key.properties`, no versionado; ver
      `docs/despliegue.md`, "Clave de firma").
-  4. Historial de Fraguas y Mojones en la app.
+  4. ~~Historial de Fraguas y Mojones~~: hecho (`HistoryScreen` paginada por cursor,
+     `GET /v1/me/workouts?before=<id>`; `RecordsScreen` con el día de cada Mojón; acceso
+     desde el inicio). Pendiente: el detalle de una Fragua templada (qué se hizo en cada
+     ejercicio), que pide un `GET /v1/me/workouts/{id}`.
   5. Datos: niveles B y C (ver "Datos fuente"); ajustes de contenido (nombres de
      sesiones, calentamiento y estiramiento).
 
@@ -188,7 +194,8 @@ Detalle y decisiones en `docs/modelo-de-datos.md`. Migraciones en `supabase/migr
 catálogo, cierre de la API REST de Supabase (RLS + revocar permisos a `anon` y
 `authenticated`: **toda tabla nueva lleva `enable row level security`**) y registro de
 entrenamiento (`workout`, `workout_item`, `program_reset`) e idempotencia + AMRAP
-(`workout.client_id` único por usuario, `workout_amrap`). Alcance de la app:
+(`workout.client_id` único por usuario, `workout_amrap`) y el ejercicio realmente
+hecho (`workout_item.exercise_id`). Alcance de la app:
 calistenia, pero también fuerza con barra (Barra Libre) y movilidad ("flexifuerza").
 
 - **Catálogo:** `exercise` (sin lado; `unilateral` indica que se hace de a un lado),
@@ -301,7 +308,9 @@ calistenia, pero también fuerza con barra (Barra Libre) y movilidad ("flexifuer
   defecto; se pisan con `--dart-define`).
 - Mobile organizado por funcionalidad: `lib/catalog/` (modelos, cliente, pantallas;
   `ExerciseScreen` recibe un `videoBuilder` para que los tests no necesiten WebView),
-  `lib/training/` (progreso, Brasa, Mojones; `execution/` con `WorkoutRunner`, el motor
+  `lib/training/` (progreso, Brasa, Mojones; `history/` con el historial paginado
+  (`WorkoutHistory`, un `ChangeNotifier`), los Mojones y las fechas en castellano;
+  `execution/` con `WorkoutRunner`, el motor
   de una Fragua: `ChangeNotifier` con lógica pura y reloj inyectable, testeado sin
   widgets; `offline/` con la Fragua en curso y la cola sin señal; `TrainingServices`
   agrupa cliente + almacenes), `lib/common/` (`LocalStore`: interfaz sobre

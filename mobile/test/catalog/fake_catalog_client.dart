@@ -56,6 +56,11 @@ class FakeTrainingClient implements TrainingClient {
   final recordCalls = <Completer<WorkoutResult>>[];
   final recorded = <NewWorkout>[];
   final resets = <String>[];
+  final workoutsCalls = <Completer<List<Workout>>>[];
+
+  /// El cursor de cada página pedida (null = la primera).
+  final workoutsBefore = <int?>[];
+  final recordsCalls = <Completer<List<Record>>>[];
 
   @override
   Future<List<ProgramProgress>> fetchProgress() => nextCall(progressCalls);
@@ -69,6 +74,15 @@ class FakeTrainingClient implements TrainingClient {
 
   @override
   Future<void> resetProgram(String slug) async => resets.add(slug);
+
+  @override
+  Future<List<Workout>> fetchWorkouts({int? before, int limit = 20}) {
+    workoutsBefore.add(before);
+    return nextCall(workoutsCalls);
+  }
+
+  @override
+  Future<List<Record>> fetchRecords() => nextCall(recordsCalls);
 
   @override
   Future<WorkoutResult> recordWorkout(NewWorkout workout) {

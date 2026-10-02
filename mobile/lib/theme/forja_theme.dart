@@ -49,6 +49,20 @@ ThemeData buildForjaTheme(ForjaPalette p) {
         side: BorderSide(color: p.stroke, width: ForjaBorder.heavy),
       ),
     ),
+    // Hojas inferiores (el editor de un ejercicio): un panel más, con el
+    // borde grueso y sin el tinte de color que Material 3 pone por defecto.
+    bottomSheetTheme: BottomSheetThemeData(
+      backgroundColor: p.surface,
+      surfaceTintColor: Colors.transparent,
+      showDragHandle: true,
+      dragHandleColor: p.inkMuted,
+      shape: RoundedRectangleBorder(
+        borderRadius: const BorderRadius.vertical(
+          top: Radius.circular(ForjaRadius.panel),
+        ),
+        side: BorderSide(color: p.stroke, width: ForjaBorder.heavy),
+      ),
+    ),
     filledButtonTheme: FilledButtonThemeData(
       style: ButtonStyle(
         // Un color por estado: deshabilitado, presionado o normal.

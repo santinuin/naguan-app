@@ -141,7 +141,7 @@ func TestProgramProgress(t *testing.T) {
 	if p.Completed != 0 || p.ResetAt == nil || len(p.CompletedSessionIDs) != 0 {
 		t.Errorf("después del reset: %+v", p)
 	}
-	history, _ := svc.ListWorkouts(ctx, user, 10)
+	history, _ := svc.ListWorkouts(ctx, user, 10, 0)
 	if len(history) != 3 {
 		t.Errorf("el reset no debería borrar el historial: %d workouts", len(history))
 	}
@@ -180,7 +180,11 @@ func TestRecordsAndStats(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(records) != 1 || records[0].Value != 13 || records[0].Metric != "reps" {
-		t.Errorf("mojones = %+v", records)
+		t.Fatalf("mojones = %+v", records)
+	}
+	// El slug (para abrir el ejercicio) y el día en que se logró.
+	if records[0].ExerciseSlug == "" || records[0].AchievedOn != workoutFor(s1).LocalDate {
+		t.Errorf("mojón sin slug o con otra fecha: %+v", records[0])
 	}
 
 	// Tres Fraguas hoy: la Brasa cuenta un día (cuenta días, no Fraguas).
@@ -195,6 +199,118 @@ func TestRecordsAndStats(t *testing.T) {
 	}
 	if stats.TotalWorkouts != 3 || stats.Brasa.Days != 1 {
 		t.Errorf("stats = %+v", stats)
+	}
+}
+
+func TestListWorkoutsPages(t *testing.T) {
+	svc, pool, user := setup(t)
+	ctx := context.Background()
+	s1, _ := sessionAt(t, pool, "aurum", 1)
+
+	// Cinco Fraguas que terminan en el MISMO instante (workoutFor usa la
+	// misma hora): solo el id las ordena, y ninguna tiene que repetirse ni
+	// perderse entre páginas.
+	want := map[int64]bool{}
+	for range 5 {
+		w, _, err := svc.RecordWorkout(ctx, user, workoutFor(s1))
+		if err != nil {
+			t.Fatal(err)
+		}
+		want[w.ID] = true
+	}
+
+	var got []int64
+	var before int64
+	for page := 0; ; page++ {
+		ws, err := svc.ListWorkouts(ctx, user, 2, before)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(ws) == 0 {
+			break
+		}
+		if page > 3 {
+			t.Fatal("la paginación no termina")
+		}
+		for _, w := range ws {
+			got = append(got, w.ID)
+		}
+		before = ws[len(ws)-1].ID
+	}
+	if len(got) != 5 {
+		t.Fatalf("ids paginados = %v, want 5 distintos", got)
+	}
+	for i, id := range got {
+		if !want[id] {
+			t.Errorf("id %d repetido o ajeno", id)
+		}
+		delete(want, id)
+		// Mismo finished_at: más reciente = id más alto.
+		if i > 0 && id > got[i-1] {
+			t.Errorf("orden: %v", got)
+		}
+	}
+
+	// Un cursor que no es del usuario no trae nada (no filtra datos ajenos).
+	if ws, _ := svc.ListWorkouts(ctx, user, 2, 1<<62); len(ws) != 0 {
+		t.Errorf("cursor inexistente: %d workouts", len(ws))
+	}
+}
+
+func TestRecordWorkoutWithSwappedExercise(t *testing.T) {
+	svc, pool, user := setup(t)
+	ctx := context.Background()
+	s1, item := sessionAt(t, pool, "aurum", 1)
+
+	// Otro ejercicio cualquiera, distinto del que indica el bloque.
+	var other, original string
+	err := pool.QueryRow(ctx, `
+		select e.slug, o.slug
+		from block_item bi
+		join exercise o on o.id = bi.exercise_id
+		join exercise e on e.id <> bi.exercise_id
+		where bi.id = $1
+		order by e.id limit 1`, item).Scan(&other, &original)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Dos veces el ejercicio cambiado: la segunda supera a la primera, y el
+	// Mojón tiene que ser del ejercicio hecho, no del bloque.
+	for _, reps := range []int16{5, 8} {
+		w, _, err := svc.RecordWorkout(ctx, user, workoutFor(s1,
+			ItemResult{BlockItemID: item, ExerciseSlug: &other, Reps: ptr(reps)}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if reps == 8 && (len(w.NewRecords) != 1 || w.NewRecords[0].ExerciseSlug != other) {
+			t.Errorf("mojón del cambiado: %+v", w.NewRecords)
+		}
+	}
+	// El ejercicio original no tiene marca: hacerlo ahora es la primera vez.
+	w, _, err := svc.RecordWorkout(ctx, user, workoutFor(s1, ItemResult{BlockItemID: item, Reps: ptr[int16](20)}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(w.NewRecords) != 0 {
+		t.Errorf("el original heredó la marca del cambiado: %+v", w.NewRecords)
+	}
+
+	records, _ := svc.Records(ctx, user)
+	got := map[string]int32{}
+	for _, r := range records {
+		got[r.ExerciseSlug] = r.Value
+	}
+	if got[other] != 8 || got[original] != 20 {
+		t.Errorf("mojones por ejercicio = %v", got)
+	}
+
+	missing := "no-existe"
+	_, _, err = svc.RecordWorkout(ctx, user, workoutFor(s1,
+		ItemResult{BlockItemID: item, ExerciseSlug: &missing, Reps: ptr[int16](1)}))
+	var verr *ValidationError
+	if !errors.As(err, &verr) {
+		t.Errorf("slug inexistente: err = %v, want ValidationError", err)
 	}
 }
 
@@ -232,7 +348,7 @@ func TestWorkoutsAreIsolatedPerUser(t *testing.T) {
 	if _, _, err := svc.RecordWorkout(ctx, alice, workoutFor(s1)); err != nil {
 		t.Fatal(err)
 	}
-	got, err := svc.ListWorkouts(ctx, alice, 10)
+	got, err := svc.ListWorkouts(ctx, alice, 10, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -240,7 +356,7 @@ func TestWorkoutsAreIsolatedPerUser(t *testing.T) {
 		t.Errorf("historial de alice = %+v", got)
 	}
 
-	bobs, err := svc.ListWorkouts(ctx, bob, 10)
+	bobs, err := svc.ListWorkouts(ctx, bob, 10, 0)
 	if err != nil {
 		t.Fatal(err)
 	}

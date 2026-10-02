@@ -355,6 +355,60 @@ que produce un `Iterable` perezoso.
 - **`Wrap`** es una `Row` que salta de línea: los chips de músculos se acomodan solos al
   ancho de la pantalla.
 
+## Listas largas: el historial
+
+- **`ListView.builder`** construye solo las filas visibles (y un margen) a medida que se
+  scrollea, como el `RecyclerView` de Android. `ListView(children: [...])` las arma todas
+  de entrada: sirve para pocas (el inicio), no para cientos de Fraguas.
+- **Paginar con un `ChangeNotifier`.** `WorkoutHistory` (`lib/training/history/`) guarda
+  las Fraguas cargadas, si hay una página en camino, si quedan más y si la última falló.
+  `LoadView` no alcanza: carga un dato una vez, y acá la lista crece y puede fallar a la
+  mitad sin borrar lo que ya se ve. Como `WorkoutRunner`, se testea sin widgets.
+- **`ScrollController`** expone la posición del scroll; su listener pide la página
+  siguiente cuando `position.extentAfter` (lo que queda por debajo) baja de 600 px, para que
+  llegue antes de tocar fondo. `loadMore` se puede llamar de más: si ya hay una en camino,
+  no hace nada. Lo que el `State` crea (el controller, el historial) lo descarta en
+  `dispose`.
+- **Usar un `ChangeNotifier` después de `dispose` es un error.** Si se cierra la pantalla
+  con una página en camino, la respuesta llega igual (un `Future` no se cancela): por eso
+  `WorkoutHistory` recuerda que fue descartado y no avisa.
+- **`on Exception` y no `catch` a secas.** Dart separa `Exception` (fallas esperables: sin
+  red, JSON inválido) de `Error` (bugs: un null inesperado, un índice fuera de rango). Se
+  atrapan las primeras para mostrar REINTENTAR; las segundas se dejan pasar para que se
+  vean.
+- **Encabezados por mes sin estructura extra**: cada fila se fija si su mes difiere del de
+  la anterior y, si es así, dibuja el encabezado arriba suyo.
+- **Fechas en castellano a mano** (`dates.dart`): `intl` pide cargar los datos del idioma
+  antes de formatear y la app tiene uno solo. Si hubiera más idiomas, sí conviene `intl`.
+
+## Ajustar una Fragua antes de empezar
+
+En la pantalla de una Fragua, tocar un ejercicio abre un editor (reps o segundos, y
+cambiarlo por una progresión). Los ajustes valen solo para esa vez.
+
+- **Inmutabilidad y `copyWith`.** `Session`, `Block` e `Item` tienen todos sus campos
+  `final`: ajustar es armar una sesión nueva con `copyWith` (el `toBuilder()` de Lombok o
+  el `copy()` de Kotlin). La pantalla guarda el plan ajustado en su `State` (`null` = sin
+  ajustes), y "ORIGINAL" es volver a `null`. Como la sesión ajustada conserva los ids de
+  los ítems, el motor, la Fragua en curso guardada y el registro funcionan sin saber que
+  fue ajustada.
+- **Métodos de extensión** (`lib/catalog/session_edits.dart`): `extension SessionEdits on
+  Session` suma `adjust`, `retarget` y `swapExercise` a `Session` sin tocar la clase (las
+  extension functions de Kotlin). Son funciones puras, testeadas sin widgets.
+- **Qué se ajusta junto:** las reps o segundos cambian en todo el bloque, donde aparezca
+  ese ejercicio con ese mismo objetivo (en una escalera 8-8-5, cambiar el 8 no toca el 5;
+  los lados de un unilateral, que suelen ir en vueltas distintas, cambian juntos). El
+  ejercicio cambia en todo el bloque. El orden importa: primero el objetivo y después el
+  ejercicio, porque el objetivo se busca por ejercicio (`adjust` lo encapsula).
+- **Hojas modales.** `showModalBottomSheet` empuja una ruta más en el Navigator y devuelve
+  un `Future` con lo que se pase a `Navigator.pop(context, valor)` (o `null` si se cierra
+  deslizando o tocando afuera): la misma forma de "pedir algo y esperar la respuesta" que
+  `showDialog`. `isScrollControlled: true` la deja pasar de media pantalla.
+- **`late` con inicializador** en un `State` (`late int _value = widget.item.reps!`): se
+  evalúa la primera vez que se lee, cuando `widget` ya existe. Ahorra un `initState`.
+- **El ejercicio hecho viaja en cada resultado** (`ItemResult.exerciseSlug`), para que la
+  API le atribuya el Mojón al ejercicio correcto.
+
 ## Arquitectura de la app
 
 El código se organiza **por funcionalidad** (feature-first), no por tipo de archivo:
@@ -425,6 +479,9 @@ un `Completer` permite decidir *cuándo* responde el falso, para ver el estado "
   hasta que no quede nada pendiente.
 
 ### Trampas al testear navegación
+
+- `tester.ensureVisible` mueve el scroll pero no redibuja: hace falta un `pump()` antes
+  del `tap`, o el toque va a la posición vieja (el test avisa "would not hit test").
 
 - **`pumpAndSettle` se cuelga con un `CircularProgressIndicator` en pantalla**: gira para
   siempre, así que nunca "se asienta" (`pumpAndSettle timed out`). Primero hay que

@@ -11,15 +11,14 @@ import (
 )
 
 const bestResults = `-- name: BestResults :many
-select bi.exercise_id::bigint as exercise_id,
+select wi.exercise_id,
        coalesce(max(wi.reps), 0)::int       as best_reps,
        coalesce(max(wi.duration_s), 0)::int as best_duration_s
 from workout_item wi
-join workout w     on w.id = wi.workout_id
-join block_item bi on bi.id = wi.block_item_id
+join workout w on w.id = wi.workout_id
 where w.user_id = $1
-  and bi.exercise_id = any($2::bigint[])
-group by bi.exercise_id
+  and wi.exercise_id = any($2::bigint[])
+group by wi.exercise_id
 `
 
 type BestResultsParams struct {
@@ -34,7 +33,8 @@ type BestResultsRow struct {
 }
 
 // Las mejores marcas previas del usuario en estos ejercicios (0 = sin marca).
-// coalesce porque max() de ninguna fila es null.
+// coalesce porque max() de ninguna fila es null. Cuenta el ejercicio que se
+// hizo (wi.exercise_id), no el del bloque: pudo haberse cambiado.
 func (q *Queries) BestResults(ctx context.Context, arg BestResultsParams) ([]BestResultsRow, error) {
 	rows, err := q.db.Query(ctx, bestResults, arg.UserID, arg.ExerciseIds)
 	if err != nil {
@@ -104,6 +104,7 @@ type CreateWorkoutAmrapsParams struct {
 type CreateWorkoutItemsParams struct {
 	WorkoutID   int64
 	BlockItemID int64
+	ExerciseID  int64
 	Reps        *int16
 	DurationS   *int32
 }
@@ -213,6 +214,39 @@ func (q *Queries) ListCompletedSessions(ctx context.Context, arg ListCompletedSe
 	return items, nil
 }
 
+const listExercisesBySlug = `-- name: ListExercisesBySlug :many
+select id, slug, name from exercise where slug = any($1::text[])
+`
+
+type ListExercisesBySlugRow struct {
+	ID   int64
+	Slug string
+	Name string
+}
+
+// Los ejercicios que la app dice haber hecho en lugar de los del bloque (una
+// progresión más fácil o más difícil). Los slugs que no existen no vuelven:
+// así se detectan.
+func (q *Queries) ListExercisesBySlug(ctx context.Context, slugs []string) ([]ListExercisesBySlugRow, error) {
+	rows, err := q.db.Query(ctx, listExercisesBySlug, slugs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListExercisesBySlugRow
+	for rows.Next() {
+		var i ListExercisesBySlugRow
+		if err := rows.Scan(&i.ID, &i.Slug, &i.Name); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listProgramProgress = `-- name: ListProgramProgress :many
 
 select p.id, p.slug, p.name,
@@ -308,27 +342,51 @@ func (q *Queries) ListProgramProgress(ctx context.Context, arg ListProgramProgre
 }
 
 const listRecords = `-- name: ListRecords :many
-select e.slug, e.name,
-       coalesce(max(wi.reps), 0)::int       as best_reps,
-       coalesce(max(wi.duration_s), 0)::int as best_duration_s
-from workout_item wi
-join workout w     on w.id = wi.workout_id
-join block_item bi on bi.id = wi.block_item_id
-join exercise e    on e.id = bi.exercise_id
-where w.user_id = $1
-group by e.id
-order by e.name
+with result as (
+  select wi.exercise_id, wi.reps, wi.duration_s, w.local_date, w.finished_at
+  from workout_item wi
+  join workout w on w.id = wi.workout_id
+  where w.user_id = $1
+),
+best as (
+  (select distinct on (exercise_id)
+          exercise_id, 'reps'::text as metric, reps::int as value, local_date
+     from result
+    where reps > 0
+    order by exercise_id, reps desc, finished_at)
+  union all
+  (select distinct on (exercise_id)
+          exercise_id, 'duration_s'::text, duration_s::int, local_date
+     from result
+    where duration_s > 0
+    order by exercise_id, duration_s desc, finished_at)
+)
+select e.slug, e.name, b.metric, b.value, b.local_date
+from best b
+join exercise e on e.id = b.exercise_id
+order by e.name, b.metric desc
 `
 
 type ListRecordsRow struct {
-	Slug          string
-	Name          string
-	BestReps      int32
-	BestDurationS int32
+	Slug      string
+	Name      string
+	Metric    string
+	Value     int32
+	LocalDate time.Time
 }
 
-// Los Mojones: la mejor marca del usuario en cada ejercicio, juntando ambos
-// lados de los unilaterales (se agrupa por ejercicio, no por lado).
+// Los Mojones: la mejor marca del usuario en cada ejercicio (juntando ambos
+// lados de los unilaterales), una fila por ejercicio y métrica, con el día
+// en que la logró por primera vez.
+//
+// Con max() + group by sale el valor, pero no el día: max() no dice de qué
+// fila salió. "distinct on (exercise_id)" (propio de Postgres) se queda con
+// la PRIMERA fila de cada ejercicio según el order by: ordenando por valor
+// descendente y después por fecha, esa fila es la marca y el día en que se
+// alcanzó (si se igualó después, cuenta la primera vez).
+//
+// Los "with" (CTE) son subconsultas con nombre: se leen de arriba abajo,
+// como variables intermedias.
 func (q *Queries) ListRecords(ctx context.Context, userID string) ([]ListRecordsRow, error) {
 	rows, err := q.db.Query(ctx, listRecords, userID)
 	if err != nil {
@@ -341,8 +399,9 @@ func (q *Queries) ListRecords(ctx context.Context, userID string) ([]ListRecords
 		if err := rows.Scan(
 			&i.Slug,
 			&i.Name,
-			&i.BestReps,
-			&i.BestDurationS,
+			&i.Metric,
+			&i.Value,
+			&i.LocalDate,
 		); err != nil {
 			return nil, err
 		}
@@ -381,7 +440,7 @@ func (q *Queries) ListSessionAmrapPositions(ctx context.Context, sessionID int64
 }
 
 const listSessionItemsForWorkout = `-- name: ListSessionItemsForWorkout :many
-select i.id, i.kind, i.exercise_id, e.name as exercise_name
+select i.id, i.kind, i.exercise_id, e.slug as exercise_slug, e.name as exercise_name
 from block_item i
 join block b on b.id = i.block_id
 left join exercise e on e.id = i.exercise_id
@@ -392,6 +451,7 @@ type ListSessionItemsForWorkoutRow struct {
 	ID           int64
 	Kind         ItemKind
 	ExerciseID   *int64
+	ExerciseSlug *string
 	ExerciseName *string
 }
 
@@ -410,6 +470,7 @@ func (q *Queries) ListSessionItemsForWorkout(ctx context.Context, sessionID int6
 			&i.ID,
 			&i.Kind,
 			&i.ExerciseID,
+			&i.ExerciseSlug,
 			&i.ExerciseName,
 		); err != nil {
 			return nil, err
@@ -474,12 +535,17 @@ left join lateral (
   limit 1
 ) prog on true
 where w.user_id = $1
-order by w.finished_at desc
-limit $2
+  and ($2::bigint is null
+       or (w.finished_at, w.id) < (select c.finished_at, c.id
+                                     from workout c
+                                    where c.user_id = $1 and c.id = $2))
+order by w.finished_at desc, w.id desc
+limit $3
 `
 
 type ListWorkoutsParams struct {
 	UserID  string
+	Before  *int64
 	MaxRows int32
 }
 
@@ -496,8 +562,19 @@ type ListWorkoutsRow struct {
 
 // El historial del usuario, de lo más reciente a lo más viejo, con la Senda
 // de cada sesión (la primera, si una sesión estuviera en varias).
+//
+// Paginación por cursor (keyset): la página siguiente pide "las anteriores
+// al workout @before", el último que la app ya tiene. Se compara el par
+// (finished_at, id) y no solo finished_at: dos Fraguas podrían terminar en
+// el mismo instante, y el id desempata para que ninguna se repita ni se
+// pierda entre páginas. A diferencia de offset ("saltear 40"), no se corre
+// si entra una Fragua nueva mientras se pagina, y usa el índice
+// workout_user_recent en vez de leer y descartar las filas salteadas.
+//
+// Si @before no es un workout del usuario, la subconsulta da null, la
+// comparación también, y la página sale vacía.
 func (q *Queries) ListWorkouts(ctx context.Context, arg ListWorkoutsParams) ([]ListWorkoutsRow, error) {
-	rows, err := q.db.Query(ctx, listWorkouts, arg.UserID, arg.MaxRows)
+	rows, err := q.db.Query(ctx, listWorkouts, arg.UserID, arg.Before, arg.MaxRows)
 	if err != nil {
 		return nil, err
 	}
