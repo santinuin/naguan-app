@@ -8,6 +8,7 @@ import 'package:naguan_app/common/markdown_text.dart';
 import 'package:naguan_app/theme/forja_pill.dart';
 import 'package:naguan_app/theme/forja_theme.dart';
 import 'package:naguan_app/theme/forja_tokens.dart';
+import 'package:naguan_app/theme/forja_headline.dart';
 
 /// Construye el reproductor para una URL. Un `typedef` le pone nombre a un
 /// tipo de función, como una interfaz funcional de Java
@@ -88,7 +89,10 @@ class _ExerciseDetail extends StatelessWidget {
           style: textTheme.labelSmall,
         ),
         const SizedBox(height: ForjaSpace.s2),
-        Text(exercise.name.toUpperCase(), style: textTheme.displayMedium),
+        ForjaHeadline(
+          exercise.name.toUpperCase(),
+          style: textTheme.displayMedium,
+        ),
         if (exercise.videos.isNotEmpty) ...[
           const SizedBox(height: ForjaSpace.s6),
           _Videos(videos: exercise.videos, videoBuilder: videoBuilder),

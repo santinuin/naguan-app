@@ -252,11 +252,12 @@ class _WorkoutRow extends StatelessWidget {
   }
 }
 
-/// La duración de una Fragua: en minutos ("32 min"), o en segundos si no
-/// llegó a uno. formatDuration (la de los ejercicios) no sirve: escribiría
-/// 32 minutos como "32:15", que se lee como una hora.
+/// La duración de una Fragua, redondeada: en minutos ("32′"), o en
+/// segundos si no llegó a uno ("45″"). Con la misma notación que
+/// formatDuration, pero sin los segundos sueltos: en el historial importa el
+/// orden de magnitud, no "32′15″".
 String _formatLength(int seconds) =>
-    seconds < 60 ? '$seconds s' : '${seconds ~/ 60} min';
+    seconds < 60 ? '$seconds″' : '${seconds ~/ 60}′';
 
 /// El pie de la lista: un indicador mientras llega la página siguiente, o
 /// el botón para reintentarla si falló. Con todo cargado, nada.

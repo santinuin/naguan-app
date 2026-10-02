@@ -15,6 +15,7 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:naguan_app/theme/forja_pill.dart';
 import 'package:naguan_app/theme/forja_theme.dart';
 import 'package:naguan_app/theme/forja_tokens.dart';
+import 'package:naguan_app/theme/forja_headline.dart';
 
 /// La ejecución de una Fragua: paso a paso, con cuenta regresiva en los
 /// ejercicios por tiempo y en los descansos.
@@ -281,7 +282,10 @@ class _StepView extends StatelessWidget {
                 child: Text(_stepLabel(step), style: textTheme.labelSmall),
               ),
               // Una Fragua retomada arranca pausada: que se note.
-              if (runner.isPaused) const ForjaPill('en pausa'),
+              if (runner.isPaused) ...[
+                const SizedBox(width: ForjaSpace.s2),
+                const ForjaPill('en pausa'),
+              ],
             ],
           ),
           // Expanded + Center: el contenido del paso ocupa el centro de la
@@ -382,7 +386,7 @@ class _ExerciseHeader extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
     return Column(
       children: [
-        Text(
+        ForjaHeadline(
           item.exercise!.name.toUpperCase(),
           style: textTheme.displayMedium,
           textAlign: TextAlign.center,
@@ -496,7 +500,10 @@ class _RestStep extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Text('ENFRIÁ', style: Theme.of(context).textTheme.displayLarge),
+        ForjaHeadline(
+          'ENFRIÁ',
+          style: Theme.of(context).textTheme.displayLarge,
+        ),
         const SizedBox(height: ForjaSpace.s8),
         _Countdown(remaining: runner.remaining!),
       ],
@@ -516,7 +523,7 @@ class _AmrapStep extends StatelessWidget {
     final block = runner.current.block;
     return Column(
       children: [
-        Text('AMRAP', style: textTheme.displayLarge),
+        ForjaHeadline('AMRAP', style: textTheme.displayLarge),
         const SizedBox(height: ForjaSpace.s2),
         const Text(
           'Repetí la vuelta hasta que se acabe el tiempo.',

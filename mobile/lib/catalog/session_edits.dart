@@ -71,6 +71,23 @@ extension SessionEdits on Session {
     });
   }
 
+  /// Si las dos sesiones piden lo mismo: mismos ítems, con el mismo
+  /// ejercicio, lado y objetivo. Para saber si un ajuste dejó la Fragua
+  /// igual a la original (y el botón ORIGINAL ya no tiene sentido).
+  ///
+  /// Compara signatures, que son records: `!=` compara campo por campo sin
+  /// escribir equals. Los ids no hace falta compararlos: un ajuste nunca
+  /// agrega, saca ni reordena ítems.
+  bool sameAs(Session other) {
+    final mine = [for (final b in blocks) ...b.items];
+    final theirs = [for (final b in other.blocks) ...b.items];
+    if (mine.length != theirs.length) return false;
+    for (var i = 0; i < mine.length; i++) {
+      if (mine[i].signature != theirs[i].signature) return false;
+    }
+    return true;
+  }
+
   /// El bloque se busca por posición en ESTA sesión (y no se recibe un
   /// Block): así cada operación parte de los ítems actuales, nunca de los de
   /// una versión anterior de la sesión.

@@ -4,6 +4,7 @@ import 'package:naguan_app/catalog/session.dart';
 import 'package:naguan_app/theme/forja_theme.dart';
 import 'package:naguan_app/theme/forja_tokens.dart';
 import 'package:naguan_app/training/training_models.dart';
+import 'package:naguan_app/theme/forja_headline.dart';
 
 /// El resumen de una Fragua templada: duración, golpes y los Mojones
 /// superados.
@@ -137,7 +138,7 @@ class _RecordChip extends StatelessWidget {
                 style: textTheme.labelSmall?.copyWith(color: palette.onAccent),
               ),
               const SizedBox(height: ForjaSpace.s1),
-              Text(
+              ForjaHeadline(
                 record.exercise.toUpperCase(),
                 style: textTheme.titleLarge?.copyWith(color: palette.onAccent),
               ),

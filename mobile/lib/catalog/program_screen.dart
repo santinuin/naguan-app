@@ -8,6 +8,7 @@ import 'package:naguan_app/theme/forja_theme.dart';
 import 'package:naguan_app/theme/forja_tokens.dart';
 import 'package:naguan_app/training/training_services.dart';
 import 'package:naguan_app/training/training_models.dart';
+import 'package:naguan_app/theme/forja_headline.dart';
 
 /// Una Senda (programa): sus Fraguas con el check de las templadas, la
 /// sugerida para hoy y la opción de resetearla.
@@ -117,7 +118,7 @@ class _ProgramScreenState extends State<ProgramScreen> {
               ForjaSpace.s4,
               ForjaSpace.s6,
             ),
-            child: Text(
+            child: ForjaHeadline(
               widget.name.toUpperCase(),
               style: textTheme.displayMedium,
             ),
@@ -220,7 +221,10 @@ class _SessionRow extends StatelessWidget {
                   ],
                 ),
               ),
-              if (suggested) const ForjaPill('sigue'),
+              if (suggested) ...[
+                const SizedBox(width: ForjaSpace.s2),
+                const ForjaPill('sigue'),
+              ],
             ],
           ),
         ),

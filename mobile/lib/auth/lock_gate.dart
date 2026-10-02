@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:naguan_app/auth/auth_service.dart';
 import 'package:naguan_app/auth/device_lock.dart';
 import 'package:naguan_app/theme/forja_tokens.dart';
+import 'package:naguan_app/theme/forja_wordmark.dart';
 
 /// Candado de la app: con una sesión guardada, pide huella (o el PIN del
 /// teléfono) antes de mostrar nada.
@@ -201,8 +202,8 @@ class _LockScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text('NAGUAN', style: theme.textTheme.displayLarge),
-              const SizedBox(height: ForjaSpace.s2),
+              const ForjaWordmark(),
+              const SizedBox(height: ForjaSpace.s4),
               Text(
                 failed ? 'No se pudo desbloquear.' : 'Desbloqueá para entrar.',
                 style: failed

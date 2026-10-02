@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:naguan_app/auth/auth_service.dart';
+import 'package:naguan_app/theme/forja_theme.dart';
 import 'package:naguan_app/theme/forja_tokens.dart';
+import 'package:naguan_app/theme/forja_wordmark.dart';
 
 /// Ingreso con email y contraseña.
 ///
@@ -84,9 +86,16 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text('NAGUAN', style: textTheme.displayLarge),
-                const SizedBox(height: ForjaSpace.s2),
-                const Text('El título se gana. Serie a serie.'),
+                const ForjaWordmark(),
+                const SizedBox(height: ForjaSpace.s4),
+                // La tagline, como en la portada del sistema de diseño: en
+                // texto secundario (ink-muted) debajo de la marca.
+                Text(
+                  'El título se gana. Serie a serie.',
+                  style: textTheme.bodyLarge?.copyWith(
+                    color: context.forja.palette.inkMuted,
+                  ),
+                ),
                 const SizedBox(height: ForjaSpace.s12),
                 TextFormField(
                   controller: _email,

@@ -10,6 +10,8 @@ import 'package:naguan_app/theme/forja_theme.dart';
 import 'package:naguan_app/theme/forja_tokens.dart';
 import 'package:naguan_app/training/execution/execution_screen.dart';
 import 'package:naguan_app/training/training_services.dart';
+import 'package:naguan_app/theme/forja_headline.dart';
+import 'package:naguan_app/common/markdown_text.dart';
 
 /// Lo que hay que hacer al tocar un ejercicio: el bloque donde está, para
 /// saber qué ítems ajustar.
@@ -42,15 +44,24 @@ class SessionScreen extends StatefulWidget {
 }
 
 class _SessionScreenState extends State<SessionScreen> {
-  /// La Fragua ajustada; null mientras no se tocó nada (se usa la que vino
-  /// de la API). Así "volver al original" es simplemente volver a null.
+  /// La Fragua ajustada; null si no difiere de la que vino de la API.
+  ///
+  /// Invariante: _plan es null o DISTINTO del original. Por eso alcanza con
+  /// mirar si es null para mostrar ORIGINAL, y _edit lo mantiene: si un
+  /// ajuste deja todo como estaba (se subió una rep y se volvió a bajar),
+  /// guarda null y no una copia idéntica.
   Session? _plan;
 
   /// Se guarda la función de carga (y no se escribe como lambda en build):
   /// LoadView la llama una vez al montarse y en cada reintento.
   Future<Session> _load() => widget.catalog.fetchSession(widget.id);
 
-  Future<void> _edit(Session plan, Block block, Item item) async {
+  Future<void> _edit(
+    Session original,
+    Session plan,
+    Block block,
+    Item item,
+  ) async {
     final edit = await showItemEditor(
       context,
       catalog: widget.catalog,
@@ -59,14 +70,13 @@ class _SessionScreenState extends State<SessionScreen> {
     // null: la hoja se cerró sin LISTO. mounted: la pantalla pudo cerrarse
     // mientras la hoja estaba abierta.
     if (edit == null || !mounted) return;
-    setState(() {
-      _plan = plan.adjust(
-        blockPosition: block.position,
-        item: item,
-        value: edit.value,
-        exercise: edit.exercise,
-      );
-    });
+    final next = plan.adjust(
+      blockPosition: block.position,
+      item: item,
+      value: edit.value,
+      exercise: edit.exercise,
+    );
+    setState(() => _plan = next.sameAs(original) ? null : next);
   }
 
   @override
@@ -95,7 +105,8 @@ class _SessionScreenState extends State<SessionScreen> {
                   // Las filas no saben editar ni conocen el cliente: reciben
                   // qué hacer al tocarlas, como un @Output de Angular o un
                   // callback de React.
-                  onEditItem: (block, item) => _edit(plan, block, item),
+                  onEditItem: (block, item) =>
+                      _edit(original, plan, block, item),
                 ),
               ),
               // El CTA fijo abajo, fuera del scroll: siempre a mano.
@@ -167,10 +178,15 @@ class _SessionDetail extends StatelessWidget {
       children: [
         Text(label, style: textTheme.labelSmall),
         const SizedBox(height: ForjaSpace.s2),
-        Text(session.title.toUpperCase(), style: textTheme.displayMedium),
+        ForjaHeadline(
+          session.title.toUpperCase(),
+          style: textTheme.displayMedium,
+        ),
         if (session.description case final description?) ...[
           const SizedBox(height: ForjaSpace.s4),
-          Text(description),
+          // Las descripciones traen listas ("- 4 superSets..."): el mismo
+          // Markdown mínimo que en la pantalla de un ejercicio.
+          MarkdownText(description),
         ],
         const SizedBox(height: ForjaSpace.s4),
         Text(
@@ -221,10 +237,17 @@ class _BlockCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
+            // Wrap y no Row: si el título y la pill no entran en un renglón
+            // (VUELTAS CON PAUSA en un teléfono angosto), la pill baja al
+            // siguiente en vez de pisar el título. spaceBetween la manda a
+            // la derecha cuando sí entran, como hacía el Spacer.
+            Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: ForjaSpace.s4,
+              runSpacing: ForjaSpace.s2,
               children: [
                 Text('BLOQUE ${block.position}', style: textTheme.titleLarge),
-                const Spacer(),
                 ForjaPill(typeLabel),
               ],
             ),

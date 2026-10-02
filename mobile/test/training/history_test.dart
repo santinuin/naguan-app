@@ -191,7 +191,7 @@ void main() {
       expect(find.text('Sesión 3'), findsOneWidget);
       expect(find.text('AURUM'), findsNWidgets(2)); // la 2 es suelta
       expect(find.text('JUE'), findsOneWidget);
-      expect(find.text('32 MIN'), findsNWidgets(3));
+      expect(find.text('32′'), findsNWidgets(3));
     });
 
     testWidgets('pide la página siguiente al acercarse al final', (
@@ -243,6 +243,6 @@ void main() {
     expect(find.text('Dominada'), findsOneWidget);
     expect(find.text('×15'), findsOneWidget);
     expect(find.text('15 SEP 2026'), findsOneWidget);
-    expect(find.text('60 s'), findsOneWidget);
+    expect(find.text('60″'), findsOneWidget);
   });
 }

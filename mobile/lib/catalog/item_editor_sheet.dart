@@ -6,6 +6,8 @@ import 'package:naguan_app/catalog/session.dart';
 import 'package:naguan_app/common/load_view.dart';
 import 'package:naguan_app/theme/forja_theme.dart';
 import 'package:naguan_app/theme/forja_tokens.dart';
+import 'package:naguan_app/theme/forja_headline.dart';
+import 'package:naguan_app/theme/forja_sheet.dart';
 
 /// Lo que elige el usuario en el editor: el ejercicio (el mismo u otro) y
 /// el objetivo (reps o segundos, según cómo se mida el ítem).
@@ -30,7 +32,9 @@ Future<ItemEdit?> showItemEditor(
     // puede necesitar más.
     isScrollControlled: true,
     useSafeArea: true,
-    builder: (_) => ItemEditorSheet(catalog: catalog, item: item),
+    builder: (_) => ForjaSheet(
+      child: ItemEditorSheet(catalog: catalog, item: item),
+    ),
   );
 }
 
@@ -83,13 +87,18 @@ class _ItemEditorSheetState extends State<ItemEditorSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(_exercise.name.toUpperCase(), style: textTheme.titleLarge),
+          ForjaHeadline(
+            _exercise.name.toUpperCase(),
+            style: textTheme.titleLarge,
+          ),
           if (_exercise.slug != original.slug)
             TextButton(
+              style: forjaInlineButton,
               onPressed: () => setState(() => _exercise = original),
               child: Text('VOLVER A ${original.name.toUpperCase()}'),
             ),
           TextButton(
+            style: forjaInlineButton,
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute<void>(
                 builder: (_) => ExerciseScreen(
@@ -131,12 +140,20 @@ class _ItemEditorSheetState extends State<ItemEditorSheet> {
           // se recarga con las de ella, así se puede bajar o subir más de
           // un escalón. La key nueva hace que LoadView vuelva a cargar (ver
           // "Recargar un widget: cambiar su key" en los docs).
-          LoadView<Exercise>(
-            key: ValueKey(_exercise.slug),
-            load: () => widget.catalog.fetchExercise(_exercise.slug),
-            builder: (context, exercise) => _Progressions(
-              exercise: exercise,
-              onPick: (ref) => setState(() => _exercise = ref),
+          //
+          // AnimatedSize anima los cambios de alto (la lista que se acorta,
+          // el indicador mientras carga): la hoja crece o se achica suave en
+          // vez de saltar.
+          AnimatedSize(
+            duration: const Duration(milliseconds: 200),
+            alignment: Alignment.topCenter,
+            child: LoadView<Exercise>(
+              key: ValueKey(_exercise.slug),
+              load: () => widget.catalog.fetchExercise(_exercise.slug),
+              builder: (context, exercise) => _Progressions(
+                exercise: exercise,
+                onPick: (ref) => setState(() => _exercise = ref),
+              ),
             ),
           ),
           const SizedBox(height: ForjaSpace.s6),

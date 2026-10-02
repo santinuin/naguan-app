@@ -7,6 +7,7 @@ import 'package:naguan_app/theme/forja_tokens.dart';
 import 'package:naguan_app/training/history/dates.dart';
 import 'package:naguan_app/training/training_client.dart';
 import 'package:naguan_app/training/training_models.dart';
+import 'package:naguan_app/theme/forja_theme.dart';
 
 /// Los Mojones: la mejor marca del usuario en cada ejercicio que hizo, con
 /// el día en que la logró. Tocar uno abre el ejercicio.
@@ -114,7 +115,10 @@ class _RecordRow extends StatelessWidget {
             const SizedBox(width: ForjaSpace.s4),
             // La marca, que es lo que se viene a mirar: a la derecha y en
             // el estilo de título, como el valor de una tabla.
-            Text(value, style: textTheme.titleLarge),
+            Text(
+              value,
+              style: context.forja.stat.copyWith(fontSize: 24, height: 1.2),
+            ),
           ],
         ),
       ),

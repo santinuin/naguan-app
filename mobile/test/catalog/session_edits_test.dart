@@ -124,6 +124,21 @@ void main() {
       expect(describe(edited).first, 'dominada-asistida 12');
       expect(describe(edited)[6], 'dominada-asistida 5'); // otra fila
     });
+
+    test('sameAs compara lo que se pide, no la identidad', () {
+      final session = ladder();
+      final first = session.blocks.single.items.first;
+      final there = session.retarget(blockPosition: 1, item: first, value: 9);
+      final back = there.retarget(
+        blockPosition: 1,
+        item: there.blocks.single.items.first,
+        value: 8,
+      );
+
+      expect(there.sameAs(session), isFalse);
+      // Otra instancia, mismos valores: igual.
+      expect(back.sameAs(session), isTrue);
+    });
   });
 
   group('SessionScreen', () {
@@ -179,13 +194,13 @@ void main() {
       await tester.pumpAndSettle();
 
       // Las dos vueltas (un lado cada una) pasaron a 70 s.
-      expect(find.text('60 s'), findsNothing);
-      expect(find.text('70 s'), findsNWidgets(2));
+      expect(find.text('60″'), findsNothing);
+      expect(find.text('70″'), findsNWidgets(2));
       expect(find.text('ORIGINAL'), findsOneWidget);
 
       await tester.tap(find.text('ORIGINAL'));
       await tester.pump();
-      expect(find.text('60 s'), findsNWidgets(2));
+      expect(find.text('60″'), findsNWidgets(2));
     });
 
     testWidgets('cambia por una progresión y la Fragua usa la ajustada', (
@@ -224,6 +239,28 @@ void main() {
         execution.session.blocks.first.items.first.exercise!.slug,
         'plancha-lateral-rodillas',
       );
+    });
+
+    testWidgets('si los ajustes vuelven al original, ORIGINAL desaparece', (
+      tester,
+    ) async {
+      final client = await pumpSession(tester);
+
+      // Primero se sube a 11 reps...
+      await openEditor(tester, client, 'Flexión', exerciseJson());
+      await tester.tap(find.byTooltip('Una más'));
+      await tester.tap(find.text('LISTO'));
+      await tester.pumpAndSettle();
+      expect(find.text('×11'), findsOneWidget);
+      expect(find.text('ORIGINAL'), findsOneWidget);
+
+      // ...y después se vuelve a 10 a mano: queda igual a la original.
+      await openEditor(tester, client, 'Flexión', exerciseJson());
+      await tester.tap(find.byTooltip('Una menos'));
+      await tester.tap(find.text('LISTO'));
+      await tester.pumpAndSettle();
+      expect(find.text('×10'), findsOneWidget);
+      expect(find.text('ORIGINAL'), findsNothing);
     });
 
     testWidgets('cerrar la hoja sin LISTO no cambia nada', (tester) async {

@@ -5,6 +5,17 @@ final forjaHierro = buildForjaTheme(ForjaPalette.hierro);
 final forjaHueso = buildForjaTheme(ForjaPalette.hueso);
 
 /// Arma el [ThemeData] de Material a partir de una paleta de Forja.
+/// Un botón de texto que arranca justo en el margen, alineado con el texto
+/// de arriba y de abajo (CÓMO SE HACE bajo un título, HISTORIAL bajo la
+/// Brasa). El TextButton común tiene 12 px de relleno a los costados: en
+/// medio de una columna de texto queda corrido. Se mantiene el alto mínimo
+/// de 48 px para que siga siendo fácil de tocar.
+final forjaInlineButton = TextButton.styleFrom(
+  padding: EdgeInsets.zero,
+  minimumSize: const Size(0, 48),
+  alignment: Alignment.centerLeft,
+);
+
 ThemeData buildForjaTheme(ForjaPalette p) {
   final text = _textTheme(p);
 
@@ -49,19 +60,14 @@ ThemeData buildForjaTheme(ForjaPalette p) {
         side: BorderSide(color: p.stroke, width: ForjaBorder.heavy),
       ),
     ),
-    // Hojas inferiores (el editor de un ejercicio): un panel más, con el
-    // borde grueso y sin el tinte de color que Material 3 pone por defecto.
-    bottomSheetTheme: BottomSheetThemeData(
-      backgroundColor: p.surface,
+    // Hojas inferiores (el editor de un ejercicio): la hoja del sistema es
+    // transparente y sin forma; el panel lo dibuja ForjaSheet adentro, con
+    // sus cuatro bordes a la vista (ver forja_sheet.dart).
+    bottomSheetTheme: const BottomSheetThemeData(
+      backgroundColor: Colors.transparent,
       surfaceTintColor: Colors.transparent,
-      showDragHandle: true,
-      dragHandleColor: p.inkMuted,
-      shape: RoundedRectangleBorder(
-        borderRadius: const BorderRadius.vertical(
-          top: Radius.circular(ForjaRadius.panel),
-        ),
-        side: BorderSide(color: p.stroke, width: ForjaBorder.heavy),
-      ),
+      elevation: 0,
+      shape: RoundedRectangleBorder(),
     ),
     filledButtonTheme: FilledButtonThemeData(
       style: ButtonStyle(

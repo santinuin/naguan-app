@@ -153,13 +153,7 @@ void main() {
   });
 
   group('formatDuration', () {
-    const cases = {
-      10: '10 s',
-      90: '90 s',
-      120: '2 min',
-      150: '2:30',
-      900: '15 min',
-    };
+    const cases = {10: '10″', 90: '90″', 120: '2′', 150: '2′30″', 900: '15′'};
     for (final MapEntry(key: seconds, value: want) in cases.entries) {
       test('$seconds → $want', () => expect(formatDuration(seconds), want));
     }
@@ -191,10 +185,10 @@ void main() {
     expect(find.text('VUELTA 2'), findsOneWidget);
     expect(find.text('DERECHA'), findsOneWidget);
     expect(find.text('ENFRIÁ'), findsOneWidget);
-    expect(find.text('40 s'), findsOneWidget);
+    expect(find.text('40″'), findsOneWidget);
 
     // El amrap: tope en la pill, sin numerar vueltas.
-    expect(find.text('AMRAP · 15 MIN'), findsOneWidget);
+    expect(find.text('AMRAP · 15′'), findsOneWidget);
     expect(find.text('×10'), findsOneWidget);
   });
 }

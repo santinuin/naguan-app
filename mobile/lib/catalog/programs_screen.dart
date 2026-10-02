@@ -11,6 +11,7 @@ import 'package:naguan_app/training/history/history_screen.dart';
 import 'package:naguan_app/training/history/records_screen.dart';
 import 'package:naguan_app/training/offline/active_workout_store.dart';
 import 'package:naguan_app/training/training_models.dart';
+import 'package:naguan_app/theme/forja_headline.dart';
 
 /// La pantalla de inicio: la Brasa y las Sendas con el progreso del usuario.
 class ProgramsScreen extends StatefulWidget {
@@ -182,7 +183,9 @@ class _ProgramList extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // La única palabra hero de la pantalla.
-            Expanded(child: Text('SENDAS', style: textTheme.displayLarge)),
+            Expanded(
+              child: ForjaHeadline('SENDAS', style: textTheme.displayLarge),
+            ),
             TextButton(onPressed: onSignOut, child: const Text('SALIR')),
           ],
         ),
@@ -194,10 +197,16 @@ class _ProgramList extends StatelessWidget {
         Row(
           children: [
             TextButton(
+              style: forjaInlineButton,
               onPressed: onOpenHistory,
               child: const Text('HISTORIAL'),
             ),
-            TextButton(onPressed: onOpenRecords, child: const Text('MOJONES')),
+            const SizedBox(width: ForjaSpace.s6),
+            TextButton(
+              style: forjaInlineButton,
+              onPressed: onOpenRecords,
+              child: const Text('MOJONES'),
+            ),
           ],
         ),
         if (home.active case final active?) ...[
@@ -265,7 +274,7 @@ class _ActiveWorkoutCard extends StatelessWidget {
           children: [
             Text('FRAGUA EN CURSO', style: textTheme.labelSmall),
             const SizedBox(height: ForjaSpace.s1),
-            Text(
+            ForjaHeadline(
               saved.session.title.toUpperCase(),
               style: textTheme.titleLarge,
             ),
@@ -362,8 +371,12 @@ class _ProgramCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(program.name.toUpperCase(), style: textTheme.titleLarge),
-              const SizedBox(height: ForjaSpace.s2),
+              ForjaHeadline(
+                program.name.toUpperCase(),
+                style: textTheme.titleLarge,
+              ),
+              // 12 px: con 8 la pill quedaba pegada al título.
+              const SizedBox(height: ForjaSpace.s2 + ForjaSpace.s1),
               ForjaPill('${program.completed} / ${program.total} fraguas'),
               const SizedBox(height: ForjaSpace.s4),
               // La barra de progreso: el acento marca lo templado.
