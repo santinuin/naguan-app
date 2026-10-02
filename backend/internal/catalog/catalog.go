@@ -79,6 +79,35 @@ type ExerciseRef struct {
 	Name string `json:"name"`
 }
 
+// Exercise es el detalle de un ejercicio: qué es, cómo se ve, qué trabaja y
+// hacia dónde progresa.
+type Exercise struct {
+	Slug        string  `json:"slug"`
+	Name        string  `json:"name"`
+	Unilateral  bool    `json:"unilateral"`
+	Description *string `json:"description"` // Markdown
+	Videos      []Video `json:"videos"`
+	Muscles     []Tag   `json:"muscles"`
+	Joints      []Tag   `json:"joints"`
+	// Vecinos directos en el grafo de progresiones.
+	Easier []ExerciseRef `json:"easier"`
+	Harder []ExerciseRef `json:"harder"`
+}
+
+// Video es la URL tal como está en la base (hoy, de YouTube). La API no la
+// interpreta: si mañana los videos pasan a R2, cambia el dato y no el
+// contrato.
+type Video struct {
+	Side *string `json:"side,omitempty"` // nil: vale para los dos lados
+	URL  string  `json:"url"`
+}
+
+// Tag es un músculo o una articulación.
+type Tag struct {
+	Slug string `json:"slug"`
+	Name string `json:"name"`
+}
+
 // ── Servicio ─────────────────────────────────────────────────────────────────
 
 // Service lee el catálogo. Recibe *db.Queries por constructor: en Go no hay
@@ -149,6 +178,79 @@ func (s *Service) GetSession(ctx context.Context, id int64) (Session, error) {
 		ID: row.ID, Kind: string(row.Kind), Title: row.Title, Description: row.Description,
 		Blocks: groupBlocks(items),
 	}, nil
+}
+
+// GetExercise lee un ejercicio con todo lo que cuelga de él. Son cinco
+// consultas chicas en secuencia, cada una por índice: unos milisegundos en
+// total. Se podrían lanzar en paralelo con goroutines (errgroup, el Mono.zip
+// de Go), pero a esta escala no hace falta y cada request ocuparía varias
+// conexiones del pool a la vez.
+func (s *Service) GetExercise(ctx context.Context, slug string) (Exercise, error) {
+	e, err := s.q.GetExerciseBySlug(ctx, slug)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Exercise{}, ErrNotFound
+	}
+	if err != nil {
+		return Exercise{}, fmt.Errorf("leyendo el ejercicio %q: %w", slug, err)
+	}
+	out := Exercise{
+		Slug: e.Slug, Name: e.Name, Unilateral: e.Unilateral, Description: e.Description,
+		// Slices vacíos y no nil: se serializan como [] y no como null, y
+		// la app no tiene que distinguir los dos casos.
+		Videos: []Video{}, Muscles: []Tag{}, Joints: []Tag{},
+		Easier: []ExerciseRef{}, Harder: []ExerciseRef{},
+	}
+
+	videos, err := s.q.ListExerciseVideos(ctx, e.ID)
+	if err != nil {
+		return Exercise{}, fmt.Errorf("leyendo los videos de %q: %w", slug, err)
+	}
+	for _, v := range videos {
+		video := Video{URL: v.Url}
+		if v.Side != nil {
+			side := string(*v.Side)
+			video.Side = &side
+		}
+		out.Videos = append(out.Videos, video)
+	}
+
+	muscles, err := s.q.ListExerciseMuscles(ctx, e.ID)
+	if err != nil {
+		return Exercise{}, fmt.Errorf("leyendo los músculos de %q: %w", slug, err)
+	}
+	for _, m := range muscles {
+		out.Muscles = append(out.Muscles, Tag{Slug: m.Slug, Name: m.Name})
+	}
+
+	joints, err := s.q.ListExerciseJoints(ctx, e.ID)
+	if err != nil {
+		return Exercise{}, fmt.Errorf("leyendo las articulaciones de %q: %w", slug, err)
+	}
+	for _, j := range joints {
+		out.Joints = append(out.Joints, Tag{Slug: j.Slug, Name: j.Name})
+	}
+
+	progressions, err := s.q.ListExerciseProgressions(ctx, e.ID)
+	if err != nil {
+		return Exercise{}, fmt.Errorf("leyendo las progresiones de %q: %w", slug, err)
+	}
+	splitProgressions(&out, progressions)
+	return out, nil
+}
+
+// splitProgressions reparte las filas de ListExerciseProgressions entre
+// Easier y Harder. Recibe un puntero para modificar el Exercise del que
+// llama (un struct pasado por valor sería una copia).
+func splitProgressions(ex *Exercise, rows []db.ListExerciseProgressionsRow) {
+	for _, r := range rows {
+		ref := ExerciseRef{Slug: r.Slug, Name: r.Name}
+		switch r.Direction {
+		case "easier":
+			ex.Easier = append(ex.Easier, ref)
+		case "harder":
+			ex.Harder = append(ex.Harder, ref)
+		}
+	}
 }
 
 // groupBlocks arma los bloques a partir de las filas planas de

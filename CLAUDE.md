@@ -54,7 +54,8 @@ a la hora de asistir en el desarrollo:
 - Hecho (datos): esquema del catálogo y el importador `backend/cmd/seed` del nivel A
   (470 ejercicios, 209 progresiones, 5 programas, 191 sesiones), cargado en Supabase
   local (Postgres 17). API de lectura: `GET /programs`, `GET /programs/{slug}`,
-  `GET /sessions/{id}` (sesión con bloques e ítems), con tests. Pendiente (más adelante, lo hace el usuario): auditar ejercicio por
+  `GET /sessions/{id}` (sesión con bloques e ítems), `GET /exercises/{slug}` (detalle con
+  videos, músculos, articulaciones y progresiones), con tests. Pendiente (más adelante, lo hace el usuario): auditar ejercicio por
   ejercicio en `backend/seed/exercise_names.csv`, incluidas las variantes numeradas
   ("Flexión anillas 1/2/3"), que según el caso son niveles o ejercicios distintos;
   renombrar cada sesión de cada programa con un nombre acorde (hoy muchas quedaron como
@@ -70,7 +71,9 @@ a la hora de asistir en el desarrollo:
 - Próximos pasos (hoja de ruta), primero lo estructural y después el contenido:
   1. ~~Ingreso con biometría~~: hecho (sesión en `flutter_secure_storage` + candado
      `LockGate` con `local_auth`; ver `docs/autenticacion.md`).
-  2. Endpoints y pantalla de ejercicio (detalle, videos, músculos, progresiones).
+  2. ~~Pantalla de ejercicio~~: hecha (`ExerciseScreen`, desde cada ejercicio de una
+     Fragua y durante la ejecución: CÓMO SE HACE, la fila SIGUE y la vuelta del AMRAP;
+     abrirla pausa la Fragua y al volver queda pausada).
   3. ~~Despliegue~~: hecho (ver "Producción" en Convenciones), con firma de release por
      clave propia (`mobile/android/key.properties`, no versionado; ver
      `docs/despliegue.md`, "Clave de firma").
@@ -128,8 +131,11 @@ a la hora de asistir en el desarrollo:
 - Supabase Auth. Login simple (email/password o magic link) para mí y algunos amigos.
 
 ### Almacenamiento de videos
-- **Cloudflare R2** (S3-compatible, sin costo de egress) + CDN. Los videos de ejercicios
-  NO van en Supabase Storage (ahí el tier gratis es de solo 1GB, se llenaría rápido con video).
+- **Hoy:** los videos son links de YouTube (shorts verticales y `youtu.be`) que vienen del
+  índice de MH, y la app los muestra embebidos con `youtube_player_iframe` (WebView; sin
+  sonido, en bucle). Solo `lib/catalog/youtube_video.dart` conoce YouTube.
+- **Si hiciera falta independizarse de YouTube:** **Cloudflare R2** (S3-compatible, sin
+  costo de egress) + `video_player`. No en Supabase Storage (el tier gratis es de 1GB).
 
 ### Hosting del backend
 - **Google Cloud Run**. Se sube el binario Go como contenedor Docker, escala a cero cuando
@@ -293,13 +299,15 @@ calistenia, pero también fuerza con barra (Barra Libre) y movilidad ("flexifuer
   401 cierra la sesión.
   Configuración en `lib/config.dart` (`String.fromEnvironment` con valores locales por
   defecto; se pisan con `--dart-define`).
-- Mobile organizado por funcionalidad: `lib/catalog/` (modelos, cliente, pantallas),
+- Mobile organizado por funcionalidad: `lib/catalog/` (modelos, cliente, pantallas;
+  `ExerciseScreen` recibe un `videoBuilder` para que los tests no necesiten WebView),
   `lib/training/` (progreso, Brasa, Mojones; `execution/` con `WorkoutRunner`, el motor
   de una Fragua: `ChangeNotifier` con lógica pura y reloj inyectable, testeado sin
   widgets; `offline/` con la Fragua en curso y la cola sin señal; `TrainingServices`
   agrupa cliente + almacenes), `lib/common/` (`LocalStore`: interfaz sobre
   `shared_preferences`, en memoria en los tests; `ApiClient`: HTTP compartido por los clientes, token,
-  errores, `onUnauthorized` → cerrar sesión; `LoadView<T>`: cargando/error/datos) y
+  errores, `onUnauthorized` → cerrar sesión; `LoadView<T>`: cargando/error/datos;
+  `MarkdownText`: Markdown mínimo propio para las descripciones, sin paquete) y
   `lib/theme/` (tokens, `ThemeData`, widgets propios como `ForjaPill`). Navegación con
   `Navigator.push` + `MaterialPageRoute`, datos por constructor (go_router cuando haya
   deep links). Modelos con

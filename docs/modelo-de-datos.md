@@ -36,7 +36,11 @@ exercise ──< exercise_video                      │           │  (Fragua 
   lado, incluido el lado null (sin el `nulls not distinct`, Postgres considera que dos
   null son distintos y permitiría duplicados).
 - **`exercise_progression`** es un grafo: de `easier_id` se progresa a `harder_id`. Viene
-  de las columnas "más fácil / más difícil" del índice original.
+  de las columnas "más fácil / más difícil" del índice original, que están **rotuladas al
+  revés** (Flexión → "Más Fácil": Flexión diamante). El importador las lee cruzadas, y la
+  migración `20261002100000_fix_progression_direction.sql` dio vuelta las aristas que ya
+  estaban cargadas. En las variantes numeradas de las anillas, 1 es la más fácil.
+  `GET /v1/exercises/{slug}` devuelve los vecinos directos (`easier` / `harder`).
 - **Músculos y articulaciones** son tablas propias con tablas de unión, no arrays: así se
   puede consultar "todos los ejercicios de glúteos" con un join y un índice.
 

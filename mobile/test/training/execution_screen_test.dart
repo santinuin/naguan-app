@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:naguan_app/catalog/exercise_screen.dart';
 import 'package:naguan_app/catalog/session.dart';
 import 'package:naguan_app/common/api_client.dart';
 import 'package:naguan_app/theme/forja_theme.dart';
@@ -46,6 +47,7 @@ void main() {
         theme: forjaHierro,
         home: ExecutionScreen(
           session: session,
+          catalog: FakeCatalogClient(),
           training: fakeServices(client: training),
           clock: clock.now,
           keepScreenOn: false,
@@ -98,6 +100,7 @@ void main() {
         theme: forjaHierro,
         home: ExecutionScreen(
           session: session,
+          catalog: FakeCatalogClient(),
           training: fakeServices(),
           clock: FakeClock().now,
           keepScreenOn: false,
@@ -128,6 +131,7 @@ void main() {
         theme: forjaHierro,
         home: ExecutionScreen(
           session: session,
+          catalog: FakeCatalogClient(),
           training: services,
           clock: clock.now,
           keepScreenOn: false,
@@ -153,5 +157,36 @@ void main() {
     expect(queued.single.clientId, client.recorded.single.clientId);
     // Ya no hay Fragua en curso: quedó en la cola.
     expect(await services.activeWorkout.load(now: clock.now()), isNull);
+  });
+
+  testWidgets('"cómo se hace" pausa la Fragua y abre el ejercicio', (
+    tester,
+  ) async {
+    final catalog = FakeCatalogClient();
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: forjaHierro,
+        home: ExecutionScreen(
+          session: session,
+          catalog: catalog,
+          training: fakeServices(),
+          clock: FakeClock().now,
+          keepScreenOn: false,
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('CÓMO SE HACE'));
+    await tester.pump();
+
+    expect(catalog.requestedSlugs, ['sentadilla']);
+    expect(find.byType(ExerciseScreen, skipOffstage: false), findsOneWidget);
+
+    // Volver: la Fragua sigue pausada (se retoma con ▶).
+    tester.state<NavigatorState>(find.byType(Navigator)).pop();
+    await tester.pump(); // el pop
+    await tester.pump(const Duration(seconds: 1)); // la transición
+    expect(find.text('EN PAUSA'), findsOneWidget);
+    expect(find.byTooltip('Seguir'), findsOneWidget);
   });
 }

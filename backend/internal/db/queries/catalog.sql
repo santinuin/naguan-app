@@ -54,3 +54,48 @@ join block_item i     on i.block_id = b.id
 left join exercise e  on e.id = i.exercise_id
 where b.session_id = $1
 order by b.position, i.round, i.position;
+
+-- ── Ejercicio ───────────────────────────────────────────────────────────────
+
+-- name: GetExerciseBySlug :one
+select id, slug, name, unilateral, description
+from exercise
+where slug = $1;
+
+-- name: ListExerciseVideos :many
+-- Uno sin lado, o uno por lado (izquierdo primero: el orden del enum side).
+select side, url
+from exercise_video
+where exercise_id = $1
+order by side nulls first;
+
+-- name: ListExerciseMuscles :many
+select m.slug, m.name
+from exercise_muscle em
+join muscle m on m.id = em.muscle_id
+where em.exercise_id = $1
+order by m.name;
+
+-- name: ListExerciseJoints :many
+select j.slug, j.name
+from exercise_joint ej
+join joint j on j.id = ej.joint_id
+where ej.exercise_id = $1
+order by j.name;
+
+-- name: ListExerciseProgressions :many
+-- Los vecinos directos en el grafo de progresiones: de qué ejercicios se
+-- llega a este (easier) y a cuáles se progresa desde este (harder).
+-- sqlc.arg pone nombre al parámetro: se usa dos veces, y sin nombre sqlc lo
+-- llamaría como la primera columna con la que se compara (HarderID), que
+-- confunde.
+select 'easier'::text as direction, e.slug, e.name
+from exercise_progression p
+join exercise e on e.id = p.easier_id
+where p.harder_id = sqlc.arg(exercise_id)
+union all
+select 'harder'::text as direction, e.slug, e.name
+from exercise_progression p
+join exercise e on e.id = p.harder_id
+where p.easier_id = sqlc.arg(exercise_id)
+order by direction, name;

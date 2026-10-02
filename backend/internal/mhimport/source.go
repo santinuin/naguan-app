@@ -98,10 +98,14 @@ func ReadIndex(path string) ([]SourceExercise, error) {
 		if e.MET, err = strconv.ParseFloat(get("MET"), 64); err != nil {
 			errs = append(errs, fmt.Errorf("índice fila %d: MET: %w", line, err))
 		}
-		if e.EasierID, err = parseRef(get("Más Fácil")); err != nil {
+		// Las columnas del índice están rotuladas AL REVÉS: "Más Fácil" trae
+		// el ejercicio más difícil y viceversa (Flexión → "Más Fácil": Flexión
+		// diamante, "Más Difícil": Flexión con rodillas). Pasa en todo el
+		// índice, así que se leen cruzadas.
+		if e.HarderID, err = parseRef(get("Más Fácil")); err != nil {
 			errs = append(errs, fmt.Errorf("índice fila %d: Más Fácil: %w", line, err))
 		}
-		if e.HarderID, err = parseRef(get("Más Difícil")); err != nil {
+		if e.EasierID, err = parseRef(get("Más Difícil")); err != nil {
 			errs = append(errs, fmt.Errorf("índice fila %d: Más Difícil: %w", line, err))
 		}
 		if e.Muscles, err = parseList(get("Músculos Implicados")); err != nil {

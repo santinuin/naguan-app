@@ -21,6 +21,7 @@ type fakeCatalog struct {
 	programs []catalog.ProgramSummary
 	program  catalog.Program
 	session  catalog.Session
+	exercise catalog.Exercise
 	err      error
 	gotSlug  string
 	gotID    int64
@@ -45,6 +46,11 @@ func (f *fakeCatalog) GetSession(ctx context.Context, id int64) (catalog.Session
 		return catalog.Session{}, ctx.Err()
 	}
 	return f.session, f.err
+}
+
+func (f *fakeCatalog) GetExercise(_ context.Context, slug string) (catalog.Exercise, error) {
+	f.gotSlug = slug
+	return f.exercise, f.err
 }
 
 // fakeVerifier acepta un único token, "token-valido", y rechaza el resto.
@@ -215,5 +221,29 @@ func TestMe(t *testing.T) {
 	want := `{"id":"u1","email":"prueba@naguan.local"}`
 	if got := strings.TrimSpace(rec.Body.String()); got != want {
 		t.Errorf("body = %s, want %s", got, want)
+	}
+}
+
+func TestGetExercise(t *testing.T) {
+	cat := &fakeCatalog{exercise: catalog.Exercise{Slug: "flexion", Name: "Flexión"}}
+
+	rec := do(t, cat, http.MethodGet, "/v1/exercises/flexion")
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", rec.Code)
+	}
+	if cat.gotSlug != "flexion" {
+		t.Errorf("slug recibido = %q, want flexion", cat.gotSlug)
+	}
+	if !strings.Contains(rec.Body.String(), `"name":"Flexión"`) {
+		t.Errorf("cuerpo = %s", rec.Body.String())
+	}
+}
+
+func TestGetExerciseNotFound(t *testing.T) {
+	rec := do(t, &fakeCatalog{err: catalog.ErrNotFound}, http.MethodGet, "/v1/exercises/no-existe")
+
+	if rec.Code != http.StatusNotFound {
+		t.Errorf("status = %d, want 404", rec.Code)
 	}
 }

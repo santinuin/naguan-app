@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:naguan_app/catalog/catalog_client.dart';
+import 'package:naguan_app/catalog/exercise_screen.dart';
 import 'package:naguan_app/catalog/format.dart';
 import 'package:naguan_app/catalog/session.dart';
 import 'package:naguan_app/training/execution/templado_screen.dart';
@@ -23,6 +25,7 @@ class ExecutionScreen extends StatefulWidget {
   const ExecutionScreen({
     super.key,
     required this.session,
+    required this.catalog,
     required this.training,
     this.restored,
     this.clock,
@@ -30,6 +33,9 @@ class ExecutionScreen extends StatefulWidget {
   });
 
   final Session session;
+
+  /// Para abrir un ejercicio en medio de la Fragua (cómo se hace).
+  final CatalogClient catalog;
   final TrainingServices training;
 
   /// El snapshot de una Fragua interrumpida, para retomarla. Null: una
@@ -159,6 +165,25 @@ class _ExecutionScreenState extends State<ExecutionScreen> {
     );
   }
 
+  /// Abre la pantalla de un ejercicio sin salir de la Fragua: se apila
+  /// encima, y "atrás" vuelve acá.
+  ///
+  /// Antes pausa: mirar el video no tiene que consumir el tiempo del paso.
+  /// Al volver queda pausada a propósito (se sigue con ▶ cuando estés en
+  /// posición); retomarla sola arrancaría la cuenta antes de acomodarse.
+  ///
+  /// Esta pantalla sigue montada debajo mientras tanto: el Timer sigue
+  /// andando, pero tick() no hace nada con el runner pausado.
+  void _openExercise(ExerciseRef exercise) {
+    _runner.pause();
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) =>
+            ExerciseScreen(catalog: widget.catalog, slug: exercise.slug),
+      ),
+    );
+  }
+
   /// Descarta una Fragua que la API rechazó (un 4xx).
   Future<void> _discard() async {
     await widget.training.activeWorkout.clear();
@@ -216,7 +241,10 @@ class _ExecutionScreenState extends State<ExecutionScreen> {
                   listenable: _runner,
                   builder: (context, _) => _runner.isFinished
                       ? const Center(child: CircularProgressIndicator())
-                      : _StepView(runner: _runner),
+                      : _StepView(
+                          runner: _runner,
+                          onOpenExercise: _openExercise,
+                        ),
                 ),
         ),
       ),
@@ -225,9 +253,10 @@ class _ExecutionScreenState extends State<ExecutionScreen> {
 }
 
 class _StepView extends StatelessWidget {
-  const _StepView({required this.runner});
+  const _StepView({required this.runner, required this.onOpenExercise});
 
   final WorkoutRunner runner;
+  final ValueChanged<ExerciseRef> onOpenExercise;
 
   @override
   Widget build(BuildContext context) {
@@ -261,18 +290,25 @@ class _StepView extends StatelessWidget {
             child: Center(
               child: SingleChildScrollView(
                 child: switch (step.kind) {
-                  StepKind.reps => _RepsStep(runner: runner),
-                  StepKind.timed => _TimedStep(runner: runner),
+                  StepKind.reps => _RepsStep(
+                    runner: runner,
+                    onOpenExercise: onOpenExercise,
+                  ),
+                  StepKind.timed => _TimedStep(
+                    runner: runner,
+                    onOpenExercise: onOpenExercise,
+                  ),
                   StepKind.rest => _RestStep(runner: runner),
-                  StepKind.amrap => _AmrapStep(runner: runner),
+                  StepKind.amrap => _AmrapStep(
+                    runner: runner,
+                    onOpenExercise: onOpenExercise,
+                  ),
                 },
               ),
             ),
           ),
           if (runner.next case final next?) ...[
-            Text('SIGUE', style: textTheme.labelSmall),
-            const SizedBox(height: ForjaSpace.s1),
-            Text(_describe(next), style: textTheme.bodyLarge),
+            _NextStep(step: next, onOpenExercise: onOpenExercise),
             const SizedBox(height: ForjaSpace.s4),
           ],
           _Controls(runner: runner),
@@ -285,6 +321,40 @@ class _StepView extends StatelessWidget {
     final block = 'BLOQUE ${step.block.position} · ${step.block.type.label}';
     if (step.kind == StepKind.amrap || step.roundCount <= 1) return block;
     return '$block · VUELTA ${step.round} / ${step.roundCount}';
+  }
+}
+
+/// Lo que sigue. Si es un ejercicio, se puede tocar para ver cómo se hace:
+/// sirve sobre todo en un Enfriá, para prepararse para el próximo.
+class _NextStep extends StatelessWidget {
+  const _NextStep({required this.step, required this.onOpenExercise});
+
+  final WorkoutStep step;
+  final ValueChanged<ExerciseRef> onOpenExercise;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final content = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('SIGUE', style: textTheme.labelSmall),
+        const SizedBox(height: ForjaSpace.s1),
+        Text(_describe(step), style: textTheme.bodyLarge),
+      ],
+    );
+
+    final exercise = step.item?.exercise;
+    if (exercise == null) return content;
+    return InkWell(
+      onTap: () => onOpenExercise(exercise),
+      child: Row(
+        children: [
+          Expanded(child: content),
+          Icon(Icons.chevron_right, color: context.forja.palette.inkMuted),
+        ],
+      ),
+    );
   }
 }
 
@@ -302,9 +372,10 @@ String _describe(WorkoutStep step) {
 
 /// Nombre del ejercicio y su lado: común a los pasos de ejercicio.
 class _ExerciseHeader extends StatelessWidget {
-  const _ExerciseHeader({required this.item});
+  const _ExerciseHeader({required this.item, required this.onOpenExercise});
 
   final Item item;
+  final ValueChanged<ExerciseRef> onOpenExercise;
 
   @override
   Widget build(BuildContext context) {
@@ -320,6 +391,11 @@ class _ExerciseHeader extends StatelessWidget {
           const SizedBox(height: ForjaSpace.s2),
           ForjaPill(side.label),
         ],
+        const SizedBox(height: ForjaSpace.s2),
+        TextButton(
+          onPressed: () => onOpenExercise(item.exercise!),
+          child: const Text('CÓMO SE HACE'),
+        ),
       ],
     );
   }
@@ -349,16 +425,20 @@ class _Countdown extends StatelessWidget {
 }
 
 class _RepsStep extends StatelessWidget {
-  const _RepsStep({required this.runner});
+  const _RepsStep({required this.runner, required this.onOpenExercise});
 
   final WorkoutRunner runner;
+  final ValueChanged<ExerciseRef> onOpenExercise;
 
   @override
   Widget build(BuildContext context) {
     final stat = context.forja.stat.copyWith(fontSize: 96, height: 1);
     return Column(
       children: [
-        _ExerciseHeader(item: runner.current.item!),
+        _ExerciseHeader(
+          item: runner.current.item!,
+          onOpenExercise: onOpenExercise,
+        ),
         const SizedBox(height: ForjaSpace.s8),
         // Las reps hechas, ajustables: arrancan en las indicadas.
         Row(
@@ -387,15 +467,19 @@ class _RepsStep extends StatelessWidget {
 }
 
 class _TimedStep extends StatelessWidget {
-  const _TimedStep({required this.runner});
+  const _TimedStep({required this.runner, required this.onOpenExercise});
 
   final WorkoutRunner runner;
+  final ValueChanged<ExerciseRef> onOpenExercise;
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
-        _ExerciseHeader(item: runner.current.item!),
+        _ExerciseHeader(
+          item: runner.current.item!,
+          onOpenExercise: onOpenExercise,
+        ),
         const SizedBox(height: ForjaSpace.s8),
         _Countdown(remaining: runner.remaining!),
       ],
@@ -421,9 +505,10 @@ class _RestStep extends StatelessWidget {
 }
 
 class _AmrapStep extends StatelessWidget {
-  const _AmrapStep({required this.runner});
+  const _AmrapStep({required this.runner, required this.onOpenExercise});
 
   final WorkoutRunner runner;
+  final ValueChanged<ExerciseRef> onOpenExercise;
 
   @override
   Widget build(BuildContext context) {
@@ -440,19 +525,25 @@ class _AmrapStep extends StatelessWidget {
         const SizedBox(height: ForjaSpace.s6),
         _Countdown(remaining: runner.remaining!),
         const SizedBox(height: ForjaSpace.s6),
+        // Cada ejercicio de la vuelta se puede tocar (los descansos no).
         for (final item in block.items)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: ForjaSpace.s1),
-            child: Text(
-              _describe(
-                WorkoutStep(
-                  kind: StepKind.reps,
-                  block: block,
-                  roundCount: 1,
-                  item: item,
+          InkWell(
+            onTap: item.exercise == null
+                ? null
+                : () => onOpenExercise(item.exercise!),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: ForjaSpace.s1),
+              child: Text(
+                _describe(
+                  WorkoutStep(
+                    kind: StepKind.reps,
+                    block: block,
+                    roundCount: 1,
+                    item: item,
+                  ),
                 ),
+                style: textTheme.bodyLarge,
               ),
-              style: textTheme.bodyLarge,
             ),
           ),
         const SizedBox(height: ForjaSpace.s6),

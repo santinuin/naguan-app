@@ -1,8 +1,9 @@
+import 'package:naguan_app/catalog/exercise.dart';
 import 'package:naguan_app/catalog/program.dart';
 import 'package:naguan_app/catalog/session.dart';
 import 'package:naguan_app/common/api_client.dart';
 
-/// Cliente de la API del catálogo (programas y sesiones). Lo de HTTP lo
+/// Cliente de la API del catálogo (programas, sesiones y ejercicios). Lo de HTTP lo
 /// resuelve [ApiClient]; acá solo se arman los modelos.
 ///
 /// La lista de programas no está acá: sale del progreso del usuario
@@ -22,5 +23,10 @@ class CatalogClient {
   Future<Session> fetchSession(int id) async {
     final json = await _api.getJson('/sessions/$id');
     return Session.fromJson(json as Map<String, dynamic>);
+  }
+
+  Future<Exercise> fetchExercise(String slug) async {
+    final json = await _api.getJson('/exercises/${Uri.encodeComponent(slug)}');
+    return Exercise.fromJson(json as Map<String, dynamic>);
   }
 }

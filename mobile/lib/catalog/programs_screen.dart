@@ -61,6 +61,7 @@ class _ProgramsScreenState extends State<ProgramsScreen> {
       MaterialPageRoute<void>(
         builder: (_) => ExecutionScreen(
           session: saved.session,
+          catalog: widget.catalog,
           training: widget.training,
           restored: saved.snapshot,
         ),

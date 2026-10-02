@@ -327,6 +327,34 @@ recién cuando se abre la pantalla. La función es `async*`, un **generador así
 `await` en el medio (leer el `.txt` con `rootBundle`). La versión sincrónica es `sync*`,
 que produce un `Iterable` perezoso.
 
+## La pantalla de ejercicio: WebView, `sealed` y `typedef`
+
+- **Video embebido.** `youtube_player_iframe` es un **WebView** (un navegador dentro de la
+  app) con el reproductor oficial de YouTube, al que el paquete controla por JavaScript.
+  `YoutubeVideo` (`lib/catalog/youtube_video.dart`) lo encapsula: es la única pieza que
+  conoce YouTube. El bucle se hace a mano (escuchar el estado `ended` y volver a 0), porque
+  el `loop` de YouTube solo funciona con listas de reproducción.
+- **Inyectar lo que no existe en los tests.** Un widget test no tiene WebView, así que
+  `ExerciseScreen` recibe un `videoBuilder` (por defecto, YouTube) y los tests le pasan uno
+  que dibuja un `Text`. Es la misma idea que inyectar el cliente HTTP.
+- **`typedef VideoBuilder = Widget Function(String url)`** le pone nombre a un tipo de
+  función, como `Function<String, Widget>` en Java, sin declarar una interfaz.
+- **Un valor por defecto tiene que ser constante.** Por eso el builder por defecto es una
+  función de nivel superior (`_youtube`) y no una lambda: la referencia a una función con
+  nombre (*tear-off*) es `const`.
+- **`key` para forzar un widget nuevo.** Al cambiar de lado, el reproductor recibe
+  `ValueKey(url)`: con otra key, Flutter descarta el `State` viejo (y su WebView) en vez de
+  reutilizarlo con el video anterior.
+- **`sealed class`** (en `lib/common/markdown_text.dart`): los subtipos tienen que estar en
+  el mismo archivo, así que el compilador conoce la lista completa y un `switch` sobre
+  `MdBlock` exige cubrirlos todos. Es el `sealed interface ... permits` de Java 17.
+- **Markdown propio.** Las descripciones usan párrafos, listas y negrita. El paquete
+  oficial (`flutter_markdown`) está discontinuado, así que hay un parser chico y puro
+  (`parseMarkdown`, testeado sin widgets) y un widget que lo dibuja con `Text.rich` (texto
+  con estilos mezclados, un árbol de `TextSpan`).
+- **`Wrap`** es una `Row` que salta de línea: los chips de músculos se acomodan solos al
+  ancho de la pantalla.
+
 ## Arquitectura de la app
 
 El código se organiza **por funcionalidad** (feature-first), no por tipo de archivo:

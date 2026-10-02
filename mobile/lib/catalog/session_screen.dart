@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:naguan_app/catalog/catalog_client.dart';
+import 'package:naguan_app/catalog/exercise_screen.dart';
 import 'package:naguan_app/catalog/format.dart';
 import 'package:naguan_app/catalog/session.dart';
 import 'package:naguan_app/common/load_view.dart';
@@ -36,7 +37,20 @@ class SessionScreen extends StatelessWidget {
         builder: (context, session) => Column(
           children: [
             Expanded(
-              child: _SessionDetail(label: label, session: session),
+              child: _SessionDetail(
+                label: label,
+                session: session,
+                // Tocar un ejercicio abre su pantalla (video, cómo se hace).
+                // Las filas no saben navegar ni conocen el cliente: reciben
+                // qué hacer al tocarlas, como un @Output de Angular o un
+                // callback de React.
+                onOpenExercise: (exercise) => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) =>
+                        ExerciseScreen(catalog: catalog, slug: exercise.slug),
+                  ),
+                ),
+              ),
             ),
             // El CTA fijo abajo, fuera del scroll: siempre a mano.
             SafeArea(
@@ -50,6 +64,7 @@ class SessionScreen extends StatelessWidget {
                       MaterialPageRoute<void>(
                         builder: (_) => ExecutionScreen(
                           session: session,
+                          catalog: catalog,
                           training: training,
                         ),
                       ),
@@ -67,10 +82,15 @@ class SessionScreen extends StatelessWidget {
 }
 
 class _SessionDetail extends StatelessWidget {
-  const _SessionDetail({required this.label, required this.session});
+  const _SessionDetail({
+    required this.label,
+    required this.session,
+    required this.onOpenExercise,
+  });
 
   final String label;
   final Session session;
+  final ValueChanged<ExerciseRef> onOpenExercise;
 
   @override
   Widget build(BuildContext context) {
@@ -96,7 +116,7 @@ class _SessionDetail extends StatelessWidget {
         // Collection for: un _BlockCard (y su separación) por bloque.
         for (final block in session.blocks) ...[
           const SizedBox(height: ForjaSpace.s6),
-          _BlockCard(block: block),
+          _BlockCard(block: block, onOpenExercise: onOpenExercise),
         ],
       ],
     );
@@ -104,9 +124,10 @@ class _SessionDetail extends StatelessWidget {
 }
 
 class _BlockCard extends StatelessWidget {
-  const _BlockCard({required this.block});
+  const _BlockCard({required this.block, required this.onOpenExercise});
 
   final Block block;
+  final ValueChanged<ExerciseRef> onOpenExercise;
 
   @override
   Widget build(BuildContext context) {
@@ -142,7 +163,8 @@ class _BlockCard extends StatelessWidget {
               // tiene sentido numerarla.
               if (!isAmrap)
                 Text(_roundsLabel(group), style: textTheme.labelSmall),
-              for (final item in group.items) _ItemRow(item: item),
+              for (final item in group.items)
+                _ItemRow(item: item, onOpenExercise: onOpenExercise),
             ],
           ],
         ),
@@ -158,9 +180,10 @@ String _roundsLabel(RoundGroup group) {
 }
 
 class _ItemRow extends StatelessWidget {
-  const _ItemRow({required this.item});
+  const _ItemRow({required this.item, required this.onOpenExercise});
 
   final Item item;
+  final ValueChanged<ExerciseRef> onOpenExercise;
 
   @override
   Widget build(BuildContext context) {
@@ -192,15 +215,33 @@ class _ItemRow extends StatelessWidget {
       );
     }
 
-    return Padding(
+    final exercise = item.exercise;
+    final row = Padding(
       padding: const EdgeInsets.symmetric(vertical: ForjaSpace.s1),
       child: Row(
         children: [
           Expanded(child: name),
           const SizedBox(width: ForjaSpace.s4),
           Text(metric, style: metricStyle),
+          // El chevron avisa que la fila se puede tocar. En los descansos
+          // va un hueco del mismo ancho, para que las métricas queden
+          // alineadas en columna.
+          SizedBox(
+            width: ForjaSpace.s6,
+            child: exercise == null
+                ? null
+                : Icon(
+                    Icons.chevron_right,
+                    size: 20,
+                    color: forja.palette.inkMuted,
+                  ),
+          ),
         ],
       ),
     );
+
+    // Los descansos no llevan a ningún lado.
+    if (exercise == null) return row;
+    return InkWell(onTap: () => onOpenExercise(exercise), child: row);
   }
 }

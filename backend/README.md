@@ -10,7 +10,7 @@ sqlc generate         # regenera internal/db a partir de internal/db/queries/*.s
 ```
 
 Endpoints: `GET /health` (público) y, bajo `/v1` y con `Authorization: Bearer <token de
-Supabase>`: `GET /programs`, `GET /programs/{slug}`, `GET /sessions/{id}` y, del usuario, `GET /me`,
+Supabase>`: `GET /programs`, `GET /programs/{slug}`, `GET /sessions/{id}`, `GET /exercises/{slug}` y, del usuario, `GET /me`,
 `GET /me/programs[/{slug}]`, `DELETE /me/programs/{slug}/progress`,
 `POST|GET /me/workouts`, `GET /me/stats?today=`, `GET /me/records`.
 Ver `/docs/autenticacion.md`. Configuración por entorno: ver `internal/config`.

@@ -46,3 +46,19 @@ func TestGroupBlocksEmpty(t *testing.T) {
 		t.Errorf("groupBlocks(nil) = %#v, want slice vacío", got)
 	}
 }
+
+func TestSplitProgressions(t *testing.T) {
+	ex := Exercise{Easier: []ExerciseRef{}, Harder: []ExerciseRef{}}
+	splitProgressions(&ex, []db.ListExerciseProgressionsRow{
+		{Direction: "easier", Slug: "flexion-con-rodillas", Name: "Flexión con rodillas"},
+		{Direction: "harder", Slug: "flexion-diamante", Name: "Flexión diamante"},
+		{Direction: "harder", Slug: "flexion-arquero", Name: "Flexión arquero"},
+	})
+
+	if len(ex.Easier) != 1 || ex.Easier[0].Slug != "flexion-con-rodillas" {
+		t.Errorf("Easier = %+v", ex.Easier)
+	}
+	if len(ex.Harder) != 2 {
+		t.Errorf("Harder = %+v, want 2", ex.Harder)
+	}
+}

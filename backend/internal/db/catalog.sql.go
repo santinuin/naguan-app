@@ -9,6 +9,35 @@ import (
 	"context"
 )
 
+const getExerciseBySlug = `-- name: GetExerciseBySlug :one
+
+select id, slug, name, unilateral, description
+from exercise
+where slug = $1
+`
+
+type GetExerciseBySlugRow struct {
+	ID          int64
+	Slug        string
+	Name        string
+	Unilateral  bool
+	Description *string
+}
+
+// ── Ejercicio ───────────────────────────────────────────────────────────────
+func (q *Queries) GetExerciseBySlug(ctx context.Context, slug string) (GetExerciseBySlugRow, error) {
+	row := q.db.QueryRow(ctx, getExerciseBySlug, slug)
+	var i GetExerciseBySlugRow
+	err := row.Scan(
+		&i.ID,
+		&i.Slug,
+		&i.Name,
+		&i.Unilateral,
+		&i.Description,
+	)
+	return i, err
+}
+
 const getProgramBySlug = `-- name: GetProgramBySlug :one
 select id, slug, name, description
 from program
@@ -43,6 +72,149 @@ func (q *Queries) GetSession(ctx context.Context, id int64) (Session, error) {
 		&i.Description,
 	)
 	return i, err
+}
+
+const listExerciseJoints = `-- name: ListExerciseJoints :many
+select j.slug, j.name
+from exercise_joint ej
+join joint j on j.id = ej.joint_id
+where ej.exercise_id = $1
+order by j.name
+`
+
+type ListExerciseJointsRow struct {
+	Slug string
+	Name string
+}
+
+func (q *Queries) ListExerciseJoints(ctx context.Context, exerciseID int64) ([]ListExerciseJointsRow, error) {
+	rows, err := q.db.Query(ctx, listExerciseJoints, exerciseID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListExerciseJointsRow
+	for rows.Next() {
+		var i ListExerciseJointsRow
+		if err := rows.Scan(&i.Slug, &i.Name); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listExerciseMuscles = `-- name: ListExerciseMuscles :many
+select m.slug, m.name
+from exercise_muscle em
+join muscle m on m.id = em.muscle_id
+where em.exercise_id = $1
+order by m.name
+`
+
+type ListExerciseMusclesRow struct {
+	Slug string
+	Name string
+}
+
+func (q *Queries) ListExerciseMuscles(ctx context.Context, exerciseID int64) ([]ListExerciseMusclesRow, error) {
+	rows, err := q.db.Query(ctx, listExerciseMuscles, exerciseID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListExerciseMusclesRow
+	for rows.Next() {
+		var i ListExerciseMusclesRow
+		if err := rows.Scan(&i.Slug, &i.Name); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listExerciseProgressions = `-- name: ListExerciseProgressions :many
+select 'easier'::text as direction, e.slug, e.name
+from exercise_progression p
+join exercise e on e.id = p.easier_id
+where p.harder_id = $1
+union all
+select 'harder'::text as direction, e.slug, e.name
+from exercise_progression p
+join exercise e on e.id = p.harder_id
+where p.easier_id = $1
+order by direction, name
+`
+
+type ListExerciseProgressionsRow struct {
+	Direction string
+	Slug      string
+	Name      string
+}
+
+// Los vecinos directos en el grafo de progresiones: de qué ejercicios se
+// llega a este (easier) y a cuáles se progresa desde este (harder).
+// sqlc.arg pone nombre al parámetro: se usa dos veces, y sin nombre sqlc lo
+// llamaría como la primera columna con la que se compara (HarderID), que
+// confunde.
+func (q *Queries) ListExerciseProgressions(ctx context.Context, exerciseID int64) ([]ListExerciseProgressionsRow, error) {
+	rows, err := q.db.Query(ctx, listExerciseProgressions, exerciseID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListExerciseProgressionsRow
+	for rows.Next() {
+		var i ListExerciseProgressionsRow
+		if err := rows.Scan(&i.Direction, &i.Slug, &i.Name); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listExerciseVideos = `-- name: ListExerciseVideos :many
+select side, url
+from exercise_video
+where exercise_id = $1
+order by side nulls first
+`
+
+type ListExerciseVideosRow struct {
+	Side *Side
+	Url  string
+}
+
+// Uno sin lado, o uno por lado (izquierdo primero: el orden del enum side).
+func (q *Queries) ListExerciseVideos(ctx context.Context, exerciseID int64) ([]ListExerciseVideosRow, error) {
+	rows, err := q.db.Query(ctx, listExerciseVideos, exerciseID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListExerciseVideosRow
+	for rows.Next() {
+		var i ListExerciseVideosRow
+		if err := rows.Scan(&i.Side, &i.Url); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listProgramSessions = `-- name: ListProgramSessions :many

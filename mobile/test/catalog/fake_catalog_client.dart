@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:naguan_app/catalog/catalog_client.dart';
+import 'package:naguan_app/catalog/exercise.dart';
 import 'package:naguan_app/catalog/program.dart';
 import 'package:naguan_app/catalog/session.dart';
 import 'package:naguan_app/common/local_store.dart';
@@ -24,6 +25,7 @@ Future<T> nextCall<T>(List<Completer<T>> calls) {
 class FakeCatalogClient implements CatalogClient {
   final programCalls = <Completer<Program>>[];
   final sessionCalls = <Completer<Session>>[];
+  final exerciseCalls = <Completer<Exercise>>[];
   final requestedSlugs = <String>[];
   final requestedSessionIds = <int>[];
 
@@ -37,6 +39,12 @@ class FakeCatalogClient implements CatalogClient {
   Future<Session> fetchSession(int id) {
     requestedSessionIds.add(id);
     return nextCall(sessionCalls);
+  }
+
+  @override
+  Future<Exercise> fetchExercise(String slug) {
+    requestedSlugs.add(slug);
+    return nextCall(exerciseCalls);
   }
 }
 

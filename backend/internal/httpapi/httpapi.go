@@ -24,6 +24,7 @@ type Catalog interface {
 	ListPrograms(ctx context.Context) ([]catalog.ProgramSummary, error)
 	GetProgram(ctx context.Context, slug string) (catalog.Program, error)
 	GetSession(ctx context.Context, id int64) (catalog.Session, error)
+	GetExercise(ctx context.Context, slug string) (catalog.Exercise, error)
 }
 
 // Training es lo que los handlers necesitan del registro de entrenamiento.
@@ -60,6 +61,7 @@ func NewRouter(d Deps) http.Handler {
 	v1.HandleFunc("GET /v1/programs", c.listPrograms)
 	v1.HandleFunc("GET /v1/programs/{slug}", c.getProgram)
 	v1.HandleFunc("GET /v1/sessions/{id}", c.getSession)
+	v1.HandleFunc("GET /v1/exercises/{slug}", c.getExercise)
 
 	// Lo que es del usuario va bajo /v1/me: la ruta deja claro que el
 	// recurso es "el mío", y el usuario sale del token, nunca de la URL
@@ -157,6 +159,15 @@ func (h catalogHandlers) getSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, session)
+}
+
+func (h catalogHandlers) getExercise(w http.ResponseWriter, r *http.Request) {
+	exercise, err := h.cat.GetExercise(r.Context(), r.PathValue("slug"))
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, exercise)
 }
 
 type errorResponse struct {
