@@ -5,6 +5,7 @@ import 'package:naguan_app/catalog/session.dart';
 import 'package:naguan_app/common/api_client.dart';
 import 'package:naguan_app/theme/forja_theme.dart';
 import 'package:naguan_app/training/execution/execution_screen.dart';
+import 'package:naguan_app/training/execution/workout_runner.dart';
 import 'package:naguan_app/training/training_models.dart';
 
 import '../catalog/fake_catalog_client.dart';
@@ -42,18 +43,25 @@ void main() {
   ) async {
     final clock = FakeClock();
     final training = FakeTrainingClient();
+    final beeper = FakeBeeper();
     await tester.pumpWidget(
       MaterialApp(
         theme: forjaHierro,
         home: ExecutionScreen(
           session: session,
           catalog: FakeCatalogClient(),
-          training: fakeServices(client: training),
+          training: fakeServices(client: training, beeper: beeper),
           clock: clock.now,
           keepScreenOn: false,
         ),
       ),
     );
+
+    // PRIMER GOLPE: qué se viene, con el reloj quieto hasta EMPEZAR.
+    expect(find.text('PRIMER GOLPE'), findsOneWidget);
+    expect(find.text('×10'), findsOneWidget);
+    await tester.tap(find.text('EMPEZAR'));
+    await tester.pump();
 
     // Paso 1: sentadillas por reps. Hizo 12 (dos más de las indicadas).
     expect(find.text('SENTADILLA'), findsOneWidget);
@@ -70,9 +78,13 @@ void main() {
     expect(find.text('20'), findsOneWidget);
 
     // Pasan los 20 s: se adelanta el reloj del runner, y tester.pump avanza
-    // el tiempo simulado del test para que el Timer periódico dispare.
-    clock.advance(const Duration(seconds: 20));
+    // el tiempo simulado del test para que el Timer periódico dispare. A los
+    // 18 s (quedan 2) pita la cuenta; en el 0, el piiii.
+    clock.advance(const Duration(seconds: 18));
     await tester.pump(const Duration(milliseconds: 300));
+    clock.advance(const Duration(seconds: 2));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(beeper.played, [Cue.count, Cue.go]);
 
     // Terminó: se registró la Fragua con las 12 reps.
     expect(training.recorded, hasLength(1));
@@ -108,6 +120,9 @@ void main() {
       ),
     );
 
+    await tester.tap(find.text('EMPEZAR'));
+    await tester.pump();
+
     // Simula el botón/gesto "atrás" del sistema.
     final navigator = tester.state<NavigatorState>(find.byType(Navigator));
     await navigator.maybePop();
@@ -117,6 +132,34 @@ void main() {
     await tester.tap(find.text('SEGUIR'));
     await tester.pump();
     expect(find.text('SENTADILLA'), findsOneWidget);
+  });
+
+  testWidgets('antes de EMPEZAR, "atrás" sale sin preguntar', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: forjaHierro,
+        home: const Scaffold(body: Text('SESIÓN')),
+      ),
+    );
+    final navigator = tester.state<NavigatorState>(find.byType(Navigator));
+    navigator.push(
+      MaterialPageRoute<void>(
+        builder: (_) => ExecutionScreen(
+          session: session,
+          catalog: FakeCatalogClient(),
+          training: fakeServices(),
+          clock: FakeClock().now,
+          keepScreenOn: false,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('PRIMER GOLPE'), findsOneWidget);
+
+    await navigator.maybePop();
+    await tester.pumpAndSettle();
+    expect(find.text('¿DEJAR LA FRAGUA?'), findsNothing);
+    expect(find.text('SESIÓN'), findsOneWidget);
   });
 
   testWidgets('guarda la Fragua en curso y, sin señal, la encola', (
@@ -138,6 +181,11 @@ void main() {
         ),
       ),
     );
+
+    // En PRIMER GOLPE no se guarda nada: todavía no hay qué retomar.
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(await services.activeWorkout.load(now: clock.now()), isNull);
+    await tester.tap(find.text('EMPEZAR'));
 
     // Mientras se entrena, el snapshot queda en el disco (para retomar).
     await tester.pump(const Duration(milliseconds: 300));
@@ -176,6 +224,8 @@ void main() {
       ),
     );
 
+    await tester.tap(find.text('EMPEZAR'));
+    await tester.pump();
     await tester.tap(find.text('CÓMO SE HACE'));
     await tester.pump();
 

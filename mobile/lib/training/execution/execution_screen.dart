@@ -21,6 +21,9 @@ import 'package:naguan_app/theme/one_line_text.dart';
 /// La ejecución de una Fragua: paso a paso, con cuenta regresiva en los
 /// ejercicios por tiempo y en los descansos.
 ///
+/// Una Fragua nueva empieza en PRIMER GOLPE (qué se viene, para acomodarse)
+/// y arranca con EMPEZAR; una retomada va directo al paso donde quedó.
+///
 /// La lógica vive en [WorkoutRunner]; esta pantalla lo crea, le da cuerda con
 /// un Timer y lo dibuja con un ListenableBuilder.
 class ExecutionScreen extends StatefulWidget {
@@ -74,9 +77,10 @@ class _ExecutionScreenState extends State<ExecutionScreen> {
   void initState() {
     super.initState();
     final restored = widget.restored;
+    // Una Fragua nueva no arranca acá: espera al EMPEZAR de PRIMER GOLPE.
     _runner = restored != null
         ? WorkoutRunner.restore(widget.session, restored, clock: widget.clock)
-        : (WorkoutRunner(widget.session, clock: widget.clock)..start());
+        : WorkoutRunner(widget.session, clock: widget.clock);
 
     // Pantalla encendida mientras dure la Fragua: sin esto, el teléfono la
     // apaga en un descanso largo (y la cuenta regresiva no se ve).
@@ -102,10 +106,11 @@ class _ExecutionScreenState extends State<ExecutionScreen> {
   }
 
   void _onTick() {
-    if (_runner.tick()) {
-      // Terminó un tiempo (ejercicio o descanso): vibración para avisar sin
-      // tener que mirar la pantalla.
-      HapticFeedback.heavyImpact();
+    if (_runner.tick() case final cue?) {
+      widget.training.beeper.play(cue);
+      // En el 0 (arranca o termina un tiempo), además, vibración: avisa
+      // aunque el teléfono esté sin volumen.
+      if (cue == Cue.go) HapticFeedback.heavyImpact();
     }
     _persist();
     if (_runner.isFinished && _saving == null) _save();
@@ -115,6 +120,8 @@ class _ExecutionScreenState extends State<ExecutionScreen> {
   /// pausa) o si pasó el heartbeat. No en cada tick: escribir al disco 4
   /// veces por segundo es gasto inútil.
   void _persist() {
+    // Antes de EMPEZAR no hay nada que retomar.
+    if (!_runner.isStarted) return;
     final now = DateTime.now();
     if (_runner.revision == _savedRevision &&
         now.difference(_savedAt) < _heartbeat) {
@@ -128,6 +135,11 @@ class _ExecutionScreenState extends State<ExecutionScreen> {
       widget.training.activeWorkout.save(widget.session, _runner.toSnapshot()),
     );
   }
+
+  /// EMPEZAR: arranca la Fragua. Con setState y no solo con el runner: el
+  /// PopScope de [build] depende de si empezó (antes, "atrás" sale sin
+  /// preguntar), y PopScope está fuera del ListenableBuilder.
+  void _start() => setState(_runner.start);
 
   void _save() {
     _ticker?.cancel();
@@ -218,7 +230,7 @@ class _ExecutionScreenState extends State<ExecutionScreen> {
     // PopScope intercepta el "atrás" (botón o gesto): en vez de salir de
     // golpe a mitad de una Fragua, se pide confirmación.
     return PopScope(
-      canPop: _saving != null,
+      canPop: _saving != null || !_runner.isStarted,
       onPopInvokedWithResult: (didPop, _) async {
         if (didPop) return;
         if (await _confirmLeave() && context.mounted) {
@@ -241,17 +253,98 @@ class _ExecutionScreenState extends State<ExecutionScreen> {
               // pantalla entera.
               : ListenableBuilder(
                   listenable: _runner,
-                  builder: (context, _) => _runner.isFinished
-                      ? const Center(child: CircularProgressIndicator())
-                      : _StepView(
-                          runner: _runner,
-                          onOpenExercise: _openExercise,
-                        ),
+                  builder: (context, _) => switch (_runner) {
+                    WorkoutRunner(isStarted: false) => _ReadyView(
+                      runner: _runner,
+                      onStart: _start,
+                      onOpenExercise: _openExercise,
+                    ),
+                    WorkoutRunner(isFinished: true) => const Center(
+                      child: CircularProgressIndicator(),
+                    ),
+                    _ => _StepView(
+                      runner: _runner,
+                      onOpenExercise: _openExercise,
+                    ),
+                  },
                 ),
         ),
       ),
     );
   }
+}
+
+/// PRIMER GOLPE: lo primero que se hace, antes de arrancar el reloj. Da
+/// tiempo de acomodarse (y de ver cómo se hace) sin que corra nada.
+class _ReadyView extends StatelessWidget {
+  const _ReadyView({
+    required this.runner,
+    required this.onStart,
+    required this.onOpenExercise,
+  });
+
+  final WorkoutRunner runner;
+  final VoidCallback onStart;
+  final ValueChanged<ExerciseRef> onOpenExercise;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final first = runner.steps.first;
+    final item = first.item;
+
+    return Padding(
+      padding: const EdgeInsets.all(ForjaSpace.s4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text('PRIMER GOLPE', style: textTheme.labelSmall),
+          Expanded(
+            child: Center(
+              child: SingleChildScrollView(
+                child: Column(
+                  children: [
+                    // Un ejercicio muestra su nombre (y CÓMO SE HACE); un
+                    // AMRAP o un Enfriá de entrada, su nombre de paso.
+                    if (item?.exercise != null)
+                      _ExerciseHeader(
+                        item: item!,
+                        onOpenExercise: onOpenExercise,
+                      )
+                    else
+                      ForjaHeadline(
+                        first.kind == StepKind.amrap ? 'AMRAP' : 'ENFRIÁ',
+                        style: textTheme.displayMedium,
+                      ),
+                    const SizedBox(height: ForjaSpace.s6),
+                    Text(
+                      _metric(first),
+                      style: context.forja.stat.copyWith(fontSize: 64),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          Text(
+            'Subí el volumen: los tiempos arrancan con 3, 2, 1.',
+            style: textTheme.bodyMedium?.copyWith(
+              color: context.forja.palette.inkMuted,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: ForjaSpace.s4),
+          FilledButton(onPressed: onStart, child: const OneLineText('EMPEZAR')),
+        ],
+      ),
+    );
+  }
+
+  /// "×10", "45″", o el tope de un AMRAP.
+  static String _metric(WorkoutStep step) => switch (step) {
+    WorkoutStep(item: Item(reps: final reps?)) => formatReps(reps),
+    _ => formatDuration(step.duration!.inSeconds),
+  };
 }
 
 class _StepView extends StatelessWidget {
@@ -409,9 +502,12 @@ class _ExerciseHeader extends StatelessWidget {
 /// La cuenta regresiva en grande, en el estilo `stat` (mono tabular: los
 /// dígitos no "bailan" al cambiar).
 class _Countdown extends StatelessWidget {
-  const _Countdown({required this.remaining});
+  const _Countdown({required this.remaining, this.color});
 
   final Duration remaining;
+
+  /// Null: el color del texto (ink).
+  final Color? color;
 
   @override
   Widget build(BuildContext context) {
@@ -423,8 +519,42 @@ class _Countdown extends StatelessWidget {
         : '$seconds';
     return Text(
       text,
-      style: context.forja.stat.copyWith(fontSize: 96, height: 1),
+      style: context.forja.stat.copyWith(fontSize: 96, height: 1, color: color),
       textAlign: TextAlign.center,
+    );
+  }
+}
+
+/// El reloj de un paso con tiempo: durante la preparación, el 3, 2, 1 en
+/// acento con PREPARATE; después, lo que le queda al paso.
+class _StepClock extends StatelessWidget {
+  const _StepClock({required this.runner});
+
+  final WorkoutRunner runner;
+
+  @override
+  Widget build(BuildContext context) {
+    final preparation = runner.preparationLeft;
+    return Column(
+      children: [
+        _Countdown(
+          remaining: preparation ?? runner.remaining!,
+          color: preparation != null ? context.forja.palette.accent : null,
+        ),
+        const SizedBox(height: ForjaSpace.s2),
+        // Visibility con maintainSize: oculto, PREPARATE sigue ocupando su
+        // lugar. Si desapareciera, todo lo de arriba saltaría al arrancar.
+        Visibility(
+          visible: preparation != null,
+          maintainSize: true,
+          maintainAnimation: true,
+          maintainState: true,
+          child: Text(
+            'PREPARATE',
+            style: Theme.of(context).textTheme.labelSmall,
+          ),
+        ),
+      ],
     );
   }
 }
@@ -486,7 +616,7 @@ class _TimedStep extends StatelessWidget {
           onOpenExercise: onOpenExercise,
         ),
         const SizedBox(height: ForjaSpace.s8),
-        _Countdown(remaining: runner.remaining!),
+        _StepClock(runner: runner),
       ],
     );
   }
@@ -531,7 +661,7 @@ class _AmrapStep extends StatelessWidget {
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: ForjaSpace.s6),
-        _Countdown(remaining: runner.remaining!),
+        _StepClock(runner: runner),
         const SizedBox(height: ForjaSpace.s6),
         // Cada ejercicio de la vuelta se puede tocar (los descansos no).
         for (final item in block.items)
@@ -585,7 +715,20 @@ class _Controls extends StatelessWidget {
             tooltip: runner.isPaused ? 'Seguir' : 'Pausar',
           ),
         if (hasTimer) const SizedBox(width: ForjaSpace.s2),
-        TextButton(onPressed: runner.skip, child: const OneLineText('SALTEAR')),
+        // Volver y saltear, como íconos: con texto (ATRÁS, SALTEAR) no
+        // entran junto al CTA en un teléfono de 360 dp.
+        IconButton.outlined(
+          // null deshabilita el botón: en el primer ejercicio no hay atrás.
+          onPressed: runner.canGoBack ? runner.back : null,
+          icon: const Icon(Icons.skip_previous),
+          tooltip: 'Volver al anterior',
+        ),
+        const SizedBox(width: ForjaSpace.s2),
+        IconButton.outlined(
+          onPressed: runner.skip,
+          icon: const Icon(Icons.skip_next),
+          tooltip: 'Saltear',
+        ),
         const SizedBox(width: ForjaSpace.s2),
         // El CTA principal: el único bloque de acento grande de la pantalla.
         Expanded(

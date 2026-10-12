@@ -11,6 +11,7 @@ import 'package:naguan_app/config.dart';
 import 'package:naguan_app/theme/font_licenses.dart';
 import 'package:naguan_app/theme/forja_theme.dart';
 import 'package:naguan_app/common/local_store.dart';
+import 'package:naguan_app/training/execution/beeper.dart';
 import 'package:naguan_app/training/offline/active_workout_store.dart';
 import 'package:naguan_app/training/offline/pending_workouts.dart';
 import 'package:naguan_app/training/training_client.dart';
@@ -59,6 +60,7 @@ Future<void> main() async {
         client: TrainingClient(api),
         activeWorkout: ActiveWorkoutStore(localStore),
         pending: PendingWorkouts(localStore),
+        beeper: AudioBeeper(),
       ),
     ),
   );

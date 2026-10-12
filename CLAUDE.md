@@ -77,6 +77,12 @@ a la hora de asistir en el desarrollo:
   - Ajustar una Fragua antes de empezar (solo para esa vez): reps/segundos y cambiar un
     ejercicio por una progresión (`session_edits.dart`, editor en hoja inferior); el
     ejercicio hecho se registra en `workout_item.exercise_id` y de ahí salen los Mojones.
+  - Durante la Fragua: PRIMER GOLPE (qué se viene; el reloj arranca con EMPEZAR),
+    preparación de 3 s antes de cada paso con tiempo (salvo si viene de un Enfriá que
+    terminó solo) con pitidos 3-2-1 y «piiii» en el 0, también al final de cada tiempo
+    (`Cue` en `WorkoutRunner.tick`, `Beeper` con `audioplayers` en baja latencia,
+    mezclado con la música), y ATRÁS (vuelve al ejercicio anterior salteando los Enfriá
+    y deshace lo registrado). Los WAV se generan con `dart run tool/make_beeps.dart`.
 - Próximos pasos (hoja de ruta), primero lo estructural y después el contenido:
   1. ~~Ingreso con biometría~~: hecho (sesión en `flutter_secure_storage` + candado
      `LockGate` con `local_auth`; ver `docs/autenticacion.md`).

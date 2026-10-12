@@ -16,31 +16,34 @@ class FakeClock {
   void advance(Duration d) => _t = _t.add(d);
 }
 
+Map<String, Object> _exercise(
+  int id,
+  int round,
+  int pos, {
+  int? reps,
+  int? seconds,
+}) => {
+  'id': id,
+  'round': round,
+  'position': pos,
+  'kind': 'exercise',
+  'exercise': {'slug': 'x$id', 'name': 'Ejercicio $id'},
+  'reps': ?reps,
+  'duration_s': ?seconds,
+};
+
+Map<String, Object> _rest(int id, int round, int pos, int seconds) => {
+  'id': id,
+  'round': round,
+  'position': pos,
+  'kind': 'rest',
+  'duration_s': seconds,
+};
+
 /// Sesión de prueba: un bloque con 2 vueltas de (10 flexiones + 30 s de
 /// plancha + 20 s de descanso), y un AMRAP de 5 minutos.
 Session testSession() {
-  Map<String, Object> exercise(
-    int id,
-    int round,
-    int pos, {
-    int? reps,
-    int? seconds,
-  }) => {
-    'id': id,
-    'round': round,
-    'position': pos,
-    'kind': 'exercise',
-    'exercise': {'slug': 'x$id', 'name': 'Ejercicio $id'},
-    'reps': ?reps,
-    'duration_s': ?seconds,
-  };
-  Map<String, Object> rest(int id, int round, int pos, int seconds) => {
-    'id': id,
-    'round': round,
-    'position': pos,
-    'kind': 'rest',
-    'duration_s': seconds,
-  };
+  const exercise = _exercise, rest = _rest;
   return Session.fromJson({
     'id': 99,
     'kind': 'workout',
@@ -94,7 +97,7 @@ void main() {
   test('un paso por reps espera al usuario y registra las reps ajustadas', () {
     expect(runner.remaining, isNull);
     clock.advance(const Duration(minutes: 3));
-    expect(runner.tick(), isFalse, reason: 'sin tiempo, no avanza solo');
+    expect(runner.tick(), isNull, reason: 'sin tiempo, no avanza solo');
 
     runner.adjustReps(2); // hizo 12 en vez de 10
     runner.complete();
@@ -106,18 +109,132 @@ void main() {
   test('un paso por tiempo avanza solo al llegar a cero', () {
     runner.complete(); // pasa las flexiones
     expect(runner.current.kind, StepKind.timed);
+    clock.advance(WorkoutRunner.leadIn);
 
     clock.advance(const Duration(seconds: 29));
-    expect(runner.tick(), isFalse);
+    runner.tick();
     expect(runner.remaining, const Duration(seconds: 1));
 
     clock.advance(const Duration(seconds: 1));
-    expect(runner.tick(), isTrue, reason: 'llegó a cero: avanza');
+    expect(runner.tick(), Cue.go, reason: 'llegó a cero: avanza');
     expect(runner.current.kind, StepKind.rest);
+  });
+
+  test('un paso por tiempo empieza con 3 s de preparación', () {
+    runner.complete();
+
+    expect(runner.isPreparing, isTrue);
+    expect(runner.preparationLeft, WorkoutRunner.leadIn);
+    // El ejercicio todavía no empezó: le queda todo.
+    expect(runner.remaining, const Duration(seconds: 30));
+
+    clock.advance(WorkoutRunner.leadIn);
+    expect(runner.isPreparing, isFalse);
+    expect(runner.preparationLeft, isNull);
+    expect(runner.remaining, const Duration(seconds: 30));
+  });
+
+  test('pita 3, 2, 1 en la preparación y piiii al arrancar', () {
+    runner.complete();
+
+    expect(runner.tick(), Cue.count); // 3
+    expect(runner.tick(), isNull, reason: 'el mismo segundo pita una vez');
+    clock.advance(const Duration(milliseconds: 1000));
+    expect(runner.tick(), Cue.count); // 2
+    clock.advance(const Duration(milliseconds: 1000));
+    expect(runner.tick(), Cue.count); // 1
+    clock.advance(const Duration(milliseconds: 1000));
+    expect(runner.tick(), Cue.go); // ¡ya!
+    clock.advance(const Duration(milliseconds: 1000));
+    expect(runner.tick(), isNull, reason: 'a mitad del ejercicio, silencio');
+  });
+
+  test('pita los últimos 3 s de un tiempo y piiii al terminar', () {
+    runner.complete();
+    clock.advance(WorkoutRunner.leadIn + const Duration(seconds: 26));
+    runner.tick(); // quedan 4 s
+    final cues = <Cue?>[];
+    for (var i = 0; i < 4; i++) {
+      clock.advance(const Duration(seconds: 1));
+      cues.add(runner.tick());
+    }
+    expect(cues, [Cue.count, Cue.count, Cue.count, Cue.go]);
+    expect(runner.current.kind, StepKind.rest);
+  });
+
+  group('después de un Enfriá', () {
+    // Enfriá de 10 s y después 20 s de plancha.
+    WorkoutRunner restThenTimed() => WorkoutRunner(
+      Session.fromJson({
+        'id': 1,
+        'kind': 'workout',
+        'title': 'Enfriá y plancha',
+        'description': null,
+        'blocks': [
+          {
+            'position': 1,
+            'type': 'rounds_with_rest',
+            'items': [_rest(1, 1, 1, 10), _exercise(2, 1, 2, seconds: 20)],
+          },
+        ],
+      }),
+      clock: clock.now,
+    )..start();
+
+    test('si el Enfriá termina solo, el ejercicio arranca sin preparar', () {
+      final r = restThenTimed();
+      clock.advance(const Duration(seconds: 10));
+
+      expect(r.tick(), Cue.go);
+      expect(r.current.kind, StepKind.timed);
+      expect(r.isPreparing, isFalse);
+    });
+
+    test('si se corta el Enfriá con SEGUIR, hay preparación', () {
+      final r = restThenTimed();
+      clock.advance(const Duration(seconds: 4));
+      r.complete();
+
+      expect(r.isPreparing, isTrue);
+    });
+  });
+
+  test('atrás deshace el ejercicio anterior, salteando el Enfriá', () {
+    expect(runner.canGoBack, isFalse, reason: 'en el primero no hay atrás');
+    runner.adjustReps(2);
+    runner.complete(); // 12 flexiones
+    clock.advance(WorkoutRunner.leadIn + const Duration(seconds: 30));
+    runner.tick(); // la plancha termina sola: 30 s
+    expect(runner.current.kind, StepKind.rest);
+    runner.complete(); // corta el Enfriá
+    expect(runner.completedExercises, 2);
+
+    // En las flexiones de la vuelta 2: vuelve a la plancha, no al Enfriá.
+    runner.back();
+    expect(runner.index, 1);
+    expect(runner.completedExercises, 1, reason: 'la plancha se deshizo');
+    expect(runner.isPreparing, isTrue, reason: 'vuelve a empezar');
+    expect(runner.remaining, const Duration(seconds: 30));
+
+    // Otra vez: a las flexiones, con las 12 marcadas para corregirlas.
+    runner.back();
+    expect(runner.index, 0);
+    expect(runner.completedExercises, 0);
+    expect(runner.repsDraft, 12);
+    expect(runner.canGoBack, isFalse);
+  });
+
+  test('atrás desde el AMRAP vuelve a la última plancha', () {
+    while (runner.current.kind != StepKind.amrap) {
+      runner.skip();
+    }
+    runner.back();
+    expect(runner.index, 4);
   });
 
   test('la pausa congela la cuenta regresiva', () {
     runner.complete();
+    clock.advance(WorkoutRunner.leadIn);
     clock.advance(const Duration(seconds: 10));
     runner.pause();
     clock.advance(const Duration(minutes: 5)); // pausado: no cuenta
@@ -130,6 +247,7 @@ void main() {
 
   test('terminar antes un paso por tiempo registra lo que se hizo', () {
     runner.complete();
+    clock.advance(WorkoutRunner.leadIn);
     clock.advance(const Duration(seconds: 12));
     runner.complete(); // cortó la plancha a los 12 s
 
@@ -186,6 +304,7 @@ void main() {
 
   test('retomar desde un snapshot sigue donde estaba, en pausa', () {
     runner.complete(); // paso 1 hecho (10 reps)
+    clock.advance(WorkoutRunner.leadIn);
     clock.advance(const Duration(seconds: 10)); // 10 s de plancha
     final snapshot = runner.toSnapshot();
 

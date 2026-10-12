@@ -78,11 +78,14 @@ class _ExerciseDetail extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(
+      // Un padding propio reemplaza el que ListView suma solo para la barra
+      // de navegación del sistema: hay que sumarlo a mano, o lo último de
+      // la lista queda debajo de los botones (ver docs/flutter-como-funciona.md).
+      padding: EdgeInsets.fromLTRB(
         ForjaSpace.s4,
         0,
         ForjaSpace.s4,
-        ForjaSpace.s8,
+        ForjaSpace.s8 + MediaQuery.paddingOf(context).bottom,
       ),
       children: [
         Text(

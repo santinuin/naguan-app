@@ -446,6 +446,37 @@ cambiarlo por una progresión). Los ajustes valen solo para esa vez.
   La textura se genera con `dart run tool/make_grain.dart` (`tool/` es la convención de
   Dart para scripts de desarrollo).
 
+## De borde a borde: la barra de navegación del sistema
+
+Desde Android 15 las apps se dibujan **de borde a borde**: la pantalla de la app sigue por
+debajo de la barra de estado (arriba) y de la de navegación (los botones ◁ ○ □ o la
+barra de gestos, abajo). Esas barras quedan encima, transparentes, y cada pantalla tiene
+que dejarles lugar.
+
+Flutter informa cuánto ocupan con `MediaQuery.paddingOf(context)`: `top` es la barra de
+estado y `bottom`, la de navegación. Hay tres formas de respetarlas:
+
+- **`SafeArea`**: envuelve a su hijo y le agrega ese padding. El contenido nunca pasa por
+  debajo de las barras (así están PRIMER GOLPE, la ejecución y TEMPLADO).
+- **El `AppBar`** ya se ocupa de la de arriba, y el `Scaffold` le avisa al `body` que el
+  `top` está resuelto.
+- **Un `ListView` sin `padding`** suma solo el de las barras: la lista corre por debajo de
+  la barra de navegación (queda lindo, se ve a través) y el último ítem termina encima.
+
+La trampa: **si le pasás un `padding` propio al `ListView`, reemplaza al automático**. Con
+`padding: EdgeInsets.only(bottom: 32)`, lo último de la lista termina debajo de los botones
+(con navegación por 3 botones son unos 48 dp, más que esos 32). Por eso, en las listas con
+padding propio se suma a mano:
+
+```dart
+padding: EdgeInsets.only(
+  bottom: ForjaSpace.s8 + MediaQuery.paddingOf(context).bottom,
+),
+```
+
+En el emulador el problema casi no se ve, porque usa navegación por gestos (una barrita fina).
+Se nota en un teléfono con los 3 botones.
+
 ## Arquitectura de la app
 
 El código se organiza **por funcionalidad** (feature-first), no por tipo de archivo:

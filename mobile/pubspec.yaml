@@ -42,6 +42,8 @@ dependencies:
   flutter_secure_storage: ^11.2.0
   local_auth_android: ^2.2.0
   youtube_player_iframe: ^6.0.2
+  # Los pitidos de la cuenta regresiva (lib/training/execution/beeper.dart).
+  audioplayers: ^6.8.1
 
 dev_dependencies:
   flutter_test:
@@ -78,6 +80,9 @@ flutter:
     - assets/fonts/OFL-SpaceMono.txt
     # El grano del fondo (se genera con: dart run tool/make_grain.dart).
     - assets/textures/grain.png
+    # Los pitidos de la cuenta (se generan con: dart run tool/make_beeps.dart).
+    - assets/sounds/pi.wav
+    - assets/sounds/piii.wav
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

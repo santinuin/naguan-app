@@ -19,6 +19,11 @@ enum StepKind {
   amrap,
 }
 
+/// Un pitido de la cuenta regresiva: "pi" en el 3, el 2 y el 1, y "piiii"
+/// en el 0 (arranca el ejercicio, o termina un tiempo). Así se puede entrenar
+/// sin mirar el teléfono.
+enum Cue { count, go }
+
 /// Un paso de la ejecución. La sesión se "aplana" en una lista de pasos que
 /// se recorre en orden.
 ///
@@ -83,6 +88,12 @@ List<WorkoutStep> buildSteps(Session session) {
 /// El tiempo se calcula siempre desde la hora real ([_now]), no contando
 /// ticks: si el Timer de la pantalla se atrasa o la app pasa a segundo plano,
 /// la cuenta regresiva sigue siendo exacta.
+///
+/// Los pasos con tiempo (por tiempo y AMRAP) empiezan con [leadIn] de
+/// preparación: el inicio del paso se pone en el futuro, y mientras no
+/// llega, lo transcurrido es negativo (ver [isPreparing]). No hace falta
+/// otro estado: la pausa, el snapshot y el reloj falso de los tests lo
+/// manejan igual que al resto del paso.
 class WorkoutRunner extends ChangeNotifier {
   /// [clock] es inyectable, como en el backend Go: los tests pasan un reloj
   /// falso que adelantan a mano.
@@ -137,6 +148,9 @@ class WorkoutRunner extends ChangeNotifier {
     return runner;
   }
 
+  /// La preparación (3, 2, 1) antes de un paso con tiempo.
+  static const leadIn = Duration(seconds: 3);
+
   final Session session;
   final List<WorkoutStep> steps;
   final DateTime Function() _now;
@@ -167,6 +181,10 @@ class WorkoutRunner extends ChangeNotifier {
   /// pantalla lo usa para saber cuándo guardar el snapshot.
   int _revision = 0;
 
+  /// El último segundo de la cuenta que ya se anunció con un pitido (ver
+  /// [tick]). No va en el snapshot: al retomar, a lo sumo se repite un pi.
+  _CountMark? _announced;
+
   /// Lo hecho en cada ejercicio, por id de ítem. Un Map y no una lista: si
   /// un ítem se registrara dos veces, queda el último.
   final Map<int, ItemResult> _results = {};
@@ -192,7 +210,8 @@ class WorkoutRunner extends ChangeNotifier {
   /// Ejercicios registrados hasta ahora (los "golpes" de la Fragua).
   int get completedExercises => _results.length;
 
-  /// Cuánto lleva el paso actual, sin contar las pausas.
+  /// Cuánto lleva el paso actual, sin contar las pausas. Negativo durante
+  /// la preparación.
   Duration get stepElapsed {
     final end = _pausedAt ?? _now();
     return end.difference(_stepStartedAt) - _pausedInStep;
@@ -202,9 +221,20 @@ class WorkoutRunner extends ChangeNotifier {
   Duration? get remaining {
     final d = current.duration;
     if (d == null) return null;
+    // Preparándose, el ejercicio todavía no empezó: le queda todo.
+    if (isPreparing) return d;
     final r = d - stepElapsed;
     return r.isNegative ? Duration.zero : r;
   }
+
+  /// Si el paso está en la preparación (la cuenta 3, 2, 1 antes de empezar).
+  bool get isPreparing => isStarted && !isFinished && stepElapsed.isNegative;
+
+  /// Cuánto falta para que arranque el paso; null si no se está preparando.
+  Duration? get preparationLeft => isPreparing ? -stepElapsed : null;
+
+  /// Si hay un paso al que volver con [back].
+  bool get canGoBack => isStarted && !isFinished && _previousIndex != null;
 
   /// Cuánto lleva la Fragua entera (con pausas incluidas: es tiempo real).
   Duration get totalElapsed =>
@@ -262,8 +292,27 @@ class WorkoutRunner extends ChangeNotifier {
   /// Saltea el paso sin registrar nada.
   void skip() => _advance();
 
+  /// Vuelve al ejercicio anterior (salteando los Enfriá, que no registran
+  /// nada), por si se pasó de largo sin querer. Lo registrado en ese paso se
+  /// descarta y el paso empieza de nuevo: con el tiempo completo (y su
+  /// preparación), o con las reps que se habían marcado, para corregirlas.
+  void back() {
+    final i = _previousIndex;
+    if (i == null) return;
+    final step = steps[i];
+    // Map.remove devuelve lo que sacó (o null): el resultado deshecho.
+    final undone = switch (step.item) {
+      final item? => _results.remove(item.id),
+      null => null,
+    };
+    if (step.kind == StepKind.amrap) _amrapsDone.remove(step.block.position);
+    _enterStep(i);
+    if (undone?.reps case final reps?) _repsDraft = reps;
+    _changed();
+  }
+
   void pause() {
-    if (isPaused || isFinished) return;
+    if (!isStarted || isPaused || isFinished) return;
     _pausedAt = _now();
     _changed();
   }
@@ -277,10 +326,14 @@ class WorkoutRunner extends ChangeNotifier {
   }
 
   /// Lo llama la pantalla periódicamente (varias veces por segundo). Si un
-  /// paso con tiempo llegó a cero, avanza solo. Devuelve true si avanzó, para
-  /// que la pantalla vibre.
-  bool tick() {
-    if (!isStarted || isFinished || isPaused) return false;
+  /// paso con tiempo llegó a cero, avanza solo.
+  ///
+  /// Devuelve el pitido que toca en este momento, si alguno: [Cue.count] al
+  /// entrar en el 3, el 2 y el 1 de una cuenta (la preparación o el final de
+  /// un tiempo), y [Cue.go] al llegar a 0 (arranca el ejercicio, o terminó un
+  /// tiempo y se avanzó).
+  Cue? tick() {
+    if (!isStarted || isFinished || isPaused) return null;
     if (remaining == Duration.zero) {
       switch (current.kind) {
         case StepKind.timed:
@@ -295,12 +348,58 @@ class WorkoutRunner extends ChangeNotifier {
         case StepKind.reps || StepKind.rest:
           break;
       }
-      _advance();
-      return true;
+      // Al terminar solo un Enfriá, el ejercicio que sigue arranca sin
+      // preparación: el Enfriá ya hizo su cuenta (3, 2, 1 y piiii).
+      final fromRest = current.kind == StepKind.rest;
+      _enterStep(_index + 1, withLeadIn: !fromRest);
+      _changed();
+      // El segundo en que entra el paso nuevo se da por anunciado: si
+      // empieza con su preparación, el "pi" del 3 se pisaría con este piiii.
+      _announced = _countMark;
+      return Cue.go;
+    }
+
+    // ¿Se entró en un segundo nuevo de la cuenta? Comparar con el último
+    // anunciado (y no "¿pasó un segundo desde el tick anterior?") hace que
+    // cada segundo pite una sola vez, aunque haya 4 ticks por segundo.
+    final mark = _countMark;
+    Cue? cue;
+    if (mark != _announced) {
+      if (_announced?.preparing == true && mark?.preparing != true) {
+        cue = Cue.go; // terminó la preparación: ¡ya!
+      } else if (mark != null && mark.seconds <= 3) {
+        cue = Cue.count;
+      }
+      _announced = mark;
     }
     // Sin cambio de paso, igual hay que redibujar la cuenta regresiva.
     notifyListeners();
-    return false;
+    return cue;
+  }
+
+  /// El segundo que muestra la cuenta ahora (redondeado hacia arriba, como
+  /// en la pantalla), y si es de la preparación o del paso. Null en un paso
+  /// por reps.
+  ///
+  /// Es un record: un valor con campos con nombre, sin declarar una clase.
+  /// Los records se comparan por valor, así que `!=` en [tick] compara los
+  /// dos campos.
+  _CountMark? get _countMark {
+    if (isFinished) return null; // no hay paso actual
+    final left = preparationLeft ?? remaining;
+    if (left == null) return null;
+    return (
+      preparing: isPreparing,
+      seconds: (left.inMilliseconds / 1000).ceil(),
+    );
+  }
+
+  /// El ejercicio anterior al actual (sin contar los Enfriá), o null.
+  int? get _previousIndex {
+    for (var i = _index - 1; i >= 0; i--) {
+      if (steps[i].kind != StepKind.rest) return i;
+    }
+    return null;
   }
 
   /// La Fragua terminada, lista para registrar en la API.
@@ -343,16 +442,28 @@ class WorkoutRunner extends ChangeNotifier {
     notifyListeners();
   }
 
-  void _enterStep(int i) {
+  /// Entra al paso [i]. Si tiene tiempo y [withLeadIn], con preparación: el
+  /// paso "empieza" [leadIn] más tarde.
+  void _enterStep(int i, {bool withLeadIn = true}) {
     _index = i;
     _stepStartedAt = _now();
     _pausedInStep = Duration.zero;
     _pausedAt = null;
+    _announced = null;
     if (i >= steps.length) {
       _finishedAt = _now();
       return;
     }
-    _repsDraft = steps[i].item?.reps ?? 0;
+    final step = steps[i];
+    if (withLeadIn &&
+        (step.kind == StepKind.timed || step.kind == StepKind.amrap)) {
+      _stepStartedAt = _stepStartedAt.add(leadIn);
+    }
+    _repsDraft = step.item?.reps ?? 0;
     _amrapRounds = 0;
   }
 }
+
+/// Un segundo de la cuenta regresiva (ver WorkoutRunner._countMark). Un
+/// typedef le pone nombre al tipo del record, para no repetirlo.
+typedef _CountMark = ({bool preparing, int seconds});

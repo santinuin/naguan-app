@@ -5,6 +5,8 @@ import 'package:naguan_app/catalog/exercise.dart';
 import 'package:naguan_app/catalog/program.dart';
 import 'package:naguan_app/catalog/session.dart';
 import 'package:naguan_app/common/local_store.dart';
+import 'package:naguan_app/training/execution/beeper.dart';
+import 'package:naguan_app/training/execution/workout_runner.dart';
 import 'package:naguan_app/training/offline/active_workout_store.dart';
 import 'package:naguan_app/training/offline/pending_workouts.dart';
 import 'package:naguan_app/training/training_client.dart';
@@ -91,13 +93,26 @@ class FakeTrainingClient implements TrainingClient {
   }
 }
 
-/// Los servicios de entrenamiento para los tests: el cliente falso y los
-/// almacenes en memoria.
-TrainingServices fakeServices({FakeTrainingClient? client, LocalStore? store}) {
+/// Anota los pitidos en vez de sonar: los tests verifican cuáles tocaron.
+class FakeBeeper implements Beeper {
+  final played = <Cue>[];
+
+  @override
+  void play(Cue cue) => played.add(cue);
+}
+
+/// Los servicios de entrenamiento para los tests: el cliente falso, los
+/// almacenes en memoria y los pitidos mudos.
+TrainingServices fakeServices({
+  FakeTrainingClient? client,
+  LocalStore? store,
+  FakeBeeper? beeper,
+}) {
   final local = store ?? MemoryLocalStore();
   return TrainingServices(
     client: client ?? FakeTrainingClient(),
     activeWorkout: ActiveWorkoutStore(local),
     pending: PendingWorkouts(local),
+    beeper: beeper ?? FakeBeeper(),
   );
 }

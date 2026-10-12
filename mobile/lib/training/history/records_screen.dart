@@ -50,7 +50,14 @@ class RecordsScreen extends StatelessWidget {
                       ),
                     )
                   : ListView.separated(
-                      padding: const EdgeInsets.only(bottom: ForjaSpace.s8),
+                      // Un padding propio reemplaza el que ListView suma solo para la barra
+                      // de navegación del sistema: hay que sumarlo a mano, o lo último de
+                      // la lista queda debajo de los botones (ver docs/flutter-como-funciona.md).
+                      padding: EdgeInsets.only(
+                        bottom:
+                            ForjaSpace.s8 +
+                            MediaQuery.paddingOf(context).bottom,
+                      ),
                       itemCount: records.length,
                       separatorBuilder: (_, _) => const Divider(height: 1),
                       itemBuilder: (context, index) {
