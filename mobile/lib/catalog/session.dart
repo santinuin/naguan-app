@@ -91,15 +91,42 @@ enum BlockType {
   };
 }
 
+/// La parte de la sesión a la que pertenece un bloque. Se templan juntas,
+/// en una sola Fragua; solo el entrenamiento (`main`) cuenta para Mojones.
+enum BlockPhase {
+  warmup('CALENTAMIENTO'),
+  main('ENTRENAMIENTO'),
+  mobility('MOVILIDAD');
+
+  const BlockPhase(this.label);
+
+  final String label;
+
+  /// Como el valor de la API coincide con el nombre del valor del enum,
+  /// alcanza con `name` (en Dart, todo enum lo tiene: el `name()` de Java).
+  String get apiValue => name;
+
+  /// Sin fase (`null`) es `main`: las sesiones guardadas en el teléfono
+  /// antes de que existiera el campo siguen leyéndose.
+  static BlockPhase fromApi(String? value) => switch (value) {
+    null || 'main' => main,
+    'warmup' => warmup,
+    'mobility' => mobility,
+    _ => throw FormatException('Fase de bloque desconocida: $value'),
+  };
+}
+
 class Block {
   const Block({
     required this.position,
     required this.type,
     required this.items,
+    this.phase = BlockPhase.main,
     this.timeCapS,
   });
 
   final int position;
+  final BlockPhase phase;
   final BlockType type;
 
   /// Solo en los amrap: la duración total del bloque.
@@ -110,6 +137,7 @@ class Block {
 
   Block copyWith({List<Item>? items}) => Block(
     position: position,
+    phase: phase,
     type: type,
     timeCapS: timeCapS,
     items: items ?? this.items,
@@ -158,6 +186,7 @@ class Block {
 
   Map<String, Object?> toJson() => {
     'position': position,
+    'phase': phase.apiValue,
     'type': type.apiValue,
     'time_cap_s': ?timeCapS,
     'items': [for (final i in items) i.toJson()],
@@ -168,6 +197,7 @@ class Block {
       {'position': int position, 'type': String type, 'items': List items} =>
         Block(
           position: position,
+          phase: BlockPhase.fromApi(json['phase'] as String?),
           type: BlockType.fromApi(type),
           // time_cap_s es opcional: la API lo omite si no hay tope. Un
           // map pattern exige que la clave exista, así que los campos

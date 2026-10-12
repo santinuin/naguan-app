@@ -12,6 +12,49 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type BlockPhase string
+
+const (
+	BlockPhaseWarmup   BlockPhase = "warmup"
+	BlockPhaseMain     BlockPhase = "main"
+	BlockPhaseMobility BlockPhase = "mobility"
+)
+
+func (e *BlockPhase) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = BlockPhase(s)
+	case string:
+		*e = BlockPhase(s)
+	default:
+		return fmt.Errorf("unsupported scan type for BlockPhase: %T", src)
+	}
+	return nil
+}
+
+type NullBlockPhase struct {
+	BlockPhase BlockPhase
+	Valid      bool // Valid is true if BlockPhase is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullBlockPhase) Scan(value interface{}) error {
+	if value == nil {
+		ns.BlockPhase, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.BlockPhase.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullBlockPhase) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.BlockPhase), nil
+}
+
 type BlockType string
 
 const (
@@ -192,6 +235,7 @@ type Block struct {
 	Position  int16
 	Type      BlockType
 	TimeCapS  *int32
+	Phase     BlockPhase
 }
 
 type BlockItem struct {

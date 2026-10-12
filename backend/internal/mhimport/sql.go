@@ -185,3 +185,90 @@ func sideSQL(s Side) string {
 	}
 	return str(string(s))
 }
+
+// RenderPhasesSQL escribe el SQL que agrega el calentamiento y la movilidad
+// a las sesiones de un programa que ya está cargado: sirve igual para la
+// base local (después de seed.sql) que para la de producción, donde hay
+// Fraguas templadas que no se pueden tocar.
+//
+// Por eso, a diferencia de RenderSQL, no lleva IDs explícitos: la sesión se
+// busca por programa y posición, y cada ejercicio por slug. Si un slug no
+// existe, el subselect da null y el check de block_item corta todo.
+//
+// Se aplica una sola vez: si el programa ya tiene bloques que no son de
+// entrenamiento, aborta sin cambiar nada (todo va en una transacción).
+func RenderPhasesSQL(out io.Writer, programSlug string, sessions []SessionPhases) error {
+	w := &sqlWriter{w: bufio.NewWriter(out)}
+	w.printf("-- Generado por backend/cmd/seed (comando phases). No editar a mano:\n")
+	w.printf("-- corregí la transcripción y volvé a generar.\n\nbegin;\n")
+
+	// Los ejercicios que el índice original no tiene. Con on conflict: si
+	// ya existen (el script se corrió antes), el error lo da la
+	// verificación de abajo, que es más clara.
+	for _, e := range phaseNewExercises {
+		w.printf("\ninsert into exercise (slug, name, unilateral, description, met)\n")
+		w.printf("  values (%s, %s, false, %s, %s)\n  on conflict (slug) do nothing;\n",
+			str(e.Slug), str(e.Name), str(e.Description), strconv.FormatFloat(e.MET, 'f', -1, 64))
+	}
+
+	// Un bloque DO es un pedazo de PL/pgSQL anónimo: permite variables,
+	// if y raise, que el SQL plano no tiene.
+	w.printf("\ndo $$\ndeclare\n  s bigint;   -- sesión\n  b bigint;   -- bloque recién insertado\n  m smallint; -- última posición ocupada\nbegin\n")
+	w.printf("  if exists (\n    select 1 from block bl\n    join program_session ps on ps.session_id = bl.session_id\n")
+	w.printf("    join program p on p.id = ps.program_id\n    where p.slug = %s and bl.phase <> 'main'\n  ) then\n", str(programSlug))
+	w.printf("    raise exception '%s ya tiene calentamiento o movilidad cargados';\n  end if;\n", programSlug)
+
+	for _, s := range sessions {
+		w.printf("\n  -- Sesión %d\n", s.Position)
+		w.printf("  select ps.session_id into strict s from program_session ps\n")
+		w.printf("    join program p on p.id = ps.program_id\n    where p.slug = %s and ps.position = %d;\n", str(programSlug), s.Position)
+
+		if n := len(s.Warmup); n > 0 {
+			// El calentamiento va primero: los bloques que ya están se
+			// corren n lugares. En dos pasos, porque (session_id, position)
+			// es único y Postgres lo verifica fila por fila: sumar n de una
+			// podría chocar con un bloque que todavía no se movió. Lo mismo
+			// con las vueltas de los AMRAP, que guardan la posición del bloque.
+			w.printf("  update block set position = position + 1000 where session_id = s;\n")
+			w.printf("  update block set position = position - 1000 + %d where session_id = s;\n", n)
+			w.printf("  update workout_amrap a set block_position = block_position + 1000\n")
+			w.printf("    from workout wo where wo.id = a.workout_id and wo.session_id = s;\n")
+			w.printf("  update workout_amrap a set block_position = block_position - 1000 + %d\n", n)
+			w.printf("    from workout wo where wo.id = a.workout_id and wo.session_id = s;\n")
+			for i, b := range s.Warmup {
+				w.phaseBlock(strconv.Itoa(i+1), b)
+			}
+		}
+		if len(s.Mobility) > 0 {
+			w.printf("  select max(position) into m from block where session_id = s;\n")
+			for i, b := range s.Mobility {
+				w.phaseBlock(fmt.Sprintf("m + %d", i+1), b)
+			}
+		}
+	}
+	w.printf("end\n$$;\n\ncommit;\n")
+	return w.flush()
+}
+
+// phaseBlock inserta un bloque de la sesión s en la posición dada (una
+// expresión SQL) y sus ítems.
+func (s *sqlWriter) phaseBlock(position string, b PhaseBlock) {
+	s.printf("  insert into block (session_id, position, type, phase)\n")
+	s.printf("    values (s, %s, 'rounds', '%s') returning id into b;\n", position, b.Phase)
+	s.printf("  insert into block_item (block_id, round, position, kind, exercise_id, side, duration_s, reps) values\n")
+	optInt := func(v int) string {
+		if v == 0 {
+			return "null"
+		}
+		return strconv.Itoa(v)
+	}
+	for i, it := range b.Items {
+		sep := ","
+		if i == len(b.Items)-1 {
+			sep = ";"
+		}
+		s.printf("    (b, %d, %d, 'exercise', (select id from exercise where slug = %s), %s, %s, %s)%s\n",
+			it.Round, it.Position, str(it.ExerciseSlug), sideSQL(it.Side),
+			optInt(it.DurationS), optInt(it.Reps), sep)
+	}
+}

@@ -55,7 +55,9 @@ type Session struct {
 }
 
 type Block struct {
-	Position int16  `json:"position"`
+	Position int16 `json:"position"`
+	// Phase es la parte de la sesión: warmup, main o mobility.
+	Phase    string `json:"phase"`
 	Type     string `json:"type"`
 	TimeCapS *int32 `json:"time_cap_s,omitempty"`
 	Items    []Item `json:"items"`
@@ -262,7 +264,8 @@ func groupBlocks(rows []db.ListSessionItemsRow) []Block {
 	for _, r := range rows {
 		if len(blocks) == 0 || blocks[len(blocks)-1].Position != r.BlockPosition {
 			blocks = append(blocks, Block{
-				Position: r.BlockPosition, Type: string(r.BlockType), TimeCapS: r.TimeCapS,
+				Position: r.BlockPosition, Phase: string(r.BlockPhase),
+				Type: string(r.BlockType), TimeCapS: r.TimeCapS,
 			})
 		}
 		// Puntero al último bloque para modificarlo en el slice. Ojo: un

@@ -16,6 +16,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -443,5 +444,54 @@ func TestRecordWorkoutAmrapRounds(t *testing.T) {
 	var verr *ValidationError
 	if _, _, err := svc.RecordWorkout(ctx, user, w); !errors.As(err, &verr) {
 		t.Errorf("bloque inválido: err = %v, want *ValidationError", err)
+	}
+}
+
+// TestWarmupIsNotARecord: lo que se hace en el calentamiento (o en la
+// movilidad) se registra, pero no compite por Mojones.
+func TestWarmupIsNotARecord(t *testing.T) {
+	svc, pool, user := setup(t)
+	ctx := context.Background()
+
+	var sessionID, item int64
+	err := pool.QueryRow(ctx, `
+		select b.session_id, min(i.id)
+		from block b
+		join block_item i on i.block_id = b.id and i.reps is not null
+		where b.phase = 'warmup'
+		group by b.session_id
+		limit 1`).Scan(&sessionID, &item)
+	if errors.Is(err, pgx.ErrNoRows) {
+		t.Skip("la base no tiene calentamientos cargados (falta seed_phases.sql)")
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, reps := range []int16{10, 13} {
+		w, _, err := svc.RecordWorkout(ctx, user, workoutFor(sessionID, ItemResult{BlockItemID: item, Reps: ptr(reps)}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(w.NewRecords) != 0 {
+			t.Errorf("calentamiento con %d reps: new_records = %+v", reps, w.NewRecords)
+		}
+	}
+	records, err := svc.Records(ctx, user)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(records) != 0 {
+		t.Errorf("mojones del calentamiento: %+v", records)
+	}
+
+	var n int
+	if err := pool.QueryRow(ctx, `
+		select count(*) from workout_item wi join workout w on w.id = wi.workout_id
+		where w.user_id = $1`, user).Scan(&n); err != nil {
+		t.Fatal(err)
+	}
+	if n != 2 {
+		t.Errorf("ítems registrados = %d, want 2", n)
 	}
 }

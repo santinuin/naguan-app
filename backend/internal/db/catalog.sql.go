@@ -313,6 +313,7 @@ const listSessionItems = `-- name: ListSessionItems :many
 select i.id         as item_id,
        b.position   as block_position,
        b.type       as block_type,
+       b.phase      as block_phase,
        b.time_cap_s,
        i.round,
        i.position,
@@ -333,6 +334,7 @@ type ListSessionItemsRow struct {
 	ItemID        int64
 	BlockPosition int16
 	BlockType     BlockType
+	BlockPhase    BlockPhase
 	TimeCapS      *int32
 	Round         int16
 	Position      int16
@@ -361,6 +363,7 @@ func (q *Queries) ListSessionItems(ctx context.Context, sessionID int64) ([]List
 			&i.ItemID,
 			&i.BlockPosition,
 			&i.BlockType,
+			&i.BlockPhase,
 			&i.TimeCapS,
 			&i.Round,
 			&i.Position,

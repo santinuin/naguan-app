@@ -15,8 +15,11 @@ select wi.exercise_id,
        coalesce(max(wi.reps), 0)::int       as best_reps,
        coalesce(max(wi.duration_s), 0)::int as best_duration_s
 from workout_item wi
-join workout w on w.id = wi.workout_id
+join workout w     on w.id = wi.workout_id
+join block_item bi on bi.id = wi.block_item_id
+join block b       on b.id = bi.block_id
 where w.user_id = $1
+  and b.phase = 'main'
   and wi.exercise_id = any($2::bigint[])
 group by wi.exercise_id
 `
@@ -34,7 +37,8 @@ type BestResultsRow struct {
 
 // Las mejores marcas previas del usuario en estos ejercicios (0 = sin marca).
 // coalesce porque max() de ninguna fila es null. Cuenta el ejercicio que se
-// hizo (wi.exercise_id), no el del bloque: pudo haberse cambiado.
+// hizo (wi.exercise_id), no el del bloque: pudo haberse cambiado. Solo
+// cuenta el entrenamiento: el calentamiento y la movilidad no son Mojones.
 func (q *Queries) BestResults(ctx context.Context, arg BestResultsParams) ([]BestResultsRow, error) {
 	rows, err := q.db.Query(ctx, bestResults, arg.UserID, arg.ExerciseIds)
 	if err != nil {
@@ -345,8 +349,11 @@ const listRecords = `-- name: ListRecords :many
 with result as (
   select wi.exercise_id, wi.reps, wi.duration_s, w.local_date, w.finished_at
   from workout_item wi
-  join workout w on w.id = wi.workout_id
+  join workout w     on w.id = wi.workout_id
+  join block_item bi on bi.id = wi.block_item_id
+  join block b       on b.id = bi.block_id
   where w.user_id = $1
+    and b.phase = 'main'
 ),
 best as (
   (select distinct on (exercise_id)
@@ -387,6 +394,9 @@ type ListRecordsRow struct {
 //
 // Los "with" (CTE) son subconsultas con nombre: se leen de arriba abajo,
 // como variables intermedias.
+//
+// Solo el entrenamiento (fase 'main'): el calentamiento y la movilidad no
+// son Mojones.
 func (q *Queries) ListRecords(ctx context.Context, userID string) ([]ListRecordsRow, error) {
 	rows, err := q.db.Query(ctx, listRecords, userID)
 	if err != nil {
@@ -440,7 +450,7 @@ func (q *Queries) ListSessionAmrapPositions(ctx context.Context, sessionID int64
 }
 
 const listSessionItemsForWorkout = `-- name: ListSessionItemsForWorkout :many
-select i.id, i.kind, i.exercise_id, e.slug as exercise_slug, e.name as exercise_name
+select i.id, i.kind, b.phase, i.exercise_id, e.slug as exercise_slug, e.name as exercise_name
 from block_item i
 join block b on b.id = i.block_id
 left join exercise e on e.id = i.exercise_id
@@ -450,13 +460,14 @@ where b.session_id = $1
 type ListSessionItemsForWorkoutRow struct {
 	ID           int64
 	Kind         ItemKind
+	Phase        BlockPhase
 	ExerciseID   *int64
 	ExerciseSlug *string
 	ExerciseName *string
 }
 
 // Los ítems de una sesión con su tipo y ejercicio: para validar lo que manda
-// la app y para detectar Mojones.
+// la app y para detectar Mojones (solo los de la fase 'main').
 func (q *Queries) ListSessionItemsForWorkout(ctx context.Context, sessionID int64) ([]ListSessionItemsForWorkoutRow, error) {
 	rows, err := q.db.Query(ctx, listSessionItemsForWorkout, sessionID)
 	if err != nil {
@@ -469,6 +480,7 @@ func (q *Queries) ListSessionItemsForWorkout(ctx context.Context, sessionID int6
 		if err := rows.Scan(
 			&i.ID,
 			&i.Kind,
+			&i.Phase,
 			&i.ExerciseID,
 			&i.ExerciseSlug,
 			&i.ExerciseName,

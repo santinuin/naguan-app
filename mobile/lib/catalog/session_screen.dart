@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:naguan_app/catalog/catalog_client.dart';
 import 'package:naguan_app/catalog/format.dart';
@@ -166,6 +168,18 @@ class _SessionDetail extends StatelessWidget {
       for (final b in original.blocks)
         for (final i in b.items) i.id: i,
     };
+    // Los títulos de sección (CALENTAMIENTO, ENTRENAMIENTO, MOVILIDAD) solo
+    // si la sesión tiene más de una parte: en las que son solo
+    // entrenamiento, un ENTRENAMIENTO arriba de todo no dice nada.
+    final showPhases = session.blocks.any((b) => b.phase != BlockPhase.main);
+    // El ancho de la columna de las cifras: el de la más larga de toda la
+    // sesión. Así quedan encolumnadas también de un bloque a otro, sin
+    // reservar lugar de más.
+    final metricStyle = _metricStyle(context);
+    final metricWidth = [
+      for (final b in session.blocks)
+        for (final i in b.items) _textWidth(context, _metric(i), metricStyle),
+    ].fold(0.0, max);
 
     // Un ListView con children fijos (no .builder): la sesión tiene pocos
     // bloques, y así el contenido se arma como una columna que scrollea.
@@ -196,12 +210,20 @@ class _SessionDetail extends StatelessWidget {
             color: context.forja.palette.inkMuted,
           ),
         ),
-        // Collection for: un _BlockCard (y su separación) por bloque.
-        for (final block in session.blocks) ...[
+        // Collection for: un _BlockCard (y su separación) por bloque, con
+        // el título de la sección cuando empieza una parte nueva. `indexed`
+        // da (índice, bloque) para mirar el anterior.
+        for (final (i, block) in session.blocks.indexed) ...[
+          if (showPhases &&
+              (i == 0 || session.blocks[i - 1].phase != block.phase)) ...[
+            const SizedBox(height: ForjaSpace.s8),
+            Text(block.phase.label, style: textTheme.headlineSmall),
+          ],
           const SizedBox(height: ForjaSpace.s6),
           _BlockCard(
             block: block,
             originals: originals,
+            metricWidth: metricWidth,
             onEditItem: onEditItem,
           ),
         ],
@@ -214,11 +236,15 @@ class _BlockCard extends StatelessWidget {
   const _BlockCard({
     required this.block,
     required this.originals,
+    required this.metricWidth,
     required this.onEditItem,
   });
 
   final Block block;
   final Map<int, Item> originals;
+
+  /// El ancho de la columna de las cifras (ver _SessionDetail).
+  final double metricWidth;
   final OnEditItem onEditItem;
 
   @override
@@ -274,6 +300,7 @@ class _BlockCard extends StatelessWidget {
                 _ItemRow(
                   item: item,
                   original: originals[item.id],
+                  metricWidth: metricWidth,
                   onTap: () => onEditItem(block, item),
                 ),
             ],
@@ -294,6 +321,7 @@ class _ItemRow extends StatelessWidget {
   const _ItemRow({
     required this.item,
     required this.original,
+    required this.metricWidth,
     required this.onTap,
   });
 
@@ -301,20 +329,14 @@ class _ItemRow extends StatelessWidget {
 
   /// El ítem como vino de la API, para marcar lo ajustado.
   final Item? original;
+  final double metricWidth;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     final forja = context.forja;
-    // Los números en mono tabular (el estilo `stat`), a un tamaño de fila.
-    final metricStyle = forja.stat.copyWith(fontSize: 18, height: 1.3);
-
-    final metric = switch (item) {
-      Item(:final reps?) => formatReps(reps),
-      Item(:final durationS?) => formatDuration(durationS),
-      _ => '',
-    };
+    final metricStyle = _metricStyle(context);
     // Lo ajustado va en rosa (accentText): "esto no es lo que indica la
     // Senda". Siempre acompañado de texto (EN LUGAR DE...) o del número,
     // nunca solo el color.
@@ -357,15 +379,20 @@ class _ItemRow extends StatelessWidget {
         children: [
           Expanded(child: name),
           const SizedBox(width: ForjaSpace.s4),
-          // Las reps y los tiempos contra el borde derecho, en columna: el
-          // último hijo de la Row después de un Expanded termina siempre en
-          // el mismo lugar. (No hay chevron que avise que la fila se toca:
-          // lo dice el texto de arriba de los bloques.)
-          Text(
-            metric,
-            style: retargeted
-                ? metricStyle.copyWith(color: forja.palette.accentText)
-                : metricStyle,
+          // Las reps y los tiempos en una columna de ancho fijo contra el
+          // borde derecho, alineados a la izquierda adentro: "×6" arranca
+          // donde "×15", y los números quedan encolumnados. (No hay chevron
+          // que avise que la fila se toca: lo dice el texto de arriba de
+          // los bloques.)
+          SizedBox(
+            width: metricWidth,
+            child: Text(
+              _metric(item),
+              softWrap: false,
+              style: retargeted
+                  ? metricStyle.copyWith(color: forja.palette.accentText)
+                  : metricStyle,
+            ),
           ),
         ],
       ),
@@ -375,4 +402,33 @@ class _ItemRow extends StatelessWidget {
     if (exercise == null) return row;
     return InkWell(onTap: onTap, child: row);
   }
+}
+
+/// Los números de las filas en mono tabular (el estilo `stat`), a un tamaño
+/// de fila.
+TextStyle _metricStyle(BuildContext context) =>
+    context.forja.stat.copyWith(fontSize: 18, height: 1.3);
+
+/// La cifra de un ítem: "×10", "45″".
+String _metric(Item item) => switch (item) {
+  Item(:final reps?) => formatReps(reps),
+  Item(:final durationS?) => formatDuration(durationS),
+  _ => '',
+};
+
+/// Cuánto ocupa [text] dibujado con [style]: lo mide como lo va a dibujar
+/// Flutter, con el tamaño de letra que eligió el usuario en el teléfono
+/// (textScaler). Un ancho fijo en dp se quedaría corto con la letra
+/// agrandada.
+double _textWidth(BuildContext context, String text, TextStyle style) {
+  final painter = TextPainter(
+    text: TextSpan(text: text, style: style),
+    textDirection: TextDirection.ltr,
+    textScaler: MediaQuery.textScalerOf(context),
+    maxLines: 1,
+  )..layout();
+  final width = painter.width;
+  // TextPainter guarda recursos del motor de texto: se liberan a mano.
+  painter.dispose();
+  return width;
 }

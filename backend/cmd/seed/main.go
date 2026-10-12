@@ -3,6 +3,7 @@
 //
 //	go run ./cmd/seed names   # crea o completa el CSV de nombres para revisar
 //	go run ./cmd/seed sql     # genera el seed SQL a partir del CSV curado
+//	go run ./cmd/seed phases  # genera el SQL del calentamiento y la movilidad
 //
 // El CSV de nombres se versiona (solo tiene nombres); el SQL no, porque
 // incluye descripciones y videos de la fuente.
@@ -30,9 +31,10 @@ var programs = []struct{ file, slug, name string }{
 func main() {
 	source := flag.String("source", "../docs/source", "carpeta con los Excel originales")
 	namesPath := flag.String("names", "seed/exercise_names.csv", "CSV curado de nombres")
-	outPath := flag.String("out", "../supabase/seed.sql", "archivo SQL a generar")
+	outPath := flag.String("out", "../supabase/seed.sql", "archivo SQL a generar (sql)")
+	phasesOut := flag.String("phases-out", "../supabase/seed_phases.sql", "archivo SQL a generar (phases)")
 	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "uso: seed [flags] names|sql\n")
+		fmt.Fprintf(os.Stderr, "uso: seed [flags] names|sql|phases\n")
 		flag.PrintDefaults()
 	}
 	flag.Parse()
@@ -43,6 +45,8 @@ func main() {
 		err = runNames(*source, *namesPath)
 	case "sql":
 		err = runSQL(*source, *namesPath, *outPath)
+	case "phases":
+		err = runPhases(*source, *namesPath, *phasesOut)
 	default:
 		flag.Usage()
 		os.Exit(2)
@@ -70,19 +74,25 @@ func runNames(source, namesPath string) error {
 	return nil
 }
 
-func runSQL(source, namesPath, outPath string) error {
+// buildCatalog lee el índice y el CSV de nombres y arma el catálogo: lo
+// necesitan tanto sql como phases.
+func buildCatalog(source, namesPath string) (*mhimport.Catalog, []string, error) {
 	index, err := mhimport.ReadIndex(filepath.Join(source, "Indice de ejercicios.xlsx"))
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
 	names, err := mhimport.ReadNames(namesPath)
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
 	if names == nil {
-		return fmt.Errorf("no existe %s: corré primero el comando names", namesPath)
+		return nil, nil, fmt.Errorf("no existe %s: corré primero el comando names", namesPath)
 	}
-	cat, warns, err := mhimport.BuildCatalog(index, names)
+	return mhimport.BuildCatalog(index, names)
+}
+
+func runSQL(source, namesPath, outPath string) error {
+	cat, warns, err := buildCatalog(source, namesPath)
 	if err != nil {
 		return err
 	}
@@ -132,5 +142,41 @@ func runSQL(source, namesPath, outPath string) error {
 	}
 	fmt.Printf("%s: %d ejercicios, %d progresiones, %d programas, %d sesiones\n",
 		outPath, len(cat.Exercises), len(cat.Progressions), len(progs), nSessions)
+	return nil
+}
+
+// phasesSource es la transcripción del calentamiento y la movilidad de
+// Unbreakable (de capturas de la app original; ver mhimport/phases.go).
+const phasesSource = "Programas/Unbreakable/calentamiento_y_movilidad.txt"
+
+// runPhases genera el SQL que agrega el calentamiento y la movilidad a
+// Unbreakable. Va aparte de seed.sql porque se aplica también sobre la base
+// de producción, que ya tiene el programa cargado y Fraguas templadas.
+func runPhases(source, namesPath, outPath string) error {
+	cat, _, err := buildCatalog(source, namesPath)
+	if err != nil {
+		return err
+	}
+	plan, err := mhimport.ReadPhasePlan(filepath.Join(source, phasesSource))
+	if err != nil {
+		return err
+	}
+	sessions, err := mhimport.BuildPhases(plan, cat)
+	if err != nil {
+		return err
+	}
+
+	f, err := os.Create(outPath)
+	if err != nil {
+		return err
+	}
+	if err := errors.Join(mhimport.RenderPhasesSQL(f, "unbreakable", sessions), f.Close()); err != nil {
+		return err
+	}
+	var nBlocks int
+	for _, s := range sessions {
+		nBlocks += len(s.Warmup) + len(s.Mobility)
+	}
+	fmt.Printf("%s: %d sesiones, %d bloques de calentamiento y movilidad\n", outPath, len(sessions), nBlocks)
 	return nil
 }

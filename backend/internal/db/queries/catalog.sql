@@ -40,6 +40,7 @@ where id = $1;
 select i.id         as item_id,
        b.position   as block_position,
        b.type       as block_type,
+       b.phase      as block_phase,
        b.time_cap_s,
        i.round,
        i.position,

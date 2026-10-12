@@ -65,7 +65,9 @@ a la hora de asistir en el desarrollo:
   ejercicio en `backend/seed/exercise_names.csv`, incluidas las variantes numeradas
   ("Flexión anillas 1/2/3"), que según el caso son niveles o ejercicios distintos;
   renombrar cada sesión de cada programa con un nombre acorde (hoy muchas quedaron como
-  "Sesión N"); sumar el calentamiento y el estiramiento que les faltan a los programas.
+  "Sesión N"); sumar el calentamiento y el estiramiento que les faltan a los demás
+  programas (Unbreakable ya los tiene: `block.phase` + `go run ./cmd/seed phases`, desde
+  una transcripción de capturas; ver `backend/README.md`).
 - Hecho (API y app del usuario):
   - Cimientos del servidor: config, middleware, rutas `/v1`.
   - Autenticación con Supabase Auth (ver `docs/autenticacion.md`).
@@ -97,7 +99,7 @@ a la hora de asistir en el desarrollo:
      desde el inicio). Pendiente: el detalle de una Fragua templada (qué se hizo en cada
      ejercicio), que pide un `GET /v1/me/workouts/{id}`.
   5. Datos: niveles B y C (ver "Datos fuente"); ajustes de contenido (nombres de
-     sesiones, calentamiento y estiramiento).
+     sesiones, calentamiento y estiramiento de los programas que no son Unbreakable).
 
 ## Forma de trabajo
 
@@ -187,8 +189,9 @@ la estética y la filosofía de la app (sistema de diseño), y de simplificar.
 - **Nivel B (segunda etapa):** Guerrera Espartana y Barra Libre (Excel con el plan en texto,
   p. ej. `4x15-20`, superseries `A1`/`A2`; Barra Libre usa cargas sobre el 1RM).
 - **Nivel C (segunda etapa, transcripción):** solo en PDF: Muscle Hunters (12 semanas, 3
-  niveles según un test), Desencadenado, Efecto Kettlebell, Sinergia, y los calentamientos y
-  la movilidad de Unbreakable.
+  niveles según un test), Desencadenado, Efecto Kettlebell, Sinergia. (Los calentamientos y
+  la movilidad de Unbreakable ya están: `Unbreakable/calentamiento_y_movilidad.txt`,
+  transcriptos de capturas de la app original.)
 - Fuera de alcance: El Plan Revolucionario (nutrición y hábitos) y las hojas de medidas.
 
 Reglas de saneamiento ya decididas:
@@ -206,8 +209,8 @@ Detalle y decisiones en `docs/modelo-de-datos.md`. Migraciones en `supabase/migr
 catálogo, cierre de la API REST de Supabase (RLS + revocar permisos a `anon` y
 `authenticated`: **toda tabla nueva lleva `enable row level security`**) y registro de
 entrenamiento (`workout`, `workout_item`, `program_reset`) e idempotencia + AMRAP
-(`workout.client_id` único por usuario, `workout_amrap`) y el ejercicio realmente
-hecho (`workout_item.exercise_id`). Alcance de la app:
+(`workout.client_id` único por usuario, `workout_amrap`), el ejercicio realmente
+hecho (`workout_item.exercise_id`) y la fase de cada bloque (`block.phase`). Alcance de la app:
 calistenia, pero también fuerza con barra (Barra Libre) y movilidad ("flexifuerza").
 
 - **Catálogo:** `exercise` (sin lado; `unilateral` indica que se hace de a un lado),
@@ -217,7 +220,9 @@ calistenia, pero también fuerza con barra (Barra Libre) y movilidad ("flexifuer
   cooldown) para poder usarla suelta (p. ej. solo un calentamiento) o en varios programas;
   `program_session` da el orden dentro de un `program`.
 - **Ejecución:** `block` (`type`: rounds, rounds_with_rest, tabata, superset, ladder,
-  amrap; `time_cap_s` solo en amrap, cuyos ítems son una vuelta que se repite) y
+  amrap; `time_cap_s` solo en amrap, cuyos ítems son una vuelta que se repite;
+  `phase`: warmup, main o mobility, partes de la misma sesión: solo `main` cuenta
+  para Mojones) y
   `block_item` **desplegado** (una fila por ejercicio y por vuelta, en orden): `kind`
   exercise | rest, lado, y tiempo **o** reps (nunca ambos; lo garantiza un `check`).
 - Identificadores en inglés; el vocabulario de la app (Senda, Fragua, Golpe, Enfriá) es de

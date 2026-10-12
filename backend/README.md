@@ -25,6 +25,7 @@ ejercicios, progresiones, músculos, programas y sesiones. El esquema está en
 ```bash
 go run ./cmd/seed names   # crea o completa seed/exercise_names.csv
 go run ./cmd/seed sql     # genera /supabase/seed.sql (no versionado)
+go run ./cmd/seed phases  # genera /supabase/seed_phases.sql (no versionado)
 ```
 
 `seed/exercise_names.csv` es la **fuente de verdad de la identidad y el nombre** de cada
@@ -36,3 +37,21 @@ fusionan los duplicados de coach y los pares izquierda/derecha). Se edita a mano
 El importador corta con errores ante datos inconsistentes (nombres que chocan,
 tiempo y reps a la vez, bloques sin tipo...). Los errores puntuales de la fuente se
 corrigen de forma explícita en `cellFixes` (`internal/mhimport/source.go`).
+
+### Calentamiento y movilidad (`phases`)
+
+Los programas de Mammoth Hunters traen solo el entrenamiento. El calentamiento y la
+movilidad de Unbreakable se transcribieron a mano de capturas de la app original, en
+`docs/source/Programas/Unbreakable/calentamiento_y_movilidad.txt` (no versionado):
+plantillas de ejercicios (`@CAL01`, `@MOV01`...) y qué plantilla usa cada sesión. El
+formato está explicado al principio del archivo y en `internal/mhimport/phases.go`.
+
+`phases` lo convierte en `/supabase/seed_phases.sql`: un bloque `rounds` por grupo de
+ejercicios, con `phase` `warmup` o `mobility`. Los nombres de las capturas que no
+coinciden con el catálogo se traducen en `phaseAliases` (la app original decía
+"hombros" donde el índice dice "deltoides"); los que no existen en el índice se crean
+(`phaseNewExercises`, hoy solo «Colgarse»). Un nombre sin resolver corta con error.
+
+`supabase db reset` lo carga después de `seed.sql` (ver `sql_paths` en
+`supabase/config.toml`). Para producción, ver `docs/despliegue.md`.
+

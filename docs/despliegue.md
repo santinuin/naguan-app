@@ -232,6 +232,34 @@ No hace falta: la API llega a Supabase por la misma URL que figura en los tokens
 (`https://<ref>.supabase.co`). Solo se usa al correr el contenedor en local, donde la API
 llega por `host.docker.internal` pero los tokens dicen `127.0.0.1`.
 
+## Cargar contenido nuevo en producción
+
+`seed.sql` se aplicó **una sola vez**, al crear el proyecto: volver a correrlo
+pisaría IDs a los que ya apuntan Fraguas templadas. El contenido que se agrega
+después va en archivos aparte que se aplican sobre lo que ya hay. Hoy:
+`seed_phases.sql`, el calentamiento y la movilidad de Unbreakable (ver
+`backend/README.md`). En este orden:
+
+1. **Migración** (agrega `block.phase`): `supabase db push`.
+2. **API** (lee `block.phase` y filtra los Mojones): redesplegar Cloud Run. Va
+   después de la migración: la API nueva consulta una columna que antes no existía.
+3. **Contenido:** con la cola offline del teléfono vacía y sin una Fragua de
+   Unbreakable a medio hacer (las posiciones de los bloques cambian):
+
+   ```bash
+   go run ./cmd/seed phases                  # desde backend/
+   supabase db push --include-seed --dry-run # tiene que listar solo seed_phases.sql
+   supabase db push --include-seed
+   ```
+
+   La CLI registra cada archivo de seed con su hash
+   (`supabase_migrations.seed_files`) y corre solo los que todavía no aplicó. El
+   script además se protege: si Unbreakable ya tiene calentamiento, aborta sin
+   cambiar nada.
+4. **App:** un APK nuevo para ver los títulos CALENTAMIENTO / ENTRENAMIENTO /
+   MOVILIDAD. La versión anterior sigue funcionando (ignora `phase` y muestra los
+   bloques nuevos como bloques comunes).
+
 ## 5. Integración continua
 
 `.github/workflows/ci.yml` corre en cada push a `master` y en cada pull request:

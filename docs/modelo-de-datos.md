@@ -58,6 +58,13 @@ exercise ──< exercise_video                      │           │  (Fragua 
   reps, nunca por ambos. La regla vive en la base, no solo en el código.
 - **`amrap`** es el único bloque con `time_cap_s`: sus ítems describen una vuelta que se
   repite hasta que se acaba el tiempo. Otro `check` liga las dos cosas.
+- **`block.phase`: calentamiento, entrenamiento o movilidad** (`warmup` | `main` |
+  `mobility`). Las tres partes son bloques de la **misma** sesión: se templan juntas, en
+  una sola Fragua, y la app las titula por separado. Se descartó modelarlas como sesiones
+  aparte (`session.kind`, que ya existía): obligaba a encadenar tres sesiones al ejecutar
+  y a cambiar la API y la app, y casi no hay calentamientos idénticos para reusar (las
+  vueltas cambian de una sesión a otra). El enum se ordena como se declaró (`warmup <
+  main < mobility`), no alfabéticamente.
 
 ## Entrenamiento
 
@@ -159,6 +166,10 @@ el servidor no sabe en qué zona horaria está el teléfono.
   reps en una serie y/o la mayor duración sostenida (una plancha).
 - Al registrar una Fragua, la respuesta trae `new_records` con los Mojones superados y la
   marca anterior, para que la app lo celebre.
+- **Solo cuenta el entrenamiento** (`block.phase = 'main'`): estirar 35 s en vez de 30
+  no es un récord. Lo del calentamiento y la movilidad se registra igual en
+  `workout_item` (es historial), pero las consultas de Mojones lo filtran por la fase del
+  bloque del ítem.
 - **La primera vez** que se hace un ejercicio no es Mojón (no había marca que superar);
   igualar tampoco. Hay Mojón cuando se supera.
 - `GET /v1/me/records` lista la mejor marca de cada ejercicio y métrica, con
@@ -209,4 +220,10 @@ token verificado, y las rutas del usuario van bajo `/v1/me/...` (no existe un
   o `supabase migration up` (solo las nuevas).
 - El catálogo: `supabase/seed.sql`, generado por `backend/cmd/seed` a partir de los
   Excel (ver `backend/README.md`). No se versiona: tiene contenido de la fuente.
+- El calentamiento y la movilidad de Unbreakable: `supabase/seed_phases.sql`, también
+  generado por `backend/cmd/seed` (comando `phases`) y no versionado. Va aparte porque se
+  aplica **sobre una base que ya tiene el programa** (la de producción): busca sesiones y
+  ejercicios por slug en vez de usar IDs fijos, y corre las posiciones de los bloques que
+  ya existían (y las de `workout_amrap`, que las referencian) para poner el calentamiento
+  primero. Se aplica una sola vez: si ya está cargado, aborta sin tocar nada.
 - Los datos de entrenamiento los crea la app a través de la API.

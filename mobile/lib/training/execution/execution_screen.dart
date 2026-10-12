@@ -416,7 +416,11 @@ class _StepView extends StatelessWidget {
   }
 
   String _stepLabel(WorkoutStep step) {
-    final block = 'BLOQUE ${step.block.position} · ${step.block.type.label}';
+    // En el calentamiento y la movilidad, la parte dice más que el número
+    // y el tipo del bloque (que son siempre VUELTAS).
+    final block = step.block.phase == BlockPhase.main
+        ? 'BLOQUE ${step.block.position} · ${step.block.type.label}'
+        : step.block.phase.label;
     if (step.kind == StepKind.amrap || step.roundCount <= 1) return block;
     return '$block · VUELTA ${step.round} / ${step.roundCount}';
   }

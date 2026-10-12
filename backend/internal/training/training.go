@@ -394,7 +394,10 @@ func (s *Service) RecordWorkout(ctx context.Context, userID string, w NewWorkout
 		if err != nil {
 			return err
 		}
+		// performed es todo lo que se hizo (se registra entero); training,
+		// solo lo del entrenamiento, que es lo que compite por Mojones.
 		performed := make([]performedItem, 0, len(w.Items))
+		var training []performedItem
 		for _, it := range w.Items {
 			si, ok := byID[it.BlockItemID]
 			if !ok {
@@ -409,7 +412,11 @@ func (s *Service) RecordWorkout(ctx context.Context, userID string, w NewWorkout
 			if it.ExerciseSlug != nil {
 				ex = swaps[*it.ExerciseSlug]
 			}
-			performed = append(performed, performedItem{ItemResult: it, exercise: ex})
+			p := performedItem{ItemResult: it, exercise: ex}
+			performed = append(performed, p)
+			if si.Phase == db.BlockPhaseMain {
+				training = append(training, p)
+			}
 		}
 
 		// Las vueltas, solo para bloques AMRAP de esta sesión.
@@ -425,7 +432,7 @@ func (s *Service) RecordWorkout(ctx context.Context, userID string, w NewWorkout
 
 		// Las marcas previas se leen ANTES de insertar: si no, la Fragua
 		// nueva se compararía contra sí misma.
-		records, err = newRecords(ctx, q, userID, performed, w.LocalDate)
+		records, err = newRecords(ctx, q, userID, training, w.LocalDate)
 		if err != nil {
 			return err
 		}

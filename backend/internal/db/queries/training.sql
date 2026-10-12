@@ -62,8 +62,8 @@ on conflict (user_id, program_id) do update set reset_at = excluded.reset_at;
 
 -- name: ListSessionItemsForWorkout :many
 -- Los ítems de una sesión con su tipo y ejercicio: para validar lo que manda
--- la app y para detectar Mojones.
-select i.id, i.kind, i.exercise_id, e.slug as exercise_slug, e.name as exercise_name
+-- la app y para detectar Mojones (solo los de la fase 'main').
+select i.id, i.kind, b.phase, i.exercise_id, e.slug as exercise_slug, e.name as exercise_name
 from block_item i
 join block b on b.id = i.block_id
 left join exercise e on e.id = i.exercise_id
@@ -72,13 +72,17 @@ where b.session_id = $1;
 -- name: BestResults :many
 -- Las mejores marcas previas del usuario en estos ejercicios (0 = sin marca).
 -- coalesce porque max() de ninguna fila es null. Cuenta el ejercicio que se
--- hizo (wi.exercise_id), no el del bloque: pudo haberse cambiado.
+-- hizo (wi.exercise_id), no el del bloque: pudo haberse cambiado. Solo
+-- cuenta el entrenamiento: el calentamiento y la movilidad no son Mojones.
 select wi.exercise_id,
        coalesce(max(wi.reps), 0)::int       as best_reps,
        coalesce(max(wi.duration_s), 0)::int as best_duration_s
 from workout_item wi
-join workout w on w.id = wi.workout_id
+join workout w     on w.id = wi.workout_id
+join block_item bi on bi.id = wi.block_item_id
+join block b       on b.id = bi.block_id
 where w.user_id = @user_id
+  and b.phase = 'main'
   and wi.exercise_id = any(@exercise_ids::bigint[])
 group by wi.exercise_id;
 
@@ -193,11 +197,17 @@ select count(*) from workout where user_id = $1;
 --
 -- Los "with" (CTE) son subconsultas con nombre: se leen de arriba abajo,
 -- como variables intermedias.
+--
+-- Solo el entrenamiento (fase 'main'): el calentamiento y la movilidad no
+-- son Mojones.
 with result as (
   select wi.exercise_id, wi.reps, wi.duration_s, w.local_date, w.finished_at
   from workout_item wi
-  join workout w on w.id = wi.workout_id
+  join workout w     on w.id = wi.workout_id
+  join block_item bi on bi.id = wi.block_item_id
+  join block b       on b.id = bi.block_id
   where w.user_id = @user_id
+    and b.phase = 'main'
 ),
 best as (
   (select distinct on (exercise_id)

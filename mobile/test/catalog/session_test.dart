@@ -95,6 +95,30 @@ void main() {
     });
   });
 
+  group('Block.phase', () {
+    Map<String, dynamic> block(String? phase) => {
+      'position': 1,
+      'phase': ?phase,
+      'type': 'rounds',
+      'items': [],
+    };
+
+    test('lee la fase; sin fase es main (sesiones guardadas antes)', () {
+      expect(Block.fromJson(block('warmup')).phase, BlockPhase.warmup);
+      expect(Block.fromJson(block('mobility')).phase, BlockPhase.mobility);
+      expect(Block.fromJson(block(null)).phase, BlockPhase.main);
+      expect(() => Block.fromJson(block('siesta')), throwsFormatException);
+    });
+
+    test('toJson guarda la fase', () {
+      final again = Block.fromJson(
+        jsonDecode(jsonEncode(Block.fromJson(block('warmup')).toJson()))
+            as Map<String, dynamic>,
+      );
+      expect(again.phase, BlockPhase.warmup);
+    });
+  });
+
   group('Block.roundGroups', () {
     Map<String, dynamic> exercise(int round, {int? reps, int? seconds}) => {
       'id': round * 10 + 1,
@@ -190,5 +214,82 @@ void main() {
     // El amrap: tope en la pill, sin numerar vueltas.
     expect(find.text('AMRAP · 15′'), findsOneWidget);
     expect(find.text('×10'), findsOneWidget);
+  });
+
+  testWidgets('SessionScreen titula las partes cuando hay más de una', (
+    tester,
+  ) async {
+    // Una pantalla alta: el ListView solo construye lo que se ve.
+    tester.view.physicalSize = const Size(800, 3000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    Map<String, dynamic> block(int position, String phase) => {
+      'position': position,
+      'phase': phase,
+      'type': 'rounds',
+      'items': [
+        {
+          'id': position,
+          'round': 1,
+          'position': 1,
+          'kind': 'exercise',
+          'exercise': {'slug': 'flexion', 'name': 'Flexión'},
+          'reps': 10,
+        },
+      ],
+    };
+    final client = FakeCatalogClient();
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: forjaHierro,
+        home: SessionScreen(
+          catalog: client,
+          training: fakeServices(),
+          id: 1,
+          label: 'X · FRAGUA 01',
+        ),
+      ),
+    );
+
+    client.sessionCalls.single.complete(
+      Session.fromJson({
+        ...sessionJson,
+        'blocks': [
+          block(1, 'warmup'),
+          block(2, 'warmup'),
+          block(3, 'main'),
+          block(4, 'mobility'),
+        ],
+      }),
+    );
+    await tester.pump();
+
+    // Un título por parte, no por bloque.
+    expect(find.text('CALENTAMIENTO'), findsOneWidget);
+    expect(find.text('ENTRENAMIENTO'), findsOneWidget);
+    expect(find.text('MOVILIDAD'), findsOneWidget);
+  });
+
+  testWidgets('SessionScreen no titula una sesión solo de entrenamiento', (
+    tester,
+  ) async {
+    final client = FakeCatalogClient();
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: forjaHierro,
+        home: SessionScreen(
+          catalog: client,
+          training: fakeServices(),
+          id: 1,
+          label: 'X · FRAGUA 01',
+        ),
+      ),
+    );
+
+    client.sessionCalls.single.complete(Session.fromJson(sessionJson));
+    await tester.pump();
+
+    expect(find.text('ENTRENAMIENTO'), findsNothing);
   });
 }
