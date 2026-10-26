@@ -3,7 +3,8 @@
 //
 //	go run ./cmd/seed names   # crea o completa el CSV de nombres para revisar
 //	go run ./cmd/seed sql     # genera el seed SQL a partir del CSV curado
-//	go run ./cmd/seed phases  # genera el SQL del calentamiento y la movilidad
+//	go run ./cmd/seed phases  # genera el SQL del calentamiento y la movilidad de cada programa
+//	go run ./cmd/seed titles  # imprime el UPDATE de los títulos de las sesiones
 //
 // El CSV de nombres se versiona (solo tiene nombres); el SQL no, porque
 // incluye descripciones y videos de la fuente.
@@ -15,6 +16,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/santinuin/naguan-app/backend/internal/mhimport"
 )
@@ -31,10 +33,11 @@ var programs = []struct{ file, slug, name string }{
 func main() {
 	source := flag.String("source", "../docs/source", "carpeta con los Excel originales")
 	namesPath := flag.String("names", "seed/exercise_names.csv", "CSV curado de nombres")
+	titlesPath := flag.String("titles", "seed/session_titles.csv", "CSV de títulos de las sesiones")
 	outPath := flag.String("out", "../supabase/seed.sql", "archivo SQL a generar (sql)")
-	phasesOut := flag.String("phases-out", "../supabase/seed_phases.sql", "archivo SQL a generar (phases)")
+	phasesDir := flag.String("phases-dir", "../supabase", "carpeta de los SQL a generar (phases)")
 	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "uso: seed [flags] names|sql|phases\n")
+		fmt.Fprintf(os.Stderr, "uso: seed [flags] names|sql|phases|titles\n")
 		flag.PrintDefaults()
 	}
 	flag.Parse()
@@ -44,9 +47,11 @@ func main() {
 	case "names":
 		err = runNames(*source, *namesPath)
 	case "sql":
-		err = runSQL(*source, *namesPath, *outPath)
+		err = runSQL(*source, *namesPath, *titlesPath, *outPath)
+	case "titles":
+		err = runTitles(*titlesPath)
 	case "phases":
-		err = runPhases(*source, *namesPath, *phasesOut)
+		err = runPhases(*source, *namesPath, *phasesDir)
 	default:
 		flag.Usage()
 		os.Exit(2)
@@ -91,7 +96,7 @@ func buildCatalog(source, namesPath string) (*mhimport.Catalog, []string, error)
 	return mhimport.BuildCatalog(index, names)
 }
 
-func runSQL(source, namesPath, outPath string) error {
+func runSQL(source, namesPath, titlesPath, outPath string) error {
 	cat, warns, err := buildCatalog(source, namesPath)
 	if err != nil {
 		return err
@@ -127,6 +132,13 @@ func runSQL(source, namesPath, outPath string) error {
 	if err := errors.Join(errs...); err != nil {
 		return err
 	}
+	titles, err := mhimport.ReadSessionTitles(titlesPath)
+	if err != nil {
+		return err
+	}
+	if err := titles.Apply(progs); err != nil {
+		return err
+	}
 
 	f, err := os.Create(outPath)
 	if err != nil {
@@ -145,19 +157,43 @@ func runSQL(source, namesPath, outPath string) error {
 	return nil
 }
 
-// phasesSource es la transcripción del calentamiento y la movilidad de
-// Unbreakable (de capturas de la app original; ver mhimport/phases.go).
-const phasesSource = "Programas/Unbreakable/calentamiento_y_movilidad.txt"
+// phasePrograms son los programas con calentamiento y movilidad. Cada uno
+// genera su propio SQL: la CLI de Supabase registra cada archivo de seed con
+// su hash y aplica solo los nuevos, así que un programa nuevo no puede tocar
+// el archivo de otro que ya está en producción (cambiaría su hash).
+var phasePrograms = []struct {
+	slug string
+	plan string // plan de calentamiento y movilidad
+	out  string // SQL a generar, dentro de -phases-dir
+}{
+	// Transcripción de capturas de la app original (no versionada: vive en
+	// docs/source, con el resto del material de la fuente).
+	{"unbreakable", "{source}/Programas/Unbreakable/calentamiento_y_movilidad.txt", "seed_phases.sql"},
+	// Reconstrucción propia (la app original los perdió al cerrar): se versiona.
+	{"ring-master", "seed/ring_master_fases.txt", "seed_phases_ring_master.sql"},
+}
 
-// runPhases genera el SQL que agrega el calentamiento y la movilidad a
-// Unbreakable. Va aparte de seed.sql porque se aplica también sobre la base
-// de producción, que ya tiene el programa cargado y Fraguas templadas.
-func runPhases(source, namesPath, outPath string) error {
+// runPhases genera el SQL que agrega el calentamiento y la movilidad a cada
+// programa de phasePrograms. Va aparte de seed.sql porque se aplica también
+// sobre la base de producción, que ya tiene los programas cargados y Fraguas
+// templadas.
+func runPhases(source, namesPath, outDir string) error {
 	cat, _, err := buildCatalog(source, namesPath)
 	if err != nil {
 		return err
 	}
-	plan, err := mhimport.ReadPhasePlan(filepath.Join(source, phasesSource))
+	var errs []error
+	for _, p := range phasePrograms {
+		planPath := strings.Replace(p.plan, "{source}", source, 1)
+		if err := writePhases(cat, p.slug, planPath, filepath.Join(outDir, p.out)); err != nil {
+			errs = append(errs, fmt.Errorf("%s: %w", p.slug, err))
+		}
+	}
+	return errors.Join(errs...)
+}
+
+func writePhases(cat *mhimport.Catalog, slug, planPath, outPath string) error {
+	plan, err := mhimport.ReadPhasePlan(planPath)
 	if err != nil {
 		return err
 	}
@@ -170,7 +206,7 @@ func runPhases(source, namesPath, outPath string) error {
 	if err != nil {
 		return err
 	}
-	if err := errors.Join(mhimport.RenderPhasesSQL(f, "unbreakable", sessions), f.Close()); err != nil {
+	if err := errors.Join(mhimport.RenderPhasesSQL(f, slug, sessions), f.Close()); err != nil {
 		return err
 	}
 	var nBlocks int
@@ -179,4 +215,15 @@ func runPhases(source, namesPath, outPath string) error {
 	}
 	fmt.Printf("%s: %d sesiones, %d bloques de calentamiento y movilidad\n", outPath, len(sessions), nBlocks)
 	return nil
+}
+
+// runTitles imprime el UPDATE de los títulos de las sesiones, para pegar en
+// el editor SQL de Supabase (producción). No es un archivo de seed: la CLI
+// no vuelve a correr un seed que ya aplicó, y los títulos se corrigen.
+func runTitles(titlesPath string) error {
+	titles, err := mhimport.ReadSessionTitles(titlesPath)
+	if err != nil {
+		return err
+	}
+	return mhimport.RenderTitlesSQL(os.Stdout, titles)
 }

@@ -5,4 +5,4 @@
 # Seed generado por backend/cmd/seed: contiene descripciones y videos de la
 # fuente. Se regenera con `go run ./cmd/seed sql` desde backend/.
 /supabase/seed.sql
-/supabase/seed_phases.sql
+/supabase/seed_phases*.sql

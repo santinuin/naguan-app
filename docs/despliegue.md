@@ -237,8 +237,11 @@ llega por `host.docker.internal` pero los tokens dicen `127.0.0.1`.
 `seed.sql` se aplicó **una sola vez**, al crear el proyecto: volver a correrlo
 pisaría IDs a los que ya apuntan Fraguas templadas. El contenido que se agrega
 después va en archivos aparte que se aplican sobre lo que ya hay. Hoy:
-`seed_phases.sql`, el calentamiento y la movilidad de Unbreakable (ver
-`backend/README.md`). En este orden:
+`seed_phases.sql` y `seed_phases_ring_master.sql`, el calentamiento y la
+movilidad de Unbreakable y de Ring Master (ver `backend/README.md`). Un archivo
+por programa: la CLI aplica cada uno una sola vez. Para Unbreakable fue en este
+orden (para Ring Master alcanza con el paso 3: la migración, la API y la app ya
+estaban):
 
 1. **Migración** (agrega `block.phase`): `supabase db push`.
 2. **API** (lee `block.phase` y filtra los Mojones): redesplegar Cloud Run. Va
@@ -248,13 +251,18 @@ después va en archivos aparte que se aplican sobre lo que ya hay. Hoy:
 
    ```bash
    go run ./cmd/seed phases                  # desde backend/
-   supabase db push --include-seed --dry-run # tiene que listar solo seed_phases.sql
+   supabase db push --include-seed --dry-run # tiene que listar solo el archivo nuevo
    supabase db push --include-seed
    ```
 
+   Si el dry-run lista también `seed.sql` con «hash update» (pasa cuando se
+   regenera en local después de haberlo aplicado), **no hagas el push así**:
+   dejá en `sql_paths` de `supabase/config.toml` solo el archivo nuevo, hacé el
+   push y restaurá la lista. Así fue la carga de Ring Master (2026-10-26).
+
    La CLI registra cada archivo de seed con su hash
    (`supabase_migrations.seed_files`) y corre solo los que todavía no aplicó. El
-   script además se protege: si Unbreakable ya tiene calentamiento, aborta sin
+   script además se protege: si el programa ya tiene calentamiento, aborta sin
    cambiar nada.
 4. **App:** un APK nuevo para ver los títulos CALENTAMIENTO / ENTRENAMIENTO /
    MOVILIDAD. La versión anterior sigue funcionando (ignora `phase` y muestra los

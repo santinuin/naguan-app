@@ -64,10 +64,13 @@ a la hora de asistir en el desarrollo:
   videos, músculos, articulaciones y progresiones), con tests. Pendiente (más adelante, lo hace el usuario): auditar ejercicio por
   ejercicio en `backend/seed/exercise_names.csv`, incluidas las variantes numeradas
   ("Flexión anillas 1/2/3"), que según el caso son niveles o ejercicios distintos;
-  renombrar cada sesión de cada programa con un nombre acorde (hoy muchas quedaron como
-  "Sesión N"); sumar el calentamiento y el estiramiento que les faltan a los demás
+  renombrar las sesiones de los demás programas con un nombre acorde (hoy muchas quedaron
+  como "Sesión N"; Unbreakable y Ring Master ya tienen nombre: `backend/seed/session_titles.csv`,
+  que usa `seed sql`, y `go run ./cmd/seed titles` imprime el `UPDATE` para producción);
+  sumar el calentamiento y el estiramiento que les faltan a los demás
   programas (Unbreakable ya los tiene: `block.phase` + `go run ./cmd/seed phases`, desde
-  una transcripción de capturas; ver `backend/README.md`).
+  una transcripción de capturas; Ring Master también, con una reconstrucción propia en
+  `backend/seed/ring_master_fases.txt`; ver `backend/README.md`).
 - Hecho (API y app del usuario):
   - Cimientos del servidor: config, middleware, rutas `/v1`.
   - Autenticación con Supabase Auth (ver `docs/autenticacion.md`).

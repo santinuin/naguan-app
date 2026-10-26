@@ -1,0 +1,265 @@
+# Calentamiento y movilidad de Ring Master. A diferencia de Unbreakable, no es una
+# transcripción: la app original los tenía pero se perdieron al cerrar. Es una
+# reconstrucción propia (por eso se versiona), con ejercicios del índice original y
+# priorizando los que se hacen en anillas.
+#
+# Criterio (Fitness Revolucionario):
+# - Calentamiento RAMP, nunca estiramiento estático antes de entrenar:
+#   1. Elevar: 60 s de cardio suave (cuerda, saltos, correr en el sitio).
+#   2. Movilizar y activar: giros articulares, hombros (Preparación general
+#      deltoides en anillas: ya recorre todo el rango, no se suman círculos de
+#      deltoides), muñecas y escápulas (retracción y depresión).
+#   3. Potenciar: lo que pide la sesión, en anillas y con poca carga (Aguante
+#      isométrico con rotación externa, Plancha en anillas, cuelgue con agarre
+#      falso). Skin the cat no: exige la extensión extrema del hombro que el
+#      calentamiento prepara, y en el programa es trabajo principal. Esa
+#      extensión va al final, sostenida (Estiramiento germano).
+# - Movilidad al final: estiramientos con carga en anillas (Perro boca abajo, Perro
+#   en T, Tríceps-deltoides, Germano, Superman), colgarse para descomprimir el
+#   hombro y antebrazos para compensar el agarre falso. Respiración lenta.
+#
+# Plantillas por tipo de sesión (ver la asignación al final):
+#   CAL01 / MOV01, MOV04  tren superior, empuje y tracción (fase 1)
+#   CAL02 / MOV02, MOV08  piernas y core
+#   CAL03 / MOV03         empuje (fondos, flexiones, tríceps)
+#   CAL04 / MOV04         tracción (dominadas, remos, bíceps)
+#   CAL05 / MOV01, MOV05, MOV06  habilidades: arqueros, inversiones, Skin the cat
+#   CAL06 / MOV08         piernas a una pierna (pistolero, búlgara)
+#   CAL07 / MOV05         cuerpo completo (circuitos)
+#   CAL08 / MOV07         agarre falso y muscle-up
+#   CAL09 / MOV08         piernas e isométricos invertidos (pino encogido)
+#
+# Formato: el de Unbreakable (ver backend/internal/mhimport/phases.go). "@NOMBRE"
+# abre una plantilla; una línea por ejercicio: nombre | 60s o 10r [| xN];
+# "xN:" ... "end" agrupa ejercicios que se repiten juntos N vueltas. Los
+# unilaterales se hacen por ambos lados. Al final, "sesión: calentamiento movilidad".
+
+# ── Calentamientos ─────────────────────────────────────────────────────────
+
+# Tren superior: empuje y tracción en la misma sesión.
+@CAL01
+Saltar a la cuerda | 60s
+Giros articulares | 1r
+Preparación general deltoides | 8r
+Estiramiento de muñecas | 30s
+x2:
+Dominada escapular | 10r
+Flexión escapular | 10r
+end
+Aguante isométrico | 10s | x2
+
+# Piernas y core.
+@CAL02
+Saltos con separación de piernas | 60s
+Giros articulares | 1r
+Balanceo de piernas | 30s
+Balanceo de piernas lateral | 30s
+Sentadilla 90/90 | 45s
+Sentadilla con apertura de cadera | 30s
+Hollow hold | 20s | x2
+Plancha en anillas | 20s
+
+# Empuje: fondos, flexiones y tríceps.
+@CAL03
+Correr en el sitio | 60s
+Giros articulares | 1r
+Preparación general deltoides | 8r
+Sentadilla con calentamiento de muñecas | 30s
+Flexión escapular | 10r | x2
+Tabla de deltoides dinámica | 20s
+Aguante isométrico | 15s | x2
+
+# Tracción: dominadas, remos y bíceps.
+@CAL04
+Saltar a la cuerda | 60s
+Giros articulares | 1r
+Deslizamiento escapular | 30s
+Preparación general deltoides | 8r
+Superman | 10s | x2
+Dominada escapular | 10r | x2
+
+# Habilidades: arqueros, inversiones y Skin the cat.
+@CAL05
+Saltos cruzados | 60s
+Giros articulares | 1r
+Círculos de codos y muñecas | 10r
+Preparación general deltoides | 8r
+Estiramiento de muñecas | 30s
+Hollow body rock | 30s
+x2:
+Dominada escapular | 8r
+Aguante isométrico | 15s
+end
+
+# Piernas a una pierna: pistolero y búlgara.
+@CAL06
+Saltar a la cuerda | 60s
+Balanceo de piernas | 30s
+Balanceo de piernas lateral | 30s
+Sentadilla 90/90 | 45s
+Sentadilla a mono | 30s
+Calentamiento perro | 30s
+Paseo de oso | 30s
+Plancha en anillas | 20s | x2
+
+# Cuerpo completo: circuitos.
+@CAL07
+Correr en el sitio | 60s
+Giros articulares | 1r
+Escaleras | 5r
+Preparación general deltoides | 8r
+Sentadilla con calentamiento de muñecas | 30s
+Paseo de cangrejo | 30s
+x2:
+Dominada escapular | 10r
+Flexión escapular | 10r
+end
+Aguante isométrico | 15s
+
+# Agarre falso y muscle-up: muñecas y antebrazos primero, después el agarre.
+@CAL08
+Saltar a la cuerda | 60s
+Giros articulares | 1r
+Círculos de codos y muñecas | 10r
+Flexión y extensión de muñecas | 20r
+Sentadilla con calentamiento de muñecas | 30s
+Preparación general deltoides | 8r
+x2:
+Dominada escapular | 8r
+Cuelgue agarre falso extendido | 15s
+end
+Aguante isométrico | 20s
+
+# Piernas e isométricos invertidos (pino encogido): muñecas y core.
+@CAL09
+Saltos con separación de piernas | 60s
+Giros articulares | 1r
+Balanceo de piernas | 30s
+Sentadilla 90/90 | 45s
+Sentadilla con calentamiento de muñecas | 30s
+Paseo de oso | 30s
+Hollow body rock | 30s | x2
+Plancha en anillas | 20s
+
+# ── Movilidad ──────────────────────────────────────────────────────────────
+
+# Tren superior: descomprimir y estirar deltoides, tríceps y dorsales.
+@MOV01
+Colgarse | 30s
+Perro boca abajo anillas | 30s
+Estiramiento tríceps-deltoides | 30s
+Perro boca abajo en T en anillas | 30s
+Estiramiento germano 1 | 20s
+Estiramiento antebrazo | 30s
+
+# Piernas y core.
+@MOV02
+Estiramiento gemelos | 30s
+Estiramiento isquios en v | 30s
+Pose paloma | 30s
+Estiramiento flexores cadera | 30s
+Estiramiento de rana | 30s
+Estiramiento superman | 30s
+Pose del niño | 30s
+
+# Empuje: pecho, deltoides anterior y tríceps (lo que acortan los fondos).
+@MOV03
+Perro boca abajo en T en anillas | 30s
+Estiramiento germano 1 | 20s | x2
+Estiramiento tríceps-deltoides | 30s
+Estiramiento pectorales en pared | 30s
+Estiramiento antebrazo | 30s
+Perro hacia arriba | 30s
+
+# Tracción: dorsales, bíceps y antebrazos.
+@MOV04
+Colgarse | 30s | x2
+Perro boca abajo anillas | 30s
+Estiramiento dorsal en pared | 30s
+Estiramiento superman | 30s
+Estiramiento antebrazo | 30s
+Pose del niño | 30s
+
+# Cuerpo completo.
+@MOV05
+Colgarse | 30s
+Perro boca abajo en T en anillas | 30s
+Estiramiento superman | 30s
+Estiramiento flexores cadera | 30s
+Estiramiento isquios en v | 30s
+Estiramiento germano 1 | 20s
+
+# Habilidades: extensión de hombro bajo carga (germano completo) y caderas.
+@MOV06
+Colgarse | 40s
+Estiramiento germano 2 | 15s | x2
+Estiramiento tríceps-deltoides | 30s
+Perro boca abajo en T en anillas | 30s
+Estiramiento antebrazo | 30s
+Apertura de piernas | 30s
+
+# Agarre falso y muscle-up: antebrazos y codos ante todo.
+@MOV07
+Colgarse | 45s
+Estiramiento antebrazo | 30s | x2
+Estiramiento germano 2 | 20s | x2
+Estiramiento tríceps-deltoides | 30s
+Perro boca abajo anillas | 30s
+Pose del niño | 30s
+
+# Piernas: caderas, cuádriceps y aductores.
+@MOV08
+Estiramiento gemelos | 30s
+Pose paloma | 30s
+Estiramiento isquios en v | 30s
+Estiramiento cuádriceps | 30s
+Estiramiento aductores en pared | 60s
+Estiramiento superman | 30s
+Colgarse | 30s
+
+# Sesiones
+# Fase 1 (1-8): tren superior y piernas, alternados.
+1: CAL01 MOV01
+2: CAL02 MOV02
+3: CAL01 MOV04
+4: CAL02 MOV02
+5: CAL01 MOV01
+6: CAL02 MOV02
+7: CAL01 MOV04
+8: CAL02 MOV08
+# Fase 2 (9-16): empuje, tracción y piernas por separado.
+9: CAL03 MOV03
+10: CAL04 MOV04
+11: CAL02 MOV08
+12: CAL03 MOV03
+13: CAL04 MOV04
+14: CAL03 MOV03
+15: CAL02 MOV08
+16: CAL04 MOV04
+# Fase 3 (17-24): arqueros, inversiones, Skin the cat y pistolero.
+17: CAL05 MOV01
+18: CAL06 MOV08
+19: CAL05 MOV06
+20: CAL05 MOV05
+21: CAL05 MOV06
+22: CAL06 MOV08
+23: CAL05 MOV01
+24: CAL05 MOV05
+# Fase 4 (25-28): circuitos de cuerpo completo.
+25: CAL07 MOV05
+26: CAL07 MOV01
+27: CAL07 MOV02
+28: CAL07 MOV05
+# Fases 5 y 6 (29-40): agarre falso, pino encogido y muscle-up.
+29: CAL08 MOV07
+30: CAL08 MOV05
+31: CAL08 MOV07
+32: CAL08 MOV05
+33: CAL08 MOV07
+34: CAL09 MOV08
+35: CAL08 MOV07
+36: CAL08 MOV05
+37: CAL08 MOV06
+38: CAL09 MOV08
+39: CAL08 MOV07
+40: CAL08 MOV05

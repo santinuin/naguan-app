@@ -1,0 +1,91 @@
+program,position,title
+unbreakable,1,General 1
+unbreakable,2,General 2
+unbreakable,3,General 3
+unbreakable,4,General 4
+unbreakable,5,Flow 1
+unbreakable,6,Metabólica 1
+unbreakable,7,Metabólica 2
+unbreakable,8,Metabólica 3
+unbreakable,9,Metabólica 4
+unbreakable,10,Flow 2
+unbreakable,11,Fuerza 1
+unbreakable,12,Fuerza 2
+unbreakable,13,Fuerza 3
+unbreakable,14,Fuerza 4
+unbreakable,15,Flow 3
+unbreakable,16,Fuerza 5
+unbreakable,17,Fuerza 6
+unbreakable,18,Fuerza 7
+unbreakable,19,Fuerza 8
+unbreakable,20,Flow 4
+unbreakable,21,Potencia 1
+unbreakable,22,Potencia 2
+unbreakable,23,Potencia 3
+unbreakable,24,Potencia 4
+unbreakable,25,Flow 5
+unbreakable,26,Potencia 5
+unbreakable,27,Potencia 6
+unbreakable,28,Potencia 7
+unbreakable,29,Potencia 8
+unbreakable,30,Flow 6
+unbreakable,31,Metabólica 5
+unbreakable,32,Metabólica 6
+unbreakable,33,Metabólica 7
+unbreakable,34,Metabólica 8
+unbreakable,35,Flow 7
+unbreakable,36,Metabólica 9
+unbreakable,37,Metabólica 10
+unbreakable,38,Metabólica 11
+unbreakable,39,Metabólica 12
+unbreakable,40,Flow 8
+unbreakable,41,Fuerza-potencia 1
+unbreakable,42,Fuerza-potencia 2
+unbreakable,43,Fuerza-potencia 3
+unbreakable,44,Fuerza-potencia 4
+unbreakable,45,Flow 9
+unbreakable,46,Fuerza-metabólica 1
+unbreakable,47,Fuerza-metabólica 2
+unbreakable,48,Fuerza-metabólica 3
+unbreakable,49,Fuerza-metabólica 4
+unbreakable,50,Flow 10
+ring-master,1,Fundamentos 1
+ring-master,2,Fundamentos 2
+ring-master,3,Fundamentos 3
+ring-master,4,Fundamentos 4
+ring-master,5,Fundamentos 5
+ring-master,6,Fundamentos 6
+ring-master,7,Fundamentos 7
+ring-master,8,Fundamentos 8
+ring-master,9,Hipertrofia 1
+ring-master,10,Hipertrofia 2
+ring-master,11,Hipertrofia 3
+ring-master,12,Hipertrofia 4
+ring-master,13,Hipertrofia 5
+ring-master,14,Hipertrofia 6
+ring-master,15,Hipertrofia 7
+ring-master,16,Hipertrofia 8
+ring-master,17,Fuerza 1
+ring-master,18,Fuerza 2
+ring-master,19,Fuerza 3
+ring-master,20,Fuerza 4
+ring-master,21,Fuerza 5
+ring-master,22,Fuerza 6
+ring-master,23,Fuerza 7
+ring-master,24,Fuerza 8
+ring-master,25,Resistencia Muscular 1
+ring-master,26,Resistencia Muscular 2
+ring-master,27,Resistencia Muscular 3
+ring-master,28,Resistencia Muscular 4
+ring-master,29,Habilidad & Entrenamiento metabólico 1
+ring-master,30,Habilidad & Entrenamiento metabólico 2
+ring-master,31,Habilidad & Entrenamiento metabólico 3
+ring-master,32,Habilidad & Entrenamiento metabólico 4
+ring-master,33,Transiciones & Fuerza 1
+ring-master,34,Transiciones & Fuerza 2
+ring-master,35,Transiciones & Fuerza 3
+ring-master,36,Transiciones & Fuerza 4
+ring-master,37,Transiciones & Global 1
+ring-master,38,Transiciones & Global 2
+ring-master,39,Transiciones & Global 3
+ring-master,40,Transiciones & Global 4

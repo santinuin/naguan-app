@@ -220,8 +220,9 @@ token verificado, y las rutas del usuario van bajo `/v1/me/...` (no existe un
   o `supabase migration up` (solo las nuevas).
 - El catálogo: `supabase/seed.sql`, generado por `backend/cmd/seed` a partir de los
   Excel (ver `backend/README.md`). No se versiona: tiene contenido de la fuente.
-- El calentamiento y la movilidad de Unbreakable: `supabase/seed_phases.sql`, también
-  generado por `backend/cmd/seed` (comando `phases`) y no versionado. Va aparte porque se
+- El calentamiento y la movilidad de Unbreakable (`supabase/seed_phases.sql`) y de Ring
+  Master (`supabase/seed_phases_ring_master.sql`), también generados por
+  `backend/cmd/seed` (comando `phases`) y no versionados. Va aparte porque se
   aplica **sobre una base que ya tiene el programa** (la de producción): busca sesiones y
   ejercicios por slug en vez de usar IDs fijos, y corre las posiciones de los bloques que
   ya existían (y las de `workout_amrap`, que las referencian) para poner el calentamiento

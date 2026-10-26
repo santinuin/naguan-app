@@ -69,9 +69,9 @@ schema_paths = []
 enabled = true
 # Specifies an ordered list of seed files to load during db reset.
 # Supports glob patterns relative to supabase directory: "./seeds/*.sql"
-# seed_phases.sql (calentamiento y movilidad de Unbreakable) va después:
-# modifica sesiones que carga seed.sql. Ver backend/README.md.
-sql_paths = ["./seed.sql", "./seed_phases.sql"]
+# seed_phases*.sql (calentamiento y movilidad de Unbreakable y Ring Master) van
+# después: modifican sesiones que carga seed.sql. Ver backend/README.md.
+sql_paths = ["./seed.sql", "./seed_phases.sql", "./seed_phases_ring_master.sql"]
 
 [db.network_restrictions]
 # Enable management of network restrictions.
