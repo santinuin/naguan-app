@@ -51,6 +51,9 @@ ejercicios, con `phase` `warmup` o `mobility`. Los nombres de las capturas que n
 coinciden con el catálogo se traducen en `phaseAliases` (la app original decía
 "hombros" donde el índice dice "deltoides"); los que no existen en el índice se crean
 (`phaseNewExercises`, hoy solo «Colgarse»). Un nombre sin resolver corta con error.
+Un bloque de un solo ejercicio con varias vueltas («Colgarse | 20s | x2») lleva un
+Enfriá de 10 s (`PhaseRestS`) entre vuelta y vuelta; lo cargado antes de esa regla lo
+corrige la migración `20261030000000_phase_rests.sql`.
 
 El calentamiento y la movilidad de **Ring Master** también se perdieron con la app
 original, pero no hay capturas: son una reconstrucción propia en

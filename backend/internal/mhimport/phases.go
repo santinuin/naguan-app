@@ -277,12 +277,20 @@ type PhaseBlock struct {
 	Items []PhaseBlockItem
 }
 
+// PhaseBlockItem es un ejercicio o, con Rest, un Enfriá (sin ejercicio ni
+// lado, solo DurationS).
 type PhaseBlockItem struct {
 	Round, Position int
 	ExerciseSlug    string
 	Side            Side
 	DurationS, Reps int
+	Rest            bool
 }
+
+// PhaseRestS es el Enfriá entre dos vueltas de un mismo ejercicio (ver
+// BuildPhases). La migración 20261030000000_phase_rests.sql aplica la misma
+// regla a lo que ya estaba cargado.
+const PhaseRestS = 10
 
 // SessionPhases son los bloques que se agregan a una sesión del programa.
 type SessionPhases struct {
@@ -296,6 +304,13 @@ type SessionPhases struct {
 // como los del entrenamiento: una fila por ejercicio y por vuelta. Un
 // ejercicio unilateral se hace por los dos lados, derecha y después
 // izquierda (como en los programas).
+//
+// Un bloque de un solo ejercicio con varias vueltas («Colgarse | 20s | x2»)
+// lleva un Enfriá de PhaseRestS al final de cada vuelta salvo la última: sin
+// él, la segunda vuelta arrancaría a los 3 s de preparación, que no alcanzan
+// para soltar la barra y volver a agarrarla. Los grupos de varios ejercicios
+// no lo llevan (entre vuelta y vuelta ya se cambia de ejercicio), ni los
+// unilaterales entre un lado y el otro.
 func BuildPhases(plan *PhasePlan, cat *Catalog) ([]SessionPhases, error) {
 	exercises, err := resolvePhaseExercises(plan, cat)
 	if err != nil {
@@ -305,6 +320,7 @@ func BuildPhases(plan *PhasePlan, cat *Catalog) ([]SessionPhases, error) {
 		blocks := make([]PhaseBlock, 0, len(groups))
 		for _, g := range groups {
 			b := PhaseBlock{Phase: phase}
+			restBetween := g.Rounds > 1 && singleExercise(g.Items, exercises)
 			for round := 1; round <= g.Rounds; round++ {
 				pos := 0
 				for _, it := range g.Items {
@@ -320,6 +336,12 @@ func BuildPhases(plan *PhasePlan, cat *Catalog) ([]SessionPhases, error) {
 							DurationS: it.DurationS, Reps: it.Reps,
 						})
 					}
+				}
+				if restBetween && round < g.Rounds {
+					pos++
+					b.Items = append(b.Items, PhaseBlockItem{
+						Round: round, Position: pos, DurationS: PhaseRestS, Rest: true,
+					})
 				}
 			}
 			blocks = append(blocks, b)
@@ -338,4 +360,15 @@ func BuildPhases(plan *PhasePlan, cat *Catalog) ([]SessionPhases, error) {
 		})
 	}
 	return out, nil
+}
+
+// singleExercise dice si todos los ítems de un grupo son el mismo ejercicio
+// del catálogo (por slug: dos nombres pueden llevar al mismo por un alias).
+func singleExercise(items []PhaseItem, exercises map[string]phaseExercise) bool {
+	for _, it := range items[1:] {
+		if exercises[it.Name].slug != exercises[items[0].Name].slug {
+			return false
+		}
+	}
+	return true
 }

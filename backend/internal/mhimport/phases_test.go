@@ -1,6 +1,7 @@
 package mhimport
 
 import (
+	"slices"
 	"strings"
 	"testing"
 )
@@ -51,26 +52,35 @@ func TestBuildPhases(t *testing.T) {
 	if len(w) != 3 || w[0].Phase != PhaseWarmup {
 		t.Fatalf("calentamiento = %+v", w)
 	}
-	if it := w[1].Items; len(it) != 2 || it[0].ExerciseSlug != "superman" || it[1].Round != 2 {
-		t.Errorf("Arch hold x2 = %+v", it)
+	// Un solo ejercicio x2: entre las dos vueltas, un Enfriá.
+	wantArch := []PhaseBlockItem{
+		{Round: 1, Position: 1, ExerciseSlug: "superman", DurationS: 10},
+		{Round: 1, Position: 2, DurationS: PhaseRestS, Rest: true},
+		{Round: 2, Position: 1, ExerciseSlug: "superman", DurationS: 10},
 	}
-	// Grupo x2 con un unilateral: por vuelta, flexión, derecha, izquierda.
+	if got := w[1].Items; !slices.Equal(got, wantArch) {
+		t.Errorf("Arch hold x2 = %+v, want %+v", got, wantArch)
+	}
+	// Grupo x2 con un unilateral: por vuelta, flexión, derecha, izquierda. Son
+	// dos ejercicios: sin Enfriá entre vueltas.
 	want := []PhaseBlockItem{
-		{1, 1, "flexion-escapular", SideNone, 0, 10},
-		{1, 2, "plancha-lateral", SideRight, 30, 0},
-		{1, 3, "plancha-lateral", SideLeft, 30, 0},
-		{2, 1, "flexion-escapular", SideNone, 0, 10},
-		{2, 2, "plancha-lateral", SideRight, 30, 0},
-		{2, 3, "plancha-lateral", SideLeft, 30, 0},
+		{1, 1, "flexion-escapular", SideNone, 0, 10, false},
+		{1, 2, "plancha-lateral", SideRight, 30, 0, false},
+		{1, 3, "plancha-lateral", SideLeft, 30, 0, false},
+		{2, 1, "flexion-escapular", SideNone, 0, 10, false},
+		{2, 2, "plancha-lateral", SideRight, 30, 0, false},
+		{2, 3, "plancha-lateral", SideLeft, 30, 0, false},
 	}
-	if got := w[2].Items; len(got) != len(want) {
-		t.Errorf("grupo = %+v", got)
-	} else {
-		for i := range want {
-			if got[i] != want[i] {
-				t.Errorf("ítem %d = %+v, want %+v", i, got[i], want[i])
-			}
-		}
+	if got := w[2].Items; !slices.Equal(got, want) {
+		t.Errorf("grupo = %+v, want %+v", got, want)
+	}
+	// En el SQL, el Enfriá va sin ejercicio ni lado.
+	var sql strings.Builder
+	if err := RenderPhasesSQL(&sql, "unbreakable", sessions); err != nil {
+		t.Fatal(err)
+	}
+	if row := "(b, 1, 2, 'rest', null, null, 10, null),"; !strings.Contains(sql.String(), row) {
+		t.Errorf("falta el Enfriá %q en el SQL:\n%s", row, sql.String())
 	}
 	// Colgarse no está en el catálogo: es uno de los ejercicios nuevos.
 	if m := sessions[0].Mobility; len(m) != 1 || m[0].Items[0].ExerciseSlug != "colgarse" {

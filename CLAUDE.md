@@ -213,7 +213,8 @@ catálogo, cierre de la API REST de Supabase (RLS + revocar permisos a `anon` y
 `authenticated`: **toda tabla nueva lleva `enable row level security`**) y registro de
 entrenamiento (`workout`, `workout_item`, `program_reset`) e idempotencia + AMRAP
 (`workout.client_id` único por usuario, `workout_amrap`), el ejercicio realmente
-hecho (`workout_item.exercise_id`) y la fase de cada bloque (`block.phase`). Alcance de la app:
+hecho (`workout_item.exercise_id`), la fase de cada bloque (`block.phase`) y el Enfriá de
+10 s entre las vueltas de un mismo ejercicio del calentamiento y la movilidad (`phase_rests`). Alcance de la app:
 calistenia, pero también fuerza con barra (Barra Libre) y movilidad ("flexifuerza").
 
 - **Catálogo:** `exercise` (sin lado; `unilateral` indica que se hace de a un lado),

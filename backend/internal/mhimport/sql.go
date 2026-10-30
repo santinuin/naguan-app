@@ -267,6 +267,10 @@ func (s *sqlWriter) phaseBlock(position string, b PhaseBlock) {
 		if i == len(b.Items)-1 {
 			sep = ";"
 		}
+		if it.Rest {
+			s.printf("    (b, %d, %d, 'rest', null, null, %d, null)%s\n", it.Round, it.Position, it.DurationS, sep)
+			continue
+		}
 		s.printf("    (b, %d, %d, 'exercise', (select id from exercise where slug = %s), %s, %s, %s)%s\n",
 			it.Round, it.Position, str(it.ExerciseSlug), sideSQL(it.Side),
 			optInt(it.DurationS), optInt(it.Reps), sep)

@@ -268,6 +268,17 @@ estaban):
    MOVILIDAD. La versión anterior sigue funcionando (ignora `phase` y muestra los
    bloques nuevos como bloques comunes).
 
+**Corregir contenido ya cargado.** Un seed que ya se aplicó no sirve para corregir:
+la CLI no lo vuelve a correr como un archivo nuevo, y el de fases además aborta si el
+programa ya tiene calentamiento. Una corrección sobre lo que ya está en producción va
+como **migración**: se aplica con `supabase db push`, sin
+`--include-seed`. En el mismo cambio se corrige el importador, para que una base
+nueva salga bien desde el seed (ahí la migración corre antes que los seeds, sobre
+tablas vacías, y no hace nada). La migración solo agrega filas: cambiar o borrar
+ítems rompería las Fraguas templadas que los referencian. Ejemplo:
+`20261030000000_phase_rests.sql` (Enfriá de 10 s entre las vueltas de un mismo
+ejercicio del calentamiento y la movilidad, 2026-10-30).
+
 ## 5. Integración continua
 
 `.github/workflows/ci.yml` corre en cada push a `master` y en cada pull request:
