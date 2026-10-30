@@ -2,6 +2,8 @@ package planimport
 
 import (
 	"bytes"
+	"fmt"
+	"io"
 	"slices"
 	"strings"
 	"testing"
@@ -57,7 +59,7 @@ func testCatalog() *mhimport.Catalog {
 
 func buildFixture(t *testing.T) *Program {
 	t.Helper()
-	plan, err := parsePlan(strings.NewReader(planFixture))
+	plan, err := parsePlan(strings.NewReader(planFixture), nil)
 	if err != nil {
 		t.Fatalf("parsePlan: %v", err)
 	}
@@ -178,14 +180,14 @@ func TestParseErrors(t *testing.T) {
 		"enfriá en reps":        "= 1 | X\nvueltas x2\nEnfriá | 3r\nend",
 	}
 	for name, text := range cases {
-		if _, err := parsePlan(strings.NewReader(text)); err == nil {
+		if _, err := parsePlan(strings.NewReader(text), nil); err == nil {
 			t.Errorf("%s: quería un error", name)
 		}
 	}
 }
 
 func TestBuildUnknownExercise(t *testing.T) {
-	plan, err := parsePlan(strings.NewReader("= 1 | X\nvueltas x1\nFlexión rara | 3r\nend"))
+	plan, err := parsePlan(strings.NewReader("= 1 | X\nvueltas x1\nFlexión rara | 3r\nend"), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -234,7 +236,7 @@ video: Swing a una mano | https://youtu.be/x
 `
 
 func TestBuildSidesAMRAPAndAlternation(t *testing.T) {
-	plan, err := parsePlan(strings.NewReader(kettlebellFixture))
+	plan, err := parsePlan(strings.NewReader(kettlebellFixture), nil)
 	if err != nil {
 		t.Fatalf("parsePlan: %v", err)
 	}
@@ -305,12 +307,78 @@ func TestBuildSideErrors(t *testing.T) {
 		"video de existente": "= 1 | X\nvueltas x1\nFlexión | 3r\nend\nvideo: Flexión | https://youtu.be/x",
 	}
 	for name, text := range cases {
-		plan, err := parsePlan(strings.NewReader(text))
+		plan, err := parsePlan(strings.NewReader(text), nil)
 		if err != nil {
 			t.Fatalf("%s: parsePlan: %v", name, err)
 		}
 		if _, err := Build("x", "X", plan, &CatalogExtras{}, testCatalog()); err == nil {
 			t.Errorf("%s: quería un error", name)
 		}
+	}
+}
+
+func TestIncludeUseApproachAndList(t *testing.T) {
+	files := map[string]string{"comun.txt": "@HIIT\npirámide 3,2\nFlexión\nend\n"}
+	open := func(name string) (io.ReadCloser, error) {
+		text, ok := files[name]
+		if !ok {
+			return nil, fmt.Errorf("no existe %s", name)
+		}
+		return io.NopCloser(strings.NewReader(text)), nil
+	}
+	plan, err := parsePlan(strings.NewReader("incluir comun.txt\n= 1 | A\naproximación corta Sentadilla búlgara\nusar HIIT\n"), open)
+	if err != nil {
+		t.Fatalf("parsePlan: %v", err)
+	}
+	prog, err := Build("x", "X", plan, &CatalogExtras{}, testCatalog())
+	if err != nil {
+		t.Fatalf("Build: %v", err)
+	}
+	blocks := prog.Sessions[0].Blocks
+	if len(blocks) != 2 {
+		t.Fatalf("bloques = %+v", blocks)
+	}
+
+	// Aproximación corta de un unilateral: 5, 3 y 2 por lado, con 30 s y
+	// 60 s entre series y 120 s antes del trabajo.
+	var got []string
+	for _, it := range blocks[0].Items {
+		if it.Rest {
+			got = append(got, fmt.Sprintf("%ds", it.DurationS))
+		} else {
+			got = append(got, fmt.Sprintf("%d%s", it.Reps, it.Side))
+		}
+	}
+	want := []string{"5right", "5left", "30s", "3right", "3left", "60s", "2right", "2left", "120s"}
+	if !slices.Equal(got, want) {
+		t.Errorf("aproximación = %v, quiero %v", got, want)
+	}
+
+	// La plantilla incluida, con su pirámide en lista.
+	if b := blocks[1]; b.Type != "ladder" || len(b.Items) != 2 || b.Items[0].Reps != 3 || b.Items[1].Reps != 2 {
+		t.Errorf("usar HIIT = %+v", b)
+	}
+
+	if _, err := parsePlan(strings.NewReader("= 1 | A\nusar NADA\n"), open); err == nil {
+		t.Error("usar una plantilla que no existe: quería un error")
+	}
+	if _, err := parsePlan(strings.NewReader("incluir otro.txt\n"), open); err == nil {
+		t.Error("incluir un archivo que no existe: quería un error")
+	}
+}
+
+func TestBuildUsesOtherPlansExercises(t *testing.T) {
+	plan, err := parsePlan(strings.NewReader("= 1 | X\nvueltas x1\nSwing | 10r\nend\n"), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	other := &CatalogExtras{Exercises: []mhimport.NewExercise{{Slug: "swing", Name: "Swing"}}}
+	prog, err := Build("x", "X", plan, &CatalogExtras{}, testCatalog(), other)
+	if err != nil {
+		t.Fatalf("Build: %v", err)
+	}
+	// Se usa, pero no se inserta: lo inserta el seed del otro plan.
+	if len(prog.NewExercises) != 0 || prog.Sessions[0].Blocks[0].Items[0].ExerciseSlug != "swing" {
+		t.Errorf("programa = %+v", prog)
 	}
 }

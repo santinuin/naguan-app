@@ -14,7 +14,9 @@ cambiarlo es corregir la transcripción y volver a generar el seed, no tocar el 
 
 ### Rangos de repeticiones
 
-*Desencadenado* («3 tandas de 5-8»), *Guerrera Espartana* y *Barra Libre* (`4x15-20`).
+*Desencadenado* («3 tandas de 5-8»), *Barra Libre* («3x3-5», «4x8-10») y *Guerrera
+Espartana* (`4x15-20`). En Barra Libre el rango es además la regla de progreso:
+mantenés el peso hasta llegar al máximo en todas las series, y entonces lo subís.
 
 - **Hoy:** se carga el máximo del rango (5-8 → 8). Es la meta: si no llegás, bajás las
   reps antes de empezar o durante la Fragua. Los Mojones salen de lo que registrás, así
@@ -25,9 +27,10 @@ cambiarlo es corregir la transcripción y volver a generar el seed, no tocar el 
 ### Máximo posible (mrp / mtp)
 
 *Desencadenado*, semana 9: «máximas repeticiones posibles» y «máximo tiempo posible».
+*Barra Libre*: dominadas y fondos «3xF» (al fallo) en todas las fases.
 
-- **Hoy:** un valor de referencia (por ejemplo 15 reps o 60 s), y se registra lo que
-  hiciste de verdad.
+- **Hoy:** un valor de referencia (por ejemplo 15 reps o 60 s; 8 o 10 en los «al
+  fallo» de Barra Libre), y se registra lo que hiciste de verdad.
 - **Haría falta:** una medida "abierta": el ítem dice si va por reps o por tiempo, pero
   sin objetivo. La app cuenta hacia arriba (cronómetro, no cuenta regresiva) y pide el
   número al terminar. Hoy el `check` de `block_item` exige que haya exactamente uno de
@@ -35,14 +38,36 @@ cambiarlo es corregir la transcripción y volver a generar el seed, no tocar el 
 
 ### Cargas
 
-*Barra Libre* (porcentaje del 1RM), *Efecto Kettlebell* (kilos), *Desencadenado*
-(«sentadillas búlgaras con peso», «si podés más de 8, sumá una mochila»).
+*Barra Libre* (todo gira alrededor del peso), *Efecto Kettlebell* (kilos),
+*Desencadenado* («sentadillas búlgaras con peso», «si podés más de 8, sumá una
+mochila»).
 
-- **Hoy:** el ejercicio "con peso" del catálogo (Desencadenado) o el de
-  kettlebell (Efecto Kettlebell); la carga no se guarda: la descripción del
-  programa pide anotarla aparte. Barra Libre todavía no está cargado.
+- **Hoy:** el ejercicio "con peso" del catálogo (Desencadenado), el de kettlebell
+  (Efecto Kettlebell) o el de barra (Barra Libre); la carga no se guarda: la
+  descripción del programa pide anotarla aparte. Los Mojones de Barra Libre no dicen
+  nada (siempre son 5 reps; lo que mejora es el peso).
 - **Haría falta:** `load_kg` (o `% 1RM`) en `block_item` y en `workout_item`, el 1RM
   del usuario por ejercicio y Mojones que comparen carga además de reps.
+
+### Progresión de carga y porcentajes
+
+*Barra Libre* receta la carga, no solo las reps:
+
+- **Progresión lineal** (Fase I): el peso sube en cada sesión (5 kg en sentadilla y
+  peso muerto, 2,5 kg en los press, la mitad el segundo mes); si no completás las
+  series, se repite; tres sesiones sin subir, se baja un 10 %.
+- **Porcentajes** de una marca: método Texas al 90 % del 5RM, recuperación al 80 %
+  del peso del lunes, complejos al 65-70 % del 1RM, densidad al 70-75 %.
+- **Series de aproximación**: barra vacía, 40-50 %, 60 % y 80-85 % del peso de
+  trabajo de ese día.
+- **Marcas que rotan**: los viernes del método Texas buscan 1RM, 2RM y 3RM por turno.
+
+- **Hoy:** el plan de reps y descansos se carga entero (incluidas las series de
+  aproximación como pasos); los porcentajes y la regla de progreso van en la
+  descripción. Calcular el peso queda del lado del usuario.
+- **Haría falta:** después de las cargas, una regla de progresión por ejercicio
+  (incremento por sesión o por semana, cuándo repetir o bajar) y cargas relativas
+  (`% de` una marca o del peso de otra serie) que la app resuelva con el historial.
 
 ## Cómo se arma un bloque
 
@@ -64,7 +89,8 @@ pirámide de swings y thrusters de 5 minutos, que sube de a dos.
 ### Ejercicios opcionales
 
 *Desencadenado*: cada sesión termina con un «ejercicio extra», que se hace solo si te
-quedan fuerzas.
+quedan fuerzas. *Barra Libre*: el extra (fase II) u opcional (fase III), «si
+terminaste en menos de 45 minutos».
 
 - **Hoy:** es el último bloque de la Fragua. Si no lo hacés, salteás sus pasos uno por
   uno.
@@ -79,6 +105,10 @@ Dips, extensiones de tríceps contra la pared», y la semana 10 da otra versión
 
 - **Hoy:** se carga una sola opción (la principal del libro). El editor de la Fragua solo
   ofrece progresiones (más fácil / más difícil), no alternativas del mismo nivel.
+  *Barra Libre*: «sin kettlebells, rotá solo los HIIT de calistenia» (los HIIT 3 y 4
+  se cargan igual, con la indicación en la descripción), «roll-out con barra o con
+  rueda», «swing o levantamiento de piernas», y el orden de los press, que se puede
+  alternar entre sesiones.
 - **Haría falta:** una relación de alternativas entre ejercicios (por equipamiento), o
   sesiones con variantes.
 
@@ -90,6 +120,9 @@ ejercicios cambian si tenés una o dos kettlebells.
 
 - **Hoy:** se carga el intermedio con una kettlebell; lo básico y lo avanzado va en
   la descripción de cada sesión.
+
+  *Barra Libre*: la Fase I tiene una versión entera para intermedios (método Texas).
+  Hoy es otra Senda («Barra Libre I: Fuerza (intermedio)»).
 - **Haría falta:** variantes de una sesión (o de un bloque) por nivel, elegibles antes
   de empezar.
 
@@ -140,7 +173,8 @@ burpees de los 4 minutos».
 ### Mojón de una sesión entera
 
 *Desencadenado*, semana 10 (HIIT): «anotá el tiempo que tardás en completar las 2 rondas,
-es tu tiempo a batir».
+es tu tiempo a batir». *Barra Libre*: el tiempo de cada HIIT, y el total de reps de
+cada bloque de densidad (fase IV), que es la regla para subir el peso.
 
 - **Hoy:** la duración de la Fragua queda en el historial, pero no es un Mojón.
 - **Haría falta:** Mojones por sesión (menor tiempo), además de los Mojones por
@@ -157,3 +191,27 @@ es tu tiempo a batir».
   sesión.
 - **Haría falta:** nada, por ahora. Solo molestaría si se edita una copia y no la otra,
   y como el importador las genera desde la misma transcripción, no pasa.
+
+### Fases de duración variable
+
+*Barra Libre* tiene 4 fases que duran lo que necesites: las dos primeras, de 2 a 4
+meses (hasta que te estancás); la tercera, alrededor de un mes. Se encadenan: se pasa a
+la siguiente al estancarse.
+
+- **Hoy:** una Senda por fase (y otra para la Fase I de intermedios), con un ciclo base
+  (8, 6, 4 y 4 semanas). Para alargar una fase, se resetea la Senda. Nada une las
+  cinco Sendas como un solo programa.
+- **Haría falta:** un programa con fases (cada una con su ciclo y un "repetir hasta"),
+  o al menos agrupar Sendas.
+
+### Sesiones que arma el usuario
+
+*Barra Libre*, Fase IV: después de la parte común, 2 o 3 ejercicios para una de tus
+dos «zonas retrasadas», que elegís según tus medidas (el libro calcula las
+proporciones). *Barra Libre* también tiene semanas de descarga (el mismo programa al
+60 % del peso).
+
+- **Hoy:** solo la parte común; las zonas retrasadas van como indicación en la
+  descripción, y se hacen por fuera de la Fragua. Las descargas no se cargan.
+- **Haría falta:** que el usuario pueda sumar bloques propios a una Fragua (y que
+  queden para las siguientes), o armar sesiones desde cero.

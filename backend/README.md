@@ -104,20 +104,31 @@ en su lugar. El formato está explicado en `internal/planimport/plan.go`:
   la línea termine en `| der`, `| izq` o `| alternando` (un solo paso sin lado).
 - `video: Nombre | url` da el video de un ejercicio nuevo del plan (va en la
   transcripción, no versionada, porque los links son de la fuente).
+- `aproximación [corta] Ejercicio`: las series de aproximación antes de las de trabajo
+  (5-5-5-3-2, o 5-3-2), con sus Enfriá. `pirámide 15,9,6`: las reps de cada vuelta.
+- `incluir otro.txt` trae las plantillas y los videos de otro archivo (las cinco Sendas
+  de Barra Libre comparten `barra_libre_comun.txt`), y `usar NOMBRE` mete los bloques
+  de una plantilla en el entrenamiento de una sesión (los HIIT, los complejos).
 - `>` agrega texto a la descripción del programa o de la sesión (Markdown).
 
 Cada plan tiene dos archivos (ver `plans` en `cmd/seed/main.go`):
 
 - **La transcripción**, en `docs/source/` (no versionada: es contenido del libro).
-  Hoy: `Programas/Desencadenado /desencadenado.txt` y
-  `Programas/Efecto Kettlebell/efecto_kettlebell.txt`. Su encabezado anota las
+  Hoy: `Programas/Desencadenado /desencadenado.txt`,
+  `Programas/Efecto Kettlebell/efecto_kettlebell.txt` y `Programas/Barra Libre/`
+  (`barra_libre_1.txt`, `_1_intermedio`, `_2`, `_3`, `_4` y el común). Su encabezado anota las
   decisiones de carga (rangos, pirámides, niveles), que siguen a
   `/docs/limitaciones-del-modelo.md`.
 - **Lo que suma al catálogo**, en `seed/<programa>_catalogo.txt` (versionado: el
   texto es propio): ejercicios que el índice no tiene (`+ Nombre | MET [| unilateral]`
   y su descripción) y cadenas de progresión (`progresión: A > B > C`, los niveles
   del libro). Desencadenado suma 26 ejercicios, sin video; Efecto Kettlebell, 22
-  movimientos con kettlebell, 15 de ellos con el video del libro.
+  movimientos con kettlebell, 15 de ellos con el video del libro; Barra Libre, 17
+  movimientos con barra (11 con video), en un archivo que comparten sus cinco Sendas.
+
+Un plan puede usar los ejercicios nuevos de otro (los HIIT de Barra Libre usan los
+swings de Efecto Kettlebell): los conoce, pero no los inserta, así que su seed va
+después en `sql_paths` (y en producción, se aplica después).
 
 Los nombres se resuelven contra el catálogo de `mhimport` (más «Colgarse», que crea
 el seed de fases, y los ejercicios nuevos del plan); uno que no existe corta con

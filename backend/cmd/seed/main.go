@@ -259,6 +259,39 @@ var plans = []planSource{
 		"seed/efecto_kettlebell_catalogo.txt",
 		"seed_efecto_kettlebell.sql",
 	},
+	// Barra Libre: una Senda por fase (más la Fase I para intermedios), con
+	// un catálogo propio compartido. Usa ejercicios de Efecto Kettlebell
+	// (sus HIIT), así que sus seeds van después.
+	{
+		"barra-libre-1", "Barra Libre I: Fuerza",
+		"{source}/Programas/Barra Libre/barra_libre_1.txt",
+		"seed/barra_libre_catalogo.txt",
+		"seed_barra_libre_1.sql",
+	},
+	{
+		"barra-libre-1-intermedio", "Barra Libre I: Fuerza (intermedio)",
+		"{source}/Programas/Barra Libre/barra_libre_1_intermedio.txt",
+		"seed/barra_libre_catalogo.txt",
+		"seed_barra_libre_1_intermedio.sql",
+	},
+	{
+		"barra-libre-2", "Barra Libre II: Hipertrofia",
+		"{source}/Programas/Barra Libre/barra_libre_2.txt",
+		"seed/barra_libre_catalogo.txt",
+		"seed_barra_libre_2.sql",
+	},
+	{
+		"barra-libre-3", "Barra Libre III: Definición máxima",
+		"{source}/Programas/Barra Libre/barra_libre_3.txt",
+		"seed/barra_libre_catalogo.txt",
+		"seed_barra_libre_3.sql",
+	},
+	{
+		"barra-libre-4", "Barra Libre IV: Ajustes",
+		"{source}/Programas/Barra Libre/barra_libre_4.txt",
+		"seed/barra_libre_catalogo.txt",
+		"seed_barra_libre_4.sql",
+	},
 }
 
 // runPlans genera el SQL de cada programa de plans, o solo de los que se
@@ -297,26 +330,43 @@ func runPlans(source, namesPath, outDir string, only []string) error {
 	if err != nil {
 		return err
 	}
+	// Los ejercicios nuevos de cada plan, por archivo: varios programas
+	// pueden compartir uno (las fases de Barra Libre), y cada plan puede usar
+	// los de los demás (ver planimport.Build).
+	extras := map[string]*planimport.CatalogExtras{}
+	for _, p := range plans {
+		if _, ok := extras[p.extras]; ok {
+			continue
+		}
+		ex, err := planimport.ReadCatalogExtras(p.extras)
+		if err != nil {
+			return fmt.Errorf("%s: %w", p.extras, err)
+		}
+		extras[p.extras] = ex
+	}
 	var errs []error
 	for _, p := range selected {
-		if err := writePlan(cat, p.slug, p.name, strings.Replace(p.plan, "{source}", source, 1),
-			p.extras, filepath.Join(outDir, p.out)); err != nil {
+		var others []*planimport.CatalogExtras
+		for path, ex := range extras {
+			if path != p.extras {
+				others = append(others, ex)
+			}
+		}
+		if err := writePlan(cat, p, strings.Replace(p.plan, "{source}", source, 1),
+			extras[p.extras], others, filepath.Join(outDir, p.out)); err != nil {
 			errs = append(errs, fmt.Errorf("%s: %w", p.slug, err))
 		}
 	}
 	return errors.Join(errs...)
 }
 
-func writePlan(cat *mhimport.Catalog, slug, name, planPath, extrasPath, outPath string) error {
+func writePlan(cat *mhimport.Catalog, p planSource, planPath string, extras *planimport.CatalogExtras,
+	others []*planimport.CatalogExtras, outPath string) error {
 	plan, err := planimport.ReadPlan(planPath)
 	if err != nil {
 		return err
 	}
-	extras, err := planimport.ReadCatalogExtras(extrasPath)
-	if err != nil {
-		return err
-	}
-	prog, err := planimport.Build(slug, name, plan, extras, cat)
+	prog, err := planimport.Build(p.slug, p.name, plan, extras, cat, others...)
 	if err != nil {
 		return err
 	}

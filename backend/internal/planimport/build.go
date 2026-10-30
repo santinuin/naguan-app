@@ -57,13 +57,22 @@ type exerciseInfo struct {
 // Build arma el programa: resuelve cada nombre contra el catálogo (más los
 // ejercicios nuevos del plan) y despliega los bloques. Junta todos los
 // nombres que no encuentra antes de cortar.
-func Build(slug, name string, plan *Plan, extras *CatalogExtras, cat *mhimport.Catalog) (*Program, error) {
+//
+// others son los ejercicios nuevos de otros planes: se pueden usar (Barra
+// Libre usa los swings de Efecto Kettlebell), pero no se insertan, así que
+// el seed de esos planes tiene que cargarse antes.
+func Build(slug, name string, plan *Plan, extras *CatalogExtras, cat *mhimport.Catalog, others ...*CatalogExtras) (*Program, error) {
 	known := map[string]exerciseInfo{}
 	for _, e := range cat.Exercises {
 		known[e.Slug] = exerciseInfo{e.Slug, e.Unilateral}
 	}
 	for _, e := range mhimport.PhaseNewExercises {
 		known[e.Slug] = exerciseInfo{slug: e.Slug}
+	}
+	for _, o := range others {
+		for _, e := range o.Exercises {
+			known[e.Slug] = exerciseInfo{e.Slug, o.Unilateral[e.Slug]}
+		}
 	}
 	for _, e := range extras.Exercises {
 		if _, dup := known[e.Slug]; dup {

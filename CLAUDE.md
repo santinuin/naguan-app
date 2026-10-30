@@ -104,8 +104,8 @@ a la hora de asistir en el desarrollo:
      desde el inicio). Pendiente: el detalle de una Fragua templada (qué se hizo en cada
      ejercicio), que pide un `GET /v1/me/workouts/{id}`.
   5. Datos: programas nuevos, en este orden de prioridad: ~~Desencadenado~~ y
-     ~~Efecto Kettlebell~~ (cargados en local el 2026-10-30; falta
-     `supabase db push --include-seed` en producción) y Barra Libre. Se cargan con el modelo actual (las decisiones y
+     ~~Efecto Kettlebell~~ (en producción) y ~~Barra Libre~~ (cinco Sendas, una por
+     fase más la Fase I para intermedios; en producción desde el 2026-10-30). Se cargan con el modelo actual (las decisiones y
      lo que queda pendiente para después: `docs/limitaciones-del-modelo.md`). Elite,
      Primal y Aurum tienen prioridad baja (no se usan): sus nombres de sesión y su
      calentamiento y estiramiento quedan para más adelante.
