@@ -53,8 +53,8 @@ func RenderSQL(out io.Writer, p *Program) error {
 	w.printf("\ndo $$\ndeclare\n  p bigint; -- programa\n  s bigint; -- sesión\n  b bigint; -- bloque\nbegin\n")
 	w.printf("  if exists (select 1 from program where slug = %s) then\n", str(p.Slug))
 	w.printf("    raise exception '%s ya está cargado';\n  end if;\n", p.Slug)
-	w.printf("  insert into program (slug, name, description)\n    values (%s, %s, %s) returning id into p;\n",
-		str(p.Slug), str(p.Name), nullStr(p.Description))
+	w.printf("  insert into program (slug, name, description, position)\n    values (%s, %s, %s, %s) returning id into p;\n",
+		str(p.Slug), str(p.Name), nullStr(p.Description), optInt(p.Position))
 
 	for i, s := range p.Sessions {
 		w.printf("\n  -- Sesión %d: %s\n", i+1, s.Title)

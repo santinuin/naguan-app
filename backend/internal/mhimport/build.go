@@ -232,6 +232,7 @@ type Program struct {
 	ID       int64
 	Slug     string
 	Name     string
+	Position int        // orden en la app (0 = sin posición: al final)
 	Sessions []*Session // la posición en el programa es el índice + 1
 }
 

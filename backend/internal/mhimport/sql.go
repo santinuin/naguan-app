@@ -65,7 +65,11 @@ func RenderSQL(out io.Writer, cat *Catalog, programs []*Program) error {
 	var pRows, sRows, psRows, bRows, iRows [][]string
 	var blockID, itemID int64
 	for _, p := range programs {
-		pRows = append(pRows, []string{num(p.ID), str(p.Slug), str(p.Name), "null"})
+		position := "null"
+		if p.Position > 0 {
+			position = strconv.Itoa(p.Position)
+		}
+		pRows = append(pRows, []string{num(p.ID), str(p.Slug), str(p.Name), "null", position})
 		for i, s := range p.Sessions {
 			sRows = append(sRows, []string{num(s.ID), str(s.Title), nullStr(s.Description)})
 			psRows = append(psRows, []string{num(p.ID), strconv.Itoa(i + 1), num(s.ID)})
@@ -83,7 +87,7 @@ func RenderSQL(out io.Writer, cat *Catalog, programs []*Program) error {
 			}
 		}
 	}
-	w.insert("program", []string{"id", "slug", "name", "description"}, pRows)
+	w.insert("program", []string{"id", "slug", "name", "description", "position"}, pRows)
 	w.insert("session", []string{"id", "title", "description"}, sRows)
 	w.insert("program_session", []string{"program_id", "position", "session_id"}, psRows)
 	w.insert("block", []string{"id", "session_id", "position", "type", "time_cap_s"}, bRows)

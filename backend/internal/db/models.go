@@ -297,6 +297,7 @@ type Program struct {
 	Slug        string
 	Name        string
 	Description *string
+	Position    *int16
 }
 
 type ProgramReset struct {

@@ -207,6 +207,7 @@ func TestRenderSQL(t *testing.T) {
 		"values ('flexion-a-una-mano', 'Flexión a una mano', true,",
 		"  ((select id from exercise where slug = 'flexion'), (select id from exercise where slug = 'flexion-a-una-mano'))\n  on conflict do nothing;",
 		"raise exception 'prueba ya está cargado'",
+		"insert into program (slug, name, description, position)\n    values ('prueba', 'Prueba', 'Programa de prueba.', null)",
 		"insert into program_session (program_id, position, session_id) values (p, 3, s);",
 		"values (s, 2, 'ladder', 'main', null) returning id into b;",
 		"(b, 1, 1, 'exercise', (select id from exercise where slug = 'sentadilla-bulgara'), 'right', null, 1),",

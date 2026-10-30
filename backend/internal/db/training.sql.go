@@ -284,7 +284,7 @@ left join lateral (
   limit 1
 ) nxt on true
 where ($2::text is null or p.slug = $2)
-order by p.id
+order by p.position nulls last, p.id
 `
 
 type ListProgramProgressParams struct {

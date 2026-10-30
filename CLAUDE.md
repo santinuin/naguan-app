@@ -230,6 +230,9 @@ calistenia, pero también fuerza con barra (Barra Libre) y movilidad ("flexifuer
 - **Catálogo:** `exercise` (sin lado; `unilateral` indica que se hace de a un lado),
   `exercise_video` (uno, o uno por lado), `exercise_progression` (grafo más fácil → más
   difícil), `muscle`/`joint` con sus tablas de unión.
+- **Orden de las Sendas:** `program.position` (no el id), escrito por los importadores
+  desde `programOrder` en `backend/cmd/seed`; reordenar pide además una migración.
+  Elite, Primal y Aurum van al final.
 - **Sesiones:** `session` es una entidad propia (`kind`: workout, warmup, mobility,
   cooldown) para poder usarla suelta (p. ej. solo un calentamiento) o en varios programas;
   `program_session` da el orden dentro de un `program`.

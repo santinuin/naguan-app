@@ -6,13 +6,14 @@
 -- argumentos de la función, con el tipo de la columna con la que se comparan.
 
 -- name: ListPrograms :many
--- Todos los programas, con la cantidad de sesiones de cada uno.
+-- Todos los programas, con la cantidad de sesiones de cada uno, en el orden
+-- de la app (los que no tienen posición, al final).
 select p.id, p.slug, p.name, p.description,
        count(ps.session_id) as session_count
 from program p
 left join program_session ps on ps.program_id = p.id
 group by p.id
-order by p.id;
+order by p.position nulls last, p.id;
 
 -- name: GetProgramBySlug :one
 select id, slug, name, description

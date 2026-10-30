@@ -26,6 +26,32 @@ import (
 	"github.com/santinuin/naguan-app/backend/internal/planimport"
 )
 
+// programOrder es el orden de las Sendas en la app (program.position): la
+// primera es la 1. Un programa que no está acá queda sin posición, al final.
+// Para reordenar una base que ya existe hace falta además una migración
+// (ver supabase/migrations/20261030100000_program_position.sql).
+var programOrder = []string{
+	"unbreakable",
+	"ring-master",
+	"desencadenado",
+	"efecto-kettlebell",
+	"barra-libre-1",
+	"barra-libre-1-intermedio",
+	"barra-libre-2",
+	"barra-libre-3",
+	"barra-libre-4",
+	// Los de prioridad baja, al final.
+	"elite",
+	"primal",
+	"aurum",
+}
+
+// programPosition es la posición de un programa en programOrder (0 si no
+// está).
+func programPosition(slug string) int {
+	return slices.Index(programOrder, slug) + 1
+}
+
 // programs son los programas del nivel A, en el orden en que se cargan.
 var programs = []struct{ file, slug, name string }{
 	{"Programas/Unbreakable/Unbreakable.xlsx", "unbreakable", "Unbreakable"},
@@ -123,7 +149,7 @@ func runSQL(source, namesPath, titlesPath, outPath string) error {
 			errs = append(errs, fmt.Errorf("%s: %w", p.name, err))
 			continue
 		}
-		prog := &mhimport.Program{ID: int64(i + 1), Slug: p.slug, Name: p.name}
+		prog := &mhimport.Program{ID: int64(i + 1), Slug: p.slug, Name: p.name, Position: programPosition(p.slug)}
 		for _, src := range srcs {
 			s, err := mhimport.BuildSession(src, cat)
 			if err != nil {
@@ -370,6 +396,7 @@ func writePlan(cat *mhimport.Catalog, p planSource, planPath string, extras *pla
 	if err != nil {
 		return err
 	}
+	prog.Position = programPosition(p.slug)
 
 	f, err := os.Create(outPath)
 	if err != nil {

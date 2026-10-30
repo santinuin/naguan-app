@@ -42,7 +42,7 @@ left join lateral (
   limit 1
 ) nxt on true
 where (sqlc.narg(slug)::text is null or p.slug = sqlc.narg(slug))
-order by p.id;
+order by p.position nulls last, p.id;
 
 -- name: ListCompletedSessions :many
 -- Los ids de las Fraguas con check de una Senda.

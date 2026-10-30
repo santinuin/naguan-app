@@ -51,6 +51,12 @@ exercise ──< exercise_video                      │           │  (Fragua 
 - **La sesión es independiente del programa.** `program_session` dice en qué posición
   aparece cada sesión en cada programa. Así una sesión (por ejemplo, un calentamiento) se
   puede usar suelta o en varios programas.
+- **`program.position` es el orden de las Sendas en la app** (única; los programas sin
+  posición van al final, `nulls last`). No es el id: el id es el orden en que se
+  cargaron, y los programas que menos se usan (Elite, Primal, Aurum) se cargaron
+  primero. Los importadores la escriben desde `programOrder` (`backend/cmd/seed`);
+  para reordenar una base que ya existe, una migración
+  (`20261030100000_program_position.sql`).
 - **`block_item` está desplegado**: una fila por ejercicio **y por vuelta**, en orden de
   ejecución. Guardar "plantilla × N vueltas" no alcanza: hay escaleras (reps que bajan
   vuelta a vuelta) y descansos distintos en la última vuelta. Desplegado, ejecutar una

@@ -15,6 +15,7 @@ import (
 // existe (la de producción), donde los IDs los pone la base.
 type Program struct {
 	Slug, Name, Description string
+	Position                int // orden en la app (0 = sin posición: al final)
 	NewExercises            []mhimport.NewExercise
 	Unilateral              map[string]bool // de los ejercicios nuevos
 	Progressions            [][2]string     // pares (más fácil, más difícil) por slug

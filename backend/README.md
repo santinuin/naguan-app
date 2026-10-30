@@ -84,6 +84,14 @@ posición, se puede correr las veces que haga falta) para pegar en el editor SQL
 Supabase. No es un archivo de seed: la CLI no vuelve a correr un seed ya aplicado que
 cambió, solo le actualiza el hash.
 
+### Orden de las Sendas (`programOrder`)
+
+`programOrder` (en `cmd/seed/main.go`) es el orden en que la app muestra las Sendas:
+`sql` y `plans` escriben esa posición en `program.position`. Un programa que no está
+en la lista queda sin posición, al final. Reordenar es editar la lista **y** sumar una
+migración que actualice la base que ya existe (los seeds no se vuelven a aplicar en
+producción); ver `20261030100000_program_position.sql`.
+
 ### Programas transcriptos a mano (`plans`)
 
 Los planes de Fitness Revolucionario vienen en PDF: no hay un Excel con una fila

@@ -44,9 +44,16 @@ from program
 where slug = $1
 `
 
-func (q *Queries) GetProgramBySlug(ctx context.Context, slug string) (Program, error) {
+type GetProgramBySlugRow struct {
+	ID          int64
+	Slug        string
+	Name        string
+	Description *string
+}
+
+func (q *Queries) GetProgramBySlug(ctx context.Context, slug string) (GetProgramBySlugRow, error) {
 	row := q.db.QueryRow(ctx, getProgramBySlug, slug)
-	var i Program
+	var i GetProgramBySlugRow
 	err := row.Scan(
 		&i.ID,
 		&i.Slug,
@@ -265,7 +272,7 @@ select p.id, p.slug, p.name, p.description,
 from program p
 left join program_session ps on ps.program_id = p.id
 group by p.id
-order by p.id
+order by p.position nulls last, p.id
 `
 
 type ListProgramsRow struct {
@@ -282,7 +289,8 @@ type ListProgramsRow struct {
 // para generar una función Go: :one devuelve una fila (o pgx.ErrNoRows si no hay),
 // :many devuelve un slice. Los parámetros posicionales ($1, $2...) pasan a ser
 // argumentos de la función, con el tipo de la columna con la que se comparan.
-// Todos los programas, con la cantidad de sesiones de cada uno.
+// Todos los programas, con la cantidad de sesiones de cada uno, en el orden
+// de la app (los que no tienen posición, al final).
 func (q *Queries) ListPrograms(ctx context.Context) ([]ListProgramsRow, error) {
 	rows, err := q.db.Query(ctx, listPrograms)
 	if err != nil {
