@@ -73,7 +73,7 @@ enabled = true
 # después: modifican sesiones que carga seed.sql. Después, los programas
 # transcriptos a mano (seed_<programa>.sql), que usan ejercicios de los
 # anteriores. Ver backend/README.md.
-sql_paths = ["./seed.sql", "./seed_phases.sql", "./seed_phases_ring_master.sql", "./seed_desencadenado.sql"]
+sql_paths = ["./seed.sql", "./seed_phases.sql", "./seed_phases_ring_master.sql", "./seed_desencadenado.sql", "./seed_efecto_kettlebell.sql"]
 
 [db.network_restrictions]
 # Enable management of network restrictions.

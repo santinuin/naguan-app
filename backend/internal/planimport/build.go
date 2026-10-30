@@ -18,6 +18,7 @@ type Program struct {
 	NewExercises            []mhimport.NewExercise
 	Unilateral              map[string]bool // de los ejercicios nuevos
 	Progressions            [][2]string     // pares (más fácil, más difícil) por slug
+	Videos                  [][2]string     // (slug, url) de ejercicios nuevos
 	Sessions                []Session       // en orden de posición
 }
 
@@ -27,11 +28,12 @@ type Session struct {
 }
 
 // Block es un bloque desplegado. Type es el block_type de la base y Phase
-// el block_phase (warmup, main o mobility).
+// el block_phase (warmup, main o mobility). TimeCapS, solo en un amrap.
 type Block struct {
-	Type  string
-	Phase mhimport.Phase
-	Items []Item
+	Type     string
+	Phase    mhimport.Phase
+	TimeCapS int
+	Items    []Item
 }
 
 // Item es una fila de block_item: un ejercicio o, con Rest, un Enfriá (sin
@@ -70,8 +72,10 @@ func Build(slug, name string, plan *Plan, extras *CatalogExtras, cat *mhimport.C
 		known[e.Slug] = exerciseInfo{e.Slug, extras.Unilateral[e.Slug]}
 	}
 
-	// missing junta los nombres sin resolver (sin repetir).
+	// missing junta los nombres sin resolver (sin repetir); bad, los demás
+	// errores de armado (un lado en un ejercicio que no tiene lados...).
 	missing := map[string]bool{}
+	var bad []error
 	resolve := func(name string) exerciseInfo {
 		info, ok := known[mhimport.Slug(name)]
 		if !ok {
@@ -91,10 +95,26 @@ func Build(slug, name string, plan *Plan, extras *CatalogExtras, cat *mhimport.C
 		}
 	}
 
+	isNew := map[string]bool{}
+	for _, e := range extras.Exercises {
+		isNew[e.Slug] = true
+	}
+	for _, v := range plan.Videos {
+		slug := resolve(v.Name).slug
+		if slug != "" && !isNew[slug] {
+			bad = append(bad, fmt.Errorf("video de %q: solo los ejercicios nuevos llevan video del plan", v.Name))
+		}
+		prog.Videos = append(prog.Videos, [2]string{slug, v.URL})
+	}
+
 	expand := func(phase mhimport.Phase, specs []BlockSpec) []Block {
 		blocks := make([]Block, 0, len(specs))
 		for _, spec := range specs {
-			blocks = append(blocks, expandBlock(phase, spec, resolve))
+			bs, err := expandBlock(phase, spec, resolve)
+			if err != nil {
+				bad = append(bad, err)
+			}
+			blocks = append(blocks, bs...)
 		}
 		return blocks
 	}
@@ -107,20 +127,23 @@ func Build(slug, name string, plan *Plan, extras *CatalogExtras, cat *mhimport.C
 		prog.Sessions = append(prog.Sessions, Session{Title: s.Title, Description: s.Description, Blocks: blocks})
 	}
 
-	if len(missing) > 0 {
-		var errs []error
-		for _, name := range slices.Sorted(maps.Keys(missing)) {
-			errs = append(errs, fmt.Errorf("%q no está en el catálogo ni entre los ejercicios nuevos", name))
-		}
+	errs := bad
+	for _, name := range slices.Sorted(maps.Keys(missing)) {
+		errs = append(errs, fmt.Errorf("%q no está en el catálogo ni entre los ejercicios nuevos", name))
+	}
+	if len(errs) > 0 {
 		return nil, errors.Join(errs...)
 	}
 	return prog, nil
 }
 
 // expandBlock despliega un bloque: una fila por ejercicio, por lado y por
-// vuelta, con los Enfriá que pide la transcripción.
-func expandBlock(phase mhimport.Phase, spec BlockSpec, resolve func(string) exerciseInfo) Block {
-	b := Block{Type: blockType(spec), Phase: phase}
+// vuelta, con los Enfriá que pide la transcripción. Devuelve más de un
+// bloque solo en un AMRAP con "después": el Enfriá va en un bloque propio,
+// porque los ítems del AMRAP son la vuelta que se repite.
+func expandBlock(phase mhimport.Phase, spec BlockSpec, resolve func(string) exerciseInfo) ([]Block, error) {
+	b := Block{Type: blockType(spec), Phase: phase, TimeCapS: spec.TimeCapS}
+	var errs []error
 	for round := 1; round <= spec.Rounds; round++ {
 		pos := 0
 		add := func(it Item) {
@@ -128,7 +151,12 @@ func expandBlock(phase mhimport.Phase, spec BlockSpec, resolve func(string) exer
 			it.Round, it.Position = round, pos
 			b.Items = append(b.Items, it)
 		}
-		for _, it := range spec.Items {
+		items := spec.Items
+		if spec.Alternate {
+			// Un ejercicio por vuelta, rotando por la lista.
+			items = []ItemSpec{spec.Items[(round-1)%len(spec.Items)]}
+		}
+		for _, it := range items {
 			if it.Rest {
 				add(Item{Rest: true, DurationS: it.DurationS})
 				continue
@@ -141,9 +169,17 @@ func expandBlock(phase mhimport.Phase, spec BlockSpec, resolve func(string) exer
 				dur = spec.WorkS
 			}
 			ex := resolve(it.Name)
-			sides := []mhimport.Side{mhimport.SideNone}
-			if ex.unilateral {
+			var sides []mhimport.Side
+			switch {
+			case (it.Side != mhimport.SideNone || it.Alternating) && ex.slug != "" && !ex.unilateral:
+				errs = append(errs, fmt.Errorf("%q no es unilateral: no lleva lado ni alternando", it.Name))
+				sides = []mhimport.Side{mhimport.SideNone}
+			case it.Side != mhimport.SideNone:
+				sides = []mhimport.Side{it.Side}
+			case ex.unilateral && !it.Alternating:
 				sides = []mhimport.Side{mhimport.SideRight, mhimport.SideLeft}
+			default:
+				sides = []mhimport.Side{mhimport.SideNone}
 			}
 			for _, side := range sides {
 				add(Item{ExerciseSlug: ex.slug, Side: side, Reps: reps, DurationS: dur})
@@ -157,11 +193,17 @@ func expandBlock(phase mhimport.Phase, spec BlockSpec, resolve func(string) exer
 			add(Item{Rest: true, DurationS: spec.RestS})
 		case spec.BetweenS > 0 && !last:
 			add(Item{Rest: true, DurationS: spec.BetweenS})
-		case spec.AfterS > 0 && last:
+		case spec.AfterS > 0 && last && spec.Kind != KindAMRAP:
 			add(Item{Rest: true, DurationS: spec.AfterS})
 		}
 	}
-	return b
+	blocks := []Block{b}
+	if spec.Kind == KindAMRAP && spec.AfterS > 0 {
+		blocks = append(blocks, Block{Type: "rounds", Phase: phase, Items: []Item{
+			{Round: 1, Position: 1, Rest: true, DurationS: spec.AfterS},
+		}})
+	}
+	return blocks, errors.Join(errs...)
 }
 
 // blockType traduce el tipo de la transcripción al block_type de la base.
@@ -169,6 +211,8 @@ func expandBlock(phase mhimport.Phase, spec BlockSpec, resolve func(string) exer
 // programas de Mammoth Hunters.
 func blockType(spec BlockSpec) string {
 	switch spec.Kind {
+	case KindAMRAP:
+		return "amrap"
 	case KindSuperset:
 		return "superset"
 	case KindLadder:
@@ -197,5 +241,6 @@ func (p *Program) String() string {
 		fmt.Sprintf("%d ítems", items),
 		fmt.Sprintf("%d ejercicios nuevos", len(p.NewExercises)),
 		fmt.Sprintf("%d progresiones", len(p.Progressions)),
+		fmt.Sprintf("%d videos", len(p.Videos)),
 	}, ", ")
 }

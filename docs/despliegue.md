@@ -269,8 +269,9 @@ estaban):
    MOVILIDAD. La versión anterior sigue funcionando (ignora `phase` y muestra los
    bloques nuevos como bloques comunes).
 
-**Un programa nuevo** (`seed_<programa>.sql`, de `go run ./cmd/seed plans`) no
-necesita migración ni API ni APK nuevos: es el paso 3 solo. El dry-run tiene que
+**Un programa nuevo** (`seed_<programa>.sql`, de `go run ./cmd/seed plans <slug>`:
+generá solo ese, así no cambia el hash de los que ya están aplicados) no necesita
+migración ni API ni APK nuevos: es el paso 3 solo. El dry-run tiene que
 listar únicamente el archivo nuevo (si lista otro con «hash update», el mismo truco
 de `sql_paths`). El script aborta si el programa ya existe.
 

@@ -27,6 +27,7 @@ go run ./cmd/seed names   # crea o completa seed/exercise_names.csv
 go run ./cmd/seed sql     # genera /supabase/seed.sql (no versionado)
 go run ./cmd/seed phases  # genera /supabase/seed_phases*.sql (no versionados)
 go run ./cmd/seed plans   # genera /supabase/seed_<programa>.sql (no versionados)
+go run ./cmd/seed plans barra-libre   # … solo el de ese programa
 ```
 
 `seed/exercise_names.csv` es la **fuente de verdad de la identidad y el nombre** de cada
@@ -94,27 +95,41 @@ en su lugar. El formato está explicado en `internal/planimport/plan.go`:
 - `= N | Título | CAL MOV` abre la sesión N, con sus plantillas de calentamiento y de
   movilidad (`@CAL`, `@MOV…`, definidas antes con los mismos bloques).
   `= N | copia de M` repite la sesión M (semanas iguales).
-- Bloques: `vueltas xN`, `superset xN`, `pirámide 1-7-1` (escalera de reps) y
-  `tabata x8 20/10`, con `| entre S` (Enfriá entre vueltas) y `| después S`
-  (Enfriá antes del bloque siguiente). Una línea por ejercicio (`Nombre | 8r` o
-  `| 60s`; sin medida en pirámides y tabatas), o `Enfriá | 20s`, hasta `end`.
+- Bloques: `vueltas xN`, `superset xN`, `pirámide 1-7-1` (escalera de reps),
+  `tabata x8 20/10` (con `alterna`, un ejercicio distinto por vuelta) y `amrap 300`
+  (tope en segundos), con `| entre S` (Enfriá entre vueltas) y `| después S`
+  (Enfriá antes del bloque siguiente; en un AMRAP, en un bloque aparte). Una línea
+  por ejercicio (`Nombre | 8r` o `| 60s`; sin medida en pirámides y tabatas), o
+  `Enfriá | 20s`, hasta `end`. Un unilateral se hace por los dos lados, salvo que
+  la línea termine en `| der`, `| izq` o `| alternando` (un solo paso sin lado).
+- `video: Nombre | url` da el video de un ejercicio nuevo del plan (va en la
+  transcripción, no versionada, porque los links son de la fuente).
 - `>` agrega texto a la descripción del programa o de la sesión (Markdown).
 
 Cada plan tiene dos archivos (ver `plans` en `cmd/seed/main.go`):
 
 - **La transcripción**, en `docs/source/` (no versionada: es contenido del libro).
-  Hoy: `Programas/Desencadenado /desencadenado.txt`. Su encabezado anota las
+  Hoy: `Programas/Desencadenado /desencadenado.txt` y
+  `Programas/Efecto Kettlebell/efecto_kettlebell.txt`. Su encabezado anota las
   decisiones de carga (rangos, pirámides, niveles), que siguen a
   `/docs/limitaciones-del-modelo.md`.
 - **Lo que suma al catálogo**, en `seed/<programa>_catalogo.txt` (versionado: el
   texto es propio): ejercicios que el índice no tiene (`+ Nombre | MET [| unilateral]`
   y su descripción) y cadenas de progresión (`progresión: A > B > C`, los niveles
-  del libro). Desencadenado suma 26 ejercicios, sin video.
+  del libro). Desencadenado suma 26 ejercicios, sin video; Efecto Kettlebell, 22
+  movimientos con kettlebell, 15 de ellos con el video del libro.
 
 Los nombres se resuelven contra el catálogo de `mhimport` (más «Colgarse», que crea
 el seed de fases, y los ejercicios nuevos del plan); uno que no existe corta con
 error. El SQL va por slugs, sin IDs, como el de las fases, porque se aplica también
-sobre la base de producción, y aborta si el programa ya está cargado. En local:
+sobre la base de producción, y aborta si el programa ya está cargado.
+
+**Al sumar un programa, generá solo ese** (`plans <slug>`). Sin argumentos, `plans`
+reescribe los archivos de todos: si un cambio en el importador cambia el texto del SQL
+de un programa que ya está en producción (aunque dé los mismos datos), le cambia el
+hash, y el próximo `db push --include-seed` lo marca para actualizar el hash (no lo
+vuelve a correr). Pasó con Desencadenado al sumar la columna `time_cap_s`, el
+2026-10-30. En local:
 `supabase db reset` lo carga último (ver `sql_paths`), o se aplica sobre la base que
 ya está, sin perder usuarios ni Fraguas:
 

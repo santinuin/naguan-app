@@ -206,12 +206,111 @@ func TestRenderSQL(t *testing.T) {
 		"  ((select id from exercise where slug = 'flexion'), (select id from exercise where slug = 'flexion-a-una-mano'))\n  on conflict do nothing;",
 		"raise exception 'prueba ya está cargado'",
 		"insert into program_session (program_id, position, session_id) values (p, 3, s);",
-		"values (s, 2, 'ladder', 'main') returning id into b;",
+		"values (s, 2, 'ladder', 'main', null) returning id into b;",
 		"(b, 1, 1, 'exercise', (select id from exercise where slug = 'sentadilla-bulgara'), 'right', null, 1),",
 		"(b, 5, 3, 'rest', null, null, 60, null);",
 	} {
 		if !strings.Contains(sql, want) {
 			t.Errorf("falta en el SQL: %s", want)
+		}
+	}
+}
+
+const kettlebellFixture = `
+= 1 | Intervalos
+amrap 300 | después 120
+Swing a una mano | 5r
+Sprint | 20s
+end
+tabata x4 20/10 alterna
+Sprint
+Swing a una mano | izq
+end
+vueltas x1
+Swing a una mano | 300s | alternando
+end
+
+video: Swing a una mano | https://youtu.be/x
+`
+
+func TestBuildSidesAMRAPAndAlternation(t *testing.T) {
+	plan, err := parsePlan(strings.NewReader(kettlebellFixture))
+	if err != nil {
+		t.Fatalf("parsePlan: %v", err)
+	}
+	extras, err := parseCatalogExtras(strings.NewReader("+ Swing a una mano | 9 | unilateral\nUna mano.\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	prog, err := Build("kb", "KB", plan, extras, testCatalog())
+	if err != nil {
+		t.Fatalf("Build: %v", err)
+	}
+	blocks := prog.Sessions[0].Blocks
+	if len(blocks) != 4 {
+		t.Fatalf("bloques = %+v", blocks)
+	}
+
+	// El AMRAP lleva el tope y una sola vuelta (el unilateral, por los dos
+	// lados); el "después" va en un bloque aparte.
+	if b := blocks[0]; b.Type != "amrap" || b.TimeCapS != 300 || len(b.Items) != 3 || b.Items[0].Side != mhimport.SideRight {
+		t.Errorf("amrap = %+v", b)
+	}
+	wantRest := []Item{{Round: 1, Position: 1, DurationS: 120, Rest: true}}
+	if b := blocks[1]; b.Type != "rounds" || !slices.Equal(b.Items, wantRest) {
+		t.Errorf("Enfriá después del amrap = %+v", b)
+	}
+
+	// Tabata que alterna: un ejercicio por vuelta, con el lado que dice la
+	// línea.
+	wantTabata := []Item{
+		{Round: 1, Position: 1, ExerciseSlug: "sprint", DurationS: 20},
+		{Round: 1, Position: 2, DurationS: 10, Rest: true},
+		{Round: 2, Position: 1, ExerciseSlug: "swing-a-una-mano", Side: mhimport.SideLeft, DurationS: 20},
+		{Round: 2, Position: 2, DurationS: 10, Rest: true},
+		{Round: 3, Position: 1, ExerciseSlug: "sprint", DurationS: 20},
+		{Round: 3, Position: 2, DurationS: 10, Rest: true},
+		{Round: 4, Position: 1, ExerciseSlug: "swing-a-una-mano", Side: mhimport.SideLeft, DurationS: 20},
+	}
+	if b := blocks[2]; !slices.Equal(b.Items, wantTabata) {
+		t.Errorf("tabata alterna = %+v", b.Items)
+	}
+
+	// Alternando: un solo paso, sin lado.
+	want := []Item{{Round: 1, Position: 1, ExerciseSlug: "swing-a-una-mano", DurationS: 300}}
+	if b := blocks[3]; !slices.Equal(b.Items, want) {
+		t.Errorf("alternando = %+v", b.Items)
+	}
+	if want := [][2]string{{"swing-a-una-mano", "https://youtu.be/x"}}; !slices.Equal(prog.Videos, want) {
+		t.Errorf("videos = %v", prog.Videos)
+	}
+
+	var buf bytes.Buffer
+	if err := RenderSQL(&buf, prog); err != nil {
+		t.Fatal(err)
+	}
+	for _, s := range []string{
+		"values (s, 1, 'amrap', 'main', 300) returning id into b;",
+		"insert into exercise_video (exercise_id, side, url)\n  values ((select id from exercise where slug = 'swing-a-una-mano'), null, 'https://youtu.be/x')",
+	} {
+		if !strings.Contains(buf.String(), s) {
+			t.Errorf("falta en el SQL: %s", s)
+		}
+	}
+}
+
+func TestBuildSideErrors(t *testing.T) {
+	cases := map[string]string{
+		"lado en bilateral":  "= 1 | X\nvueltas x1\nFlexión | 3r | der\nend",
+		"video de existente": "= 1 | X\nvueltas x1\nFlexión | 3r\nend\nvideo: Flexión | https://youtu.be/x",
+	}
+	for name, text := range cases {
+		plan, err := parsePlan(strings.NewReader(text))
+		if err != nil {
+			t.Fatalf("%s: parsePlan: %v", name, err)
+		}
+		if _, err := Build("x", "X", plan, &CatalogExtras{}, testCatalog()); err == nil {
+			t.Errorf("%s: quería un error", name)
 		}
 	}
 }

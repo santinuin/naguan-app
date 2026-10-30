@@ -63,7 +63,9 @@ a la hora de asistir en el desarrollo:
   `GET /sessions/{id}` (sesión con bloques e ítems), `GET /exercises/{slug}` (detalle con
   videos, músculos, articulaciones y progresiones), con tests. Pendiente (más adelante, lo hace el usuario): auditar ejercicio por
   ejercicio en `backend/seed/exercise_names.csv`, incluidas las variantes numeradas
-  ("Flexión anillas 1/2/3"), que según el caso son niveles o ejercicios distintos;
+  ("Flexión anillas 1/2/3"), que según el caso son niveles o ejercicios distintos,
+  y las progresiones del índice al revés (p. ej. "Flexión" → "Flexión inclinada" figura como
+  más difícil; en Desencadenado la inclinada es el nivel 1);
   renombrar las sesiones de los demás programas con un nombre acorde (hoy muchas quedaron
   como "Sesión N"; Unbreakable y Ring Master ya tienen nombre: `backend/seed/session_titles.csv`,
   que usa `seed sql`, y `go run ./cmd/seed titles` imprime el `UPDATE` para producción);
@@ -101,9 +103,9 @@ a la hora de asistir en el desarrollo:
      `GET /v1/me/workouts?before=<id>`; `RecordsScreen` con el día de cada Mojón; acceso
      desde el inicio). Pendiente: el detalle de una Fragua templada (qué se hizo en cada
      ejercicio), que pide un `GET /v1/me/workouts/{id}`.
-  5. Datos: programas nuevos, en este orden de prioridad: ~~Desencadenado~~ (cargado
-     en local el 2026-10-30; falta `supabase db push --include-seed` en producción),
-     Efecto Kettlebell y Barra Libre. Se cargan con el modelo actual (las decisiones y
+  5. Datos: programas nuevos, en este orden de prioridad: ~~Desencadenado~~ y
+     ~~Efecto Kettlebell~~ (cargados en local el 2026-10-30; falta
+     `supabase db push --include-seed` en producción) y Barra Libre. Se cargan con el modelo actual (las decisiones y
      lo que queda pendiente para después: `docs/limitaciones-del-modelo.md`). Elite,
      Primal y Aurum tienen prioridad baja (no se usan): sus nombres de sesión y su
      calentamiento y estiramiento quedan para más adelante.

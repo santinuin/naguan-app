@@ -41,6 +41,13 @@ func RenderSQL(out io.Writer, p *Program) error {
 		w.printf("  on conflict do nothing;\n")
 	}
 
+	// Los videos de los ejercicios nuevos. Si el ejercicio ya tenía (otro
+	// plan lo creó antes), queda el que estaba.
+	for _, v := range p.Videos {
+		w.printf("\ninsert into exercise_video (exercise_id, side, url)\n  values (%s, null, %s)\n  on conflict do nothing;\n",
+			exerciseID(v[0]), str(v[1]))
+	}
+
 	// Un bloque DO es un pedazo de PL/pgSQL anónimo: permite variables, if y
 	// raise, que el SQL plano no tiene.
 	w.printf("\ndo $$\ndeclare\n  p bigint; -- programa\n  s bigint; -- sesión\n  b bigint; -- bloque\nbegin\n")
@@ -63,8 +70,8 @@ func RenderSQL(out io.Writer, p *Program) error {
 }
 
 func (w *writer) block(position int, b Block) {
-	w.printf("  insert into block (session_id, position, type, phase)\n")
-	w.printf("    values (s, %d, '%s', '%s') returning id into b;\n", position, b.Type, b.Phase)
+	w.printf("  insert into block (session_id, position, type, phase, time_cap_s)\n")
+	w.printf("    values (s, %d, '%s', '%s', %s) returning id into b;\n", position, b.Type, b.Phase, optInt(b.TimeCapS))
 	w.printf("  insert into block_item (block_id, round, position, kind, exercise_id, side, duration_s, reps) values\n")
 	for i, it := range b.Items {
 		end := sep(i, len(b.Items), ";")

@@ -7,6 +7,7 @@
 //	go run ./cmd/seed phases  # genera el SQL del calentamiento y la movilidad de cada programa
 //	go run ./cmd/seed titles  # imprime el UPDATE de los títulos de las sesiones
 //	go run ./cmd/seed plans   # genera el SQL de los programas transcriptos a mano
+//	go run ./cmd/seed plans efecto-kettlebell   # … solo de esos programas
 //
 // El CSV de nombres se versiona (solo tiene nombres); el SQL no, porque
 // incluye descripciones y videos de la fuente.
@@ -18,6 +19,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/santinuin/naguan-app/backend/internal/mhimport"
@@ -40,7 +42,7 @@ func main() {
 	outPath := flag.String("out", "../supabase/seed.sql", "archivo SQL a generar (sql)")
 	phasesDir := flag.String("phases-dir", "../supabase", "carpeta de los SQL a generar (phases y plans)")
 	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "uso: seed [flags] names|sql|phases|titles|plans\n")
+		fmt.Fprintf(os.Stderr, "uso: seed [flags] names|sql|phases|titles|plans [programa...]\n")
 		flag.PrintDefaults()
 	}
 	flag.Parse()
@@ -56,7 +58,7 @@ func main() {
 	case "phases":
 		err = runPhases(*source, *namesPath, *phasesDir)
 	case "plans":
-		err = runPlans(*source, *namesPath, *phasesDir)
+		err = runPlans(*source, *namesPath, *phasesDir, flag.Args()[1:])
 	default:
 		flag.Usage()
 		os.Exit(2)
@@ -237,30 +239,66 @@ func runTitles(titlesPath string) error {
 // transcripción es contenido de la fuente y vive en docs/source (no se
 // versiona); los ejercicios nuevos y las progresiones tienen texto propio y
 // se versionan. Como en phasePrograms, cada programa genera su propio SQL.
-var plans = []struct {
+type planSource struct {
 	slug, name string
 	plan       string // transcripción
 	extras     string // ejercicios nuevos y progresiones
 	out        string // SQL a generar, dentro de -phases-dir
-}{
+}
+
+var plans = []planSource{
 	{
 		"desencadenado", "Desencadenado",
 		"{source}/Programas/Desencadenado /desencadenado.txt",
 		"seed/desencadenado_catalogo.txt",
 		"seed_desencadenado.sql",
 	},
+	{
+		"efecto-kettlebell", "Efecto Kettlebell",
+		"{source}/Programas/Efecto Kettlebell/efecto_kettlebell.txt",
+		"seed/efecto_kettlebell_catalogo.txt",
+		"seed_efecto_kettlebell.sql",
+	},
 }
 
-// runPlans genera el SQL de cada programa de plans. Va aparte de seed.sql
-// por lo mismo que las fases: se aplica también sobre la base de
-// producción, que ya tiene el catálogo y Fraguas templadas.
-func runPlans(source, namesPath, outDir string) error {
+// runPlans genera el SQL de cada programa de plans, o solo de los que se
+// nombran (por slug). Va aparte de seed.sql por lo mismo que las fases: se
+// aplica también sobre la base de producción, que ya tiene el catálogo y
+// Fraguas templadas.
+//
+// Nombrar los programas importa cuando otro ya está en producción: la CLI de
+// Supabase reconoce cada seed por su hash, y regenerar un archivo ya
+// aplicado (por un cambio en el importador, aunque dé los mismos datos) le
+// cambia el hash sin que haga falta.
+func runPlans(source, namesPath, outDir string, only []string) error {
+	selected := plans
+	if len(only) > 0 {
+		selected = nil
+		var unknown []string
+		for _, slug := range only {
+			i := slices.IndexFunc(plans, func(p planSource) bool { return p.slug == slug })
+			if i < 0 {
+				unknown = append(unknown, slug)
+				continue
+			}
+			selected = append(selected, plans[i])
+		}
+		if len(unknown) > 0 {
+			var known []string
+			for _, p := range plans {
+				known = append(known, p.slug)
+			}
+			return fmt.Errorf("programas desconocidos: %s (hay: %s)",
+				strings.Join(unknown, ", "), strings.Join(known, ", "))
+		}
+	}
+
 	cat, _, err := buildCatalog(source, namesPath)
 	if err != nil {
 		return err
 	}
 	var errs []error
-	for _, p := range plans {
+	for _, p := range selected {
 		if err := writePlan(cat, p.slug, p.name, strings.Replace(p.plan, "{source}", source, 1),
 			p.extras, filepath.Join(outDir, p.out)); err != nil {
 			errs = append(errs, fmt.Errorf("%s: %w", p.slug, err))

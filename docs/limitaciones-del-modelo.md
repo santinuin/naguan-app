@@ -38,21 +38,26 @@ cambiarlo es corregir la transcripción y volver a generar el seed, no tocar el 
 *Barra Libre* (porcentaje del 1RM), *Efecto Kettlebell* (kilos), *Desencadenado*
 («sentadillas búlgaras con peso», «si podés más de 8, sumá una mochila»).
 
-- **Hoy:** en Desencadenado, el ejercicio "con peso" del catálogo; la carga no se
-  guarda. Barra Libre y Efecto Kettlebell todavía no están cargados.
+- **Hoy:** el ejercicio "con peso" del catálogo (Desencadenado) o el de
+  kettlebell (Efecto Kettlebell); la carga no se guarda: la descripción del
+  programa pide anotarla aparte. Barra Libre todavía no está cargado.
 - **Haría falta:** `load_kg` (o `% 1RM`) en `block_item` y en `workout_item`, el 1RM
   del usuario por ejercicio y Mojones que comparen carga además de reps.
 
 ## Cómo se arma un bloque
 
-### Pirámides con tope de tiempo
+### Pirámides y escaleras hasta el fallo, con tope de tiempo
 
 *Desencadenado*, semanas 1 y 2: durante 7 minutos subís 1, 2, 3… hasta tu máximo y
 bajás de nuevo. Si terminás antes, volvés a empezar. El descanso entre reps dura lo
-mismo que la serie anterior.
+mismo que la serie anterior. *Efecto Kettlebell*, semana 10: una escalera de clean,
+press y sentadilla de 10 minutos (sube un ejercicio por vez hasta agotarte) y una
+pirámide de swings y thrusters de 5 minutos, que sube de a dos.
 
-- **Hoy:** una escalera fija (`ladder`) de 1 a 7 y de vuelta a 1 (49 reps), sin tope de
-  tiempo. Se acorta o se alarga ajustando las reps antes de empezar.
+- **Hoy:** en Desencadenado, una escalera fija (`ladder`) de 1 a 7 y de vuelta a 1
+  (49 reps), sin tope de tiempo; se acorta o se alarga ajustando las reps antes de
+  empezar. En Efecto Kettlebell, un AMRAP con el tope de tiempo y una vuelta de
+  referencia; cómo subir va en la descripción.
 - **Haría falta:** un bloque con tope de tiempo cuyas vueltas cambien de reps (hoy el
   `amrap` repite una vuelta idéntica) y con el pico definido por el usuario.
 
@@ -77,6 +82,17 @@ Dips, extensiones de tríceps contra la pared», y la semana 10 da otra versión
 - **Haría falta:** una relación de alternativas entre ejercicios (por equipamiento), o
   sesiones con variantes.
 
+### Variantes por nivel o por equipamiento
+
+*Efecto Kettlebell*: cada semana está escrita para un nivel intermedio, con
+indicaciones para hacerla más fácil (básico) o más difícil (avanzado), y muchos
+ejercicios cambian si tenés una o dos kettlebells.
+
+- **Hoy:** se carga el intermedio con una kettlebell; lo básico y lo avanzado va en
+  la descripción de cada sesión.
+- **Haría falta:** variantes de una sesión (o de un bloque) por nivel, elegibles antes
+  de empezar.
+
 ### Indicaciones de ejecución
 
 *Desencadenado*: «2 segundos de subida y 2 de bajada» (fuerza), «fase concéntrica lo más
@@ -99,7 +115,8 @@ o «máximo + 1». *Muscle Hunters* también tiene niveles según un test.
 - **Hoy:** cada sesión trae un nivel de referencia (el clásico, nivel 3) y los 5 niveles
   están encadenados como progresiones en `exercise_progression`. Antes de cada Fragua
   cambiás el ejercicio por el de tu nivel en el editor, y eso hay que repetirlo cada vez.
-  Los tests no se cargan como Fraguas.
+  Los tests no se cargan como Fraguas (tampoco los de Efecto Kettlebell: 100
+  swings en 5 minutos, etc.).
 
   Dos asperezas del cambio de nivel en el editor: el lado del ítem no cambia, así
   que pasar de la sentadilla (nivel 3) a la pistolero asistida (nivel 4, unilateral)
@@ -109,6 +126,16 @@ o «máximo + 1». *Muscle Hunters* también tiene niveles según un test.
 - **Haría falta:** el nivel del usuario por cadena de progresión (persistente, con
   historia), ítems que digan "nivel máximo ± n" en vez de un ejercicio fijo, y sesiones de
   test que lo actualicen.
+
+### Números de un ítem por tiempo
+
+*Efecto Kettlebell*: «todos los swings que puedas en un minuto», «anotá el total de
+burpees de los 4 minutos».
+
+- **Hoy:** el ítem es por tiempo (60 s, o intervalos de 30/30) y se registra la
+  duración, no las reps. Las vueltas de un AMRAP sí se registran.
+- **Haría falta:** que un ítem por tiempo pueda registrar también las reps (y que
+  cuenten para los Mojones).
 
 ### Mojón de una sesión entera
 

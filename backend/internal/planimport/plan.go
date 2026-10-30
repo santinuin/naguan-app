@@ -19,6 +19,8 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/santinuin/naguan-app/backend/internal/mhimport"
 )
 
 // La transcripción, con un ejemplo de cada cosa:
@@ -50,11 +52,28 @@ import (
 //	Enfriá | 20s                 ← un Enfriá dentro de la vuelta
 //	end
 //
+//	amrap 300 | después 120      ← todas las vueltas posibles en 300 s
+//	Clean y press | 5r
+//	Remo | 5r
+//	end
+//	tabata x8 20/10 alterna      ← cada vuelta, el ejercicio siguiente
+//	Swing
+//	Snatch | izq                 ← un solo lado
+//	end
+//	vueltas x1
+//	Levantamiento turco con peso | 300s | alternando   ← sin separar lados
+//	end
+//
 //	= 5 | copia de 1             ← la misma sesión otra vez (otra semana)
 //
+//	video: Swing | https://youtu.be/…   ← video de un ejercicio nuevo del plan
+//
 // "entre" es el Enfriá entre una vuelta y la siguiente; "después", el que
-// separa el bloque del siguiente. Un ejercicio unilateral se hace por los
-// dos lados (derecha y después izquierda), cada uno con la medida indicada.
+// separa el bloque del siguiente (en un AMRAP va como bloque aparte: los
+// ítems de un AMRAP son la vuelta que se repite). Un ejercicio unilateral se
+// hace por los dos lados (derecha y después izquierda), cada uno con la
+// medida indicada, salvo que la línea diga el lado ("der", "izq") o
+// "alternando" (un solo paso, cambiando de lado como pida el plan).
 
 // BlockKind es cómo está escrito un bloque en la transcripción.
 type BlockKind string
@@ -64,6 +83,7 @@ const (
 	KindSuperset BlockKind = "superset"
 	KindLadder   BlockKind = "pirámide"
 	KindTabata   BlockKind = "tabata"
+	KindAMRAP    BlockKind = "amrap"
 )
 
 // ItemSpec es una línea de un bloque: un ejercicio con su medida, o un
@@ -74,6 +94,10 @@ type ItemSpec struct {
 	Reps      int
 	DurationS int
 	Rest      bool
+	// Side fija un solo lado de un unilateral; Alternating lo deja en un
+	// solo paso sin lado. Sin ninguno de los dos, se hacen ambos lados.
+	Side        mhimport.Side
+	Alternating bool
 }
 
 // BlockSpec es un bloque tal como está escrito.
@@ -82,8 +106,12 @@ type BlockSpec struct {
 	Rounds int
 	// Reps de cada vuelta de una pirámide (len(Ladder) == Rounds).
 	Ladder []int
-	// Trabajo y Enfriá de cada vuelta de un tabata.
+	// Trabajo y Enfriá de cada vuelta de un tabata. Con Alternate, cada
+	// vuelta hace un solo ejercicio: el siguiente de la lista.
 	WorkS, RestS int
+	Alternate    bool
+	// Tope de un AMRAP.
+	TimeCapS int
 	// Enfriá entre vueltas y al terminar el bloque (0 = ninguno).
 	BetweenS, AfterS int
 	Items            []ItemSpec
@@ -106,17 +134,28 @@ type Plan struct {
 	Description string
 	Templates   map[string][]BlockSpec
 	Sessions    []SessionSpec // en orden: Sessions[i].Position == i+1
+	Videos      []VideoSpec
+}
+
+// VideoSpec es el video de un ejercicio nuevo del plan. Va en la
+// transcripción (no en el archivo versionado del catálogo) porque los links
+// son de la fuente.
+type VideoSpec struct {
+	Name, URL string
 }
 
 var (
 	sessionLine = regexp.MustCompile(`^=\s*(\d+)\s*\|\s*(.+?)\s*(?:\|\s*(\S+)(?:\s+(\S+))?\s*)?$`)
 	copyTitle   = regexp.MustCompile(`^copia de (\d+)$`)
-	blockLine   = regexp.MustCompile(`^(vueltas|superset|pirámide|tabata)\b\s*(.*)$`)
+	blockLine   = regexp.MustCompile(`^(vueltas|superset|pirámide|tabata|amrap)\b\s*(.*)$`)
 	roundsArg   = regexp.MustCompile(`^x(\d+)$`)
 	ladderArg   = regexp.MustCompile(`^(\d+)-(\d+)-(\d+)$`)
-	tabataArg   = regexp.MustCompile(`^x(\d+)\s+(\d+)/(\d+)$`)
+	tabataArg   = regexp.MustCompile(`^x(\d+)\s+(\d+)/(\d+)(\s+alterna)?$`)
+	amrapArg    = regexp.MustCompile(`^(\d+)$`)
 	restArg     = regexp.MustCompile(`^(entre|después)\s+(\d+)$`)
-	itemLine    = regexp.MustCompile(`^(.+?)\s*\|\s*(\d+)([sr])$`)
+	// Nombre, medida opcional y lado opcional: «Swing | 30s | der».
+	itemLine  = regexp.MustCompile(`^(.+?)(?:\s*\|\s*(\d+)([sr]))?(?:\s*\|\s*(der|izq|alternando))?$`)
+	videoLine = regexp.MustCompile(`^video:\s*(.+?)\s*\|\s*(\S+)$`)
 )
 
 // RestName es cómo se escribe un Enfriá dentro de un bloque.
@@ -221,6 +260,10 @@ func parsePlan(r io.Reader) (*Plan, error) {
 				session.Title = ""
 				target = nil // una copia no lleva bloques propios
 			}
+
+		case videoLine.MatchString(text):
+			m := videoLine.FindStringSubmatch(text)
+			plan.Videos = append(plan.Videos, VideoSpec{Name: m[1], URL: m[2]})
 
 		case blockLine.MatchString(text):
 			if target == nil {
@@ -330,9 +373,15 @@ func parseBlockHeader(text string) (BlockSpec, error) {
 	case KindTabata:
 		a := tabataArg.FindStringSubmatch(arg)
 		if a == nil {
-			return b, fmt.Errorf("tabata: se esperaba xN trabajo/descanso, p. ej. x8 20/10")
+			return b, fmt.Errorf("tabata: se esperaba xN trabajo/descanso [alterna], p. ej. x8 20/10")
 		}
-		b.Rounds, b.WorkS, b.RestS = atoi(a[1]), atoi(a[2]), atoi(a[3])
+		b.Rounds, b.WorkS, b.RestS, b.Alternate = atoi(a[1]), atoi(a[2]), atoi(a[3]), a[4] != ""
+	case KindAMRAP:
+		a := amrapArg.FindStringSubmatch(arg)
+		if a == nil || atoi(a[1]) < 1 {
+			return b, fmt.Errorf("amrap: falta el tope en segundos, p. ej. amrap 300")
+		}
+		b.Rounds, b.TimeCapS = 1, atoi(a[1])
 	}
 	if b.Rounds < 1 {
 		return b, fmt.Errorf("%s: al menos una vuelta", b.Kind)
@@ -356,37 +405,46 @@ func parseBlockHeader(text string) (BlockSpec, error) {
 }
 
 // parseItem lee una línea de un bloque. En las pirámides y los tabatas la
-// medida la pone el bloque, así que el ejercicio va solo.
+// medida la pone el bloque, así que el ejercicio va solo (con su lado, si
+// hace falta).
 func parseItem(text string, kind BlockKind) (ItemSpec, error) {
-	measured := kind == KindRounds || kind == KindSuperset
+	measured := kind != KindLadder && kind != KindTabata
 	m := itemLine.FindStringSubmatch(text)
+	it := ItemSpec{Name: m[1]}
+	switch m[4] {
+	case "der":
+		it.Side = mhimport.SideRight
+	case "izq":
+		it.Side = mhimport.SideLeft
+	case "alternando":
+		it.Alternating = true
+	}
+	hasMeasure := m[2] != ""
 	switch {
-	case m == nil && measured:
+	case !hasMeasure && measured:
 		return ItemSpec{}, fmt.Errorf("%q: falta la medida (| 8r o | 60s)", text)
-	case m == nil:
-		if text == RestName {
-			return ItemSpec{}, fmt.Errorf("un Enfriá necesita su duración")
-		}
-		return ItemSpec{Name: text}, nil
-	case !measured:
+	case hasMeasure && !measured:
 		return ItemSpec{}, fmt.Errorf("%q: en una %s la medida la pone el bloque", text, kind)
+	case it.Name == RestName && (!hasMeasure || m[3] == "r"):
+		return ItemSpec{}, fmt.Errorf("un Enfriá necesita su duración en segundos")
+	case it.Name == RestName && m[4] != "":
+		return ItemSpec{}, fmt.Errorf("un Enfriá no tiene lado")
+	}
+	if !hasMeasure {
+		return it, nil
 	}
 
 	v, _ := strconv.Atoi(m[2])
-	it := ItemSpec{Name: m[1]}
+	if v < 1 {
+		return ItemSpec{}, fmt.Errorf("%q: la medida tiene que ser mayor que cero", text)
+	}
 	if m[3] == "s" {
 		it.DurationS = v
 	} else {
 		it.Reps = v
 	}
 	if it.Name == RestName {
-		if it.Reps > 0 {
-			return ItemSpec{}, fmt.Errorf("un Enfriá va en segundos")
-		}
 		it.Rest, it.Name = true, ""
-	}
-	if v < 1 {
-		return ItemSpec{}, fmt.Errorf("%q: la medida tiene que ser mayor que cero", text)
 	}
 	return it, nil
 }
