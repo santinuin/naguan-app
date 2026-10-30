@@ -56,7 +56,21 @@ class TrainingClient {
     if (json is! List) {
       throw const ApiException('se esperaba una lista de mojones');
     }
-    return [for (final r in json) Record.fromJson(r as Map<String, dynamic>)];
+    return [for (final r in json) ?Record.fromJson(r as Map<String, dynamic>)];
+  }
+
+  /// El último peso que usaste en cada ejercicio, por slug: para proponerlo
+  /// en la próxima serie.
+  Future<Map<String, double>> fetchLastLoads() async {
+    final json = await _api.getJson('/me/loads');
+    if (json is! List) {
+      throw const ApiException('se esperaba una lista de pesos');
+    }
+    return {
+      for (final l in json)
+        if (l case {'exercise_slug': String slug, 'load_kg': num kg})
+          slug: kg.toDouble(),
+    };
   }
 
   Future<WorkoutResult> recordWorkout(NewWorkout workout) async {

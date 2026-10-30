@@ -74,9 +74,16 @@ where b.session_id = $1;
 -- coalesce porque max() de ninguna fila es null. Cuenta el ejercicio que se
 -- hizo (wi.exercise_id), no el del bloque: pudo haberse cambiado. Solo
 -- cuenta el entrenamiento: el calentamiento y la movilidad no son Mojones.
+--
+-- Las reps cuentan solo en las series sin carga (5 con la barra vacía no
+-- empatan con 5 con 100 kg); con carga, el peso máximo y el 1RM estimado
+-- (ver e1rm en ListRecords). "filter" es un where solo para ese agregado.
 select wi.exercise_id,
-       coalesce(max(wi.reps), 0)::int       as best_reps,
-       coalesce(max(wi.duration_s), 0)::int as best_duration_s
+       coalesce(max(wi.reps) filter (where wi.load_kg is null), 0)::int as best_reps,
+       coalesce(max(wi.duration_s), 0)::int as best_duration_s,
+       coalesce(max(wi.load_kg), 0)::float8 as best_load_kg,
+       coalesce(max(round(wi.load_kg * (1 + wi.reps * 0.0333), 1))
+                filter (where wi.reps > 0), 0)::float8 as best_e1rm_kg
 from workout_item wi
 join workout w     on w.id = wi.workout_id
 join block_item bi on bi.id = wi.block_item_id
@@ -132,8 +139,8 @@ values ($1, $2, $3);
 -- name: CreateWorkoutItems :copyfrom
 -- Inserta muchas filas de una con el protocolo COPY de Postgres: mucho más
 -- rápido que un INSERT por fila (el equivalente a un batch de JDBC).
-insert into workout_item (workout_id, block_item_id, exercise_id, reps, duration_s)
-values ($1, $2, $3, $4, $5);
+insert into workout_item (workout_id, block_item_id, exercise_id, reps, duration_s, load_kg)
+values ($1, $2, $3, $4, $5, $6);
 
 -- name: ListWorkouts :many
 -- El historial del usuario, de lo más reciente a lo más viejo, con la Senda
@@ -199,9 +206,14 @@ select count(*) from workout where user_id = $1;
 -- como variables intermedias.
 --
 -- Solo el entrenamiento (fase 'main'): el calentamiento y la movilidad no
--- son Mojones.
+-- son Mojones. Métricas: reps (solo series sin carga), duration_s, load_kg
+-- (el peso más alto) y e1rm_kg, el 1RM estimado con la fórmula del libro
+-- Barra Libre (peso × reps × 0,0333 + peso), que compara series de distintas
+-- reps: 3 × 105 kg (115,5) contra 5 × 100 kg (116,7).
 with result as (
-  select wi.exercise_id, wi.reps, wi.duration_s, w.local_date, w.finished_at
+  select wi.exercise_id, wi.reps, wi.duration_s, wi.load_kg,
+         round(wi.load_kg * (1 + wi.reps * 0.0333), 1) as e1rm_kg,
+         w.local_date, w.finished_at
   from workout_item wi
   join workout w     on w.id = wi.workout_id
   join block_item bi on bi.id = wi.block_item_id
@@ -211,18 +223,44 @@ with result as (
 ),
 best as (
   (select distinct on (exercise_id)
-          exercise_id, 'reps'::text as metric, reps::int as value, local_date
+          exercise_id, 'reps'::text as metric, reps::float8 as value, local_date
      from result
-    where reps > 0
+    where reps > 0 and load_kg is null
     order by exercise_id, reps desc, finished_at)
   union all
   (select distinct on (exercise_id)
-          exercise_id, 'duration_s'::text, duration_s::int, local_date
+          exercise_id, 'duration_s'::text, duration_s::float8, local_date
      from result
     where duration_s > 0
     order by exercise_id, duration_s desc, finished_at)
+  union all
+  (select distinct on (exercise_id)
+          exercise_id, 'load_kg'::text, load_kg::float8, local_date
+     from result
+    where load_kg > 0
+    order by exercise_id, load_kg desc, finished_at)
+  union all
+  (select distinct on (exercise_id)
+          exercise_id, 'e1rm_kg'::text, e1rm_kg::float8, local_date
+     from result
+    where e1rm_kg > 0
+    order by exercise_id, e1rm_kg desc, finished_at)
 )
 select e.slug, e.name, b.metric, b.value, b.local_date
 from best b
 join exercise e on e.id = b.exercise_id
 order by e.name, b.metric desc;
+
+-- name: ListLastLoads :many
+-- El último peso que el usuario usó en cada ejercicio: el más alto de la
+-- última Fragua en la que lo hizo con carga. La app lo propone la próxima
+-- vez. distinct on, como en ListRecords: por ejercicio, la primera fila
+-- ordenando por la Fragua más reciente y, dentro de ella, por peso.
+select distinct on (wi.exercise_id)
+       e.slug, wi.load_kg::float8 as load_kg, w.local_date
+from workout_item wi
+join workout w  on w.id = wi.workout_id
+join exercise e on e.id = wi.exercise_id
+where w.user_id = @user_id
+  and wi.load_kg is not null
+order by wi.exercise_id, w.finished_at desc, wi.load_kg desc;

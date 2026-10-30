@@ -337,18 +337,33 @@ class Item {
 }
 
 class ExerciseRef {
-  const ExerciseRef({required this.slug, required this.name});
+  const ExerciseRef({
+    required this.slug,
+    required this.name,
+    this.loaded = false,
+  });
 
   final String slug;
   final String name;
 
-  Map<String, Object> toJson() => {'slug': slug, 'name': name};
+  /// Se hace con carga (barra, kettlebell): la Fragua pide el peso. En los
+  /// demás, el peso es opcional (lastre).
+  final bool loaded;
+
+  Map<String, Object> toJson() => {
+    'slug': slug,
+    'name': name,
+    'loaded': loaded,
+  };
 
   factory ExerciseRef.fromJson(Map<String, dynamic> json) {
     return switch (json) {
       {'slug': String slug, 'name': String name} => ExerciseRef(
         slug: slug,
         name: name,
+        // Opcional: una API anterior (o una Fragua guardada por una versión
+        // anterior de la app) no lo trae, y cuenta como sin carga.
+        loaded: json['loaded'] == true,
       ),
       _ => throw FormatException('Ejercicio con formato inválido: $json'),
     };

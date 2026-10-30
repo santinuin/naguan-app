@@ -127,6 +127,18 @@ rígida.
 - La migración que agregó la columna lo hizo en tres pasos (columna nullable → `update`
   con el ejercicio del bloque → `set not null`), porque una columna obligatoria nueva no
   puede quedar vacía en las filas que ya existían.
+- **`load_kg`: el peso de la serie**, en kilos (`numeric(5, 2)`; null = sin carga). Es por
+  serie y no por Fragua: en las series de aproximación sube de una a otra. Las Fraguas
+  anteriores a las cargas quedaron en null y siguen valiendo igual. El plan
+  (`block_item`) no lleva peso: los programas recetan porcentajes y progresiones, no
+  kilos (ver `limitaciones-del-modelo.md`).
+- **`exercise.loaded`** dice si un ejercicio se hace con carga (barra, kettlebell): la
+  app pide el peso. En los demás es opcional (lastre: dominadas con una mochila). Lo
+  escriben los importadores (`backend/seed/ejercicios_con_carga.txt` para el índice,
+  `| carga` en los catálogos de cada plan).
+- **`GET /v1/me/loads`**: el último peso por ejercicio (el más alto de la última Fragua
+  en que se hizo con carga). La app lo propone en la primera serie de cada bloque y lo
+  guarda en el teléfono, para tenerlo sin señal.
 
 ### Idempotencia: `workout.client_id`
 
@@ -170,8 +182,13 @@ el servidor no sabe en qué zona horaria está el teléfono.
 
 ### Los Mojones
 
-- Uno por ejercicio, **juntando ambos lados** de los unilaterales: la mejor cantidad de
-  reps en una serie y/o la mayor duración sostenida (una plancha).
+- Uno por ejercicio y métrica, **juntando ambos lados** de los unilaterales: la mejor
+  cantidad de reps en una serie **sin carga**, la mayor duración sostenida (una
+  plancha) y, en las series con carga, el **peso más alto** (`load_kg`) y el **1RM
+  estimado** (`e1rm_kg`, la fórmula del libro Barra Libre: peso × reps × 0,0333 + peso,
+  redondeada a 0,1 kg). El 1RM estimado compara series de distintas reps (3 × 105 kg
+  contra 5 × 100 kg); las reps con carga no compiten con las de sin carga (5 con la
+  barra vacía no empatan con 5 con 100 kg).
 - Al registrar una Fragua, la respuesta trae `new_records` con los Mojones superados y la
   marca anterior, para que la app lo celebre.
 - **Solo cuenta el entrenamiento** (`block.phase = 'main'`): estirar 35 s en vez de 30

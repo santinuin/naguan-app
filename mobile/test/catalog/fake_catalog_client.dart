@@ -8,6 +8,7 @@ import 'package:naguan_app/common/local_store.dart';
 import 'package:naguan_app/training/execution/beeper.dart';
 import 'package:naguan_app/training/execution/workout_runner.dart';
 import 'package:naguan_app/training/offline/active_workout_store.dart';
+import 'package:naguan_app/training/offline/last_loads.dart';
 import 'package:naguan_app/training/offline/pending_workouts.dart';
 import 'package:naguan_app/training/training_client.dart';
 import 'package:naguan_app/training/training_models.dart';
@@ -86,6 +87,12 @@ class FakeTrainingClient implements TrainingClient {
   @override
   Future<List<Record>> fetchRecords() => nextCall(recordsCalls);
 
+  /// Los últimos pesos que devuelve la API (sin Completer: responde ya).
+  Map<String, double> lastLoads = {};
+
+  @override
+  Future<Map<String, double>> fetchLastLoads() async => lastLoads;
+
   @override
   Future<WorkoutResult> recordWorkout(NewWorkout workout) {
     recorded.add(workout);
@@ -114,5 +121,6 @@ TrainingServices fakeServices({
     activeWorkout: ActiveWorkoutStore(local),
     pending: PendingWorkouts(local),
     beeper: beeper ?? FakeBeeper(),
+    lastLoads: LastLoads(local),
   );
 }

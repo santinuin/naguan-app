@@ -22,3 +22,16 @@ String formatDuration(int seconds) {
 
 /// Formatea repeticiones con el signo de multiplicar: "×10".
 String formatReps(int reps) => '×$reps';
+
+/// Formatea un peso en kilos como se escribe acá: con coma decimal y sin
+/// ceros de más. "100 kg", "102,5 kg", "1,25 kg".
+String formatKg(double kg) => '${formatKgNumber(kg)} kg';
+
+/// El número de [formatKg], sin la unidad (para mostrarlo en grande).
+String formatKgNumber(double kg) {
+  // toStringAsFixed(2) da "102.50"; se sacan los ceros y el punto que
+  // sobran, y el punto decimal pasa a coma.
+  var text = kg.toStringAsFixed(2);
+  text = text.replaceFirst(RegExp(r'\.?0+$'), '');
+  return text.replaceAll('.', ',');
+}

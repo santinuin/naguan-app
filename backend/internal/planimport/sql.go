@@ -26,9 +26,9 @@ func RenderSQL(out io.Writer, p *Program) error {
 	// Los ejercicios nuevos, con on conflict: si ya existen (los creó otro
 	// plan), quedan como están.
 	for _, e := range p.NewExercises {
-		w.printf("\ninsert into exercise (slug, name, unilateral, description, met)\n")
-		w.printf("  values (%s, %s, %t, %s, %s)\n  on conflict (slug) do nothing;\n",
-			str(e.Slug), str(e.Name), p.Unilateral[e.Slug], str(e.Description),
+		w.printf("\ninsert into exercise (slug, name, unilateral, loaded, description, met)\n")
+		w.printf("  values (%s, %s, %t, %t, %s, %s)\n  on conflict (slug) do nothing;\n",
+			str(e.Slug), str(e.Name), p.Unilateral[e.Slug], p.Loaded[e.Slug], str(e.Description),
 			strconv.FormatFloat(e.MET, 'f', -1, 64))
 	}
 

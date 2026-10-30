@@ -79,6 +79,8 @@ type Item struct {
 type ExerciseRef struct {
 	Slug string `json:"slug"`
 	Name string `json:"name"`
+	// Loaded: se hace con carga (la app pide el peso).
+	Loaded bool `json:"loaded"`
 }
 
 // Exercise es el detalle de un ejercicio: qué es, cómo se ve, qué trabaja y
@@ -87,6 +89,7 @@ type Exercise struct {
 	Slug        string  `json:"slug"`
 	Name        string  `json:"name"`
 	Unilateral  bool    `json:"unilateral"`
+	Loaded      bool    `json:"loaded"`      // se hace con carga: la app pide el peso
 	Description *string `json:"description"` // Markdown
 	Videos      []Video `json:"videos"`
 	Muscles     []Tag   `json:"muscles"`
@@ -196,7 +199,7 @@ func (s *Service) GetExercise(ctx context.Context, slug string) (Exercise, error
 		return Exercise{}, fmt.Errorf("leyendo el ejercicio %q: %w", slug, err)
 	}
 	out := Exercise{
-		Slug: e.Slug, Name: e.Name, Unilateral: e.Unilateral, Description: e.Description,
+		Slug: e.Slug, Name: e.Name, Unilateral: e.Unilateral, Loaded: e.Loaded, Description: e.Description,
 		// Slices vacíos y no nil: se serializan como [] y no como null, y
 		// la app no tiene que distinguir los dos casos.
 		Videos: []Video{}, Muscles: []Tag{}, Joints: []Tag{},
@@ -245,7 +248,7 @@ func (s *Service) GetExercise(ctx context.Context, slug string) (Exercise, error
 // llama (un struct pasado por valor sería una copia).
 func splitProgressions(ex *Exercise, rows []db.ListExerciseProgressionsRow) {
 	for _, r := range rows {
-		ref := ExerciseRef{Slug: r.Slug, Name: r.Name}
+		ref := ExerciseRef{Slug: r.Slug, Name: r.Name, Loaded: r.Loaded}
 		switch r.Direction {
 		case "easier":
 			ex.Easier = append(ex.Easier, ref)
@@ -279,7 +282,10 @@ func groupBlocks(rows []db.ListSessionItemsRow) []Block {
 			DurationS: r.DurationS, Reps: r.Reps,
 		}
 		if r.ExerciseSlug != nil {
-			it.Exercise = &ExerciseRef{Slug: *r.ExerciseSlug, Name: *r.ExerciseName}
+			// Con el left join, las columnas del ejercicio vienen como
+			// punteros (nil en los descansos).
+			loaded := r.ExerciseLoaded != nil && *r.ExerciseLoaded
+			it.Exercise = &ExerciseRef{Slug: *r.ExerciseSlug, Name: *r.ExerciseName, Loaded: loaded}
 		}
 		if r.Side != nil {
 			side := string(*r.Side)

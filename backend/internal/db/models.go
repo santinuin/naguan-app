@@ -8,8 +8,6 @@ import (
 	"database/sql/driver"
 	"fmt"
 	"time"
-
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type BlockPhase string
@@ -256,7 +254,8 @@ type Exercise struct {
 	Name        string
 	Unilateral  bool
 	Description *string
-	Met         pgtype.Numeric
+	Met         float64
+	Loaded      bool
 }
 
 type ExerciseJoint struct {
@@ -341,4 +340,5 @@ type WorkoutItem struct {
 	Reps        *int16
 	DurationS   *int32
 	ExerciseID  int64
+	LoadKg      *float64
 }

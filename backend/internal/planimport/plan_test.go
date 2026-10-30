@@ -204,7 +204,7 @@ func TestRenderSQL(t *testing.T) {
 	}
 	sql := buf.String()
 	for _, want := range []string{
-		"values ('flexion-a-una-mano', 'Flexión a una mano', true,",
+		"values ('flexion-a-una-mano', 'Flexión a una mano', true, false,",
 		"  ((select id from exercise where slug = 'flexion'), (select id from exercise where slug = 'flexion-a-una-mano'))\n  on conflict do nothing;",
 		"raise exception 'prueba ya está cargado'",
 		"insert into program (slug, name, description, position)\n    values ('prueba', 'Prueba', 'Programa de prueba.', null)",
@@ -241,7 +241,7 @@ func TestBuildSidesAMRAPAndAlternation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parsePlan: %v", err)
 	}
-	extras, err := parseCatalogExtras(strings.NewReader("+ Swing a una mano | 9 | unilateral\nUna mano.\n"))
+	extras, err := parseCatalogExtras(strings.NewReader("+ Swing a una mano | 9 | unilateral | carga\nUna mano.\n"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -283,6 +283,9 @@ func TestBuildSidesAMRAPAndAlternation(t *testing.T) {
 	want := []Item{{Round: 1, Position: 1, ExerciseSlug: "swing-a-una-mano", DurationS: 300}}
 	if b := blocks[3]; !slices.Equal(b.Items, want) {
 		t.Errorf("alternando = %+v", b.Items)
+	}
+	if !prog.Unilateral["swing-a-una-mano"] || !prog.Loaded["swing-a-una-mano"] {
+		t.Errorf("unilateral y con carga: %v, %v", prog.Unilateral, prog.Loaded)
 	}
 	if want := [][2]string{{"swing-a-una-mano", "https://youtu.be/x"}}; !slices.Equal(prog.Videos, want) {
 		t.Errorf("videos = %v", prog.Videos)

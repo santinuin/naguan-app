@@ -82,6 +82,8 @@ class _ExecutionScreenState extends State<ExecutionScreen> {
         ? WorkoutRunner.restore(widget.session, restored, clock: widget.clock)
         : WorkoutRunner(widget.session, clock: widget.clock);
 
+    unawaited(_loadLastLoads());
+
     // Pantalla encendida mientras dure la Fragua: sin esto, el teléfono la
     // apaga en un descanso largo (y la cuenta regresiva no se ve).
     if (widget.keepScreenOn) WakelockPlus.enable();
@@ -103,6 +105,16 @@ class _ExecutionScreenState extends State<ExecutionScreen> {
     if (widget.keepScreenOn) WakelockPlus.disable();
     _runner.dispose();
     super.dispose();
+  }
+
+  /// Los últimos pesos, para que el runner los proponga: primero los del
+  /// teléfono (llegan enseguida, aun sin señal) y después los de la API. Se
+  /// cargan mientras el usuario mira PRIMER GOLPE, antes de EMPEZAR, que es
+  /// cuando el runner calcula la propuesta del primer paso.
+  Future<void> _loadLastLoads() async {
+    final loads = widget.training.lastLoads;
+    _runner.lastLoads = await loads.cached();
+    _runner.lastLoads = await loads.refresh(widget.training.client);
   }
 
   void _onTick() {
@@ -164,6 +176,9 @@ class _ExecutionScreenState extends State<ExecutionScreen> {
     }
     // Registrada o encolada: ya no hay una Fragua "en curso" que retomar.
     await training.activeWorkout.clear();
+    // Los pesos de hoy, para proponerlos la próxima vez aunque esta Fragua
+    // haya quedado en la cola.
+    await training.lastLoads.remember(_runner.usedLoads);
     if (!mounted) return;
     // pushReplacement reemplaza esta pantalla por la de TEMPLADO: "atrás"
     // desde el resumen vuelve a la sesión, no a una ejecución terminada.
@@ -600,6 +615,140 @@ class _RepsStep extends StatelessWidget {
         ),
         const SizedBox(height: ForjaSpace.s2),
         Text('REPS', style: Theme.of(context).textTheme.labelSmall),
+        const SizedBox(height: ForjaSpace.s6),
+        _LoadControl(runner: runner),
+      ],
+    );
+  }
+}
+
+/// El peso del paso: − y + de a [WorkoutRunner.loadStep], y tocando el
+/// número se escribe el exacto (1,25, una kettlebell de 14...). En un
+/// ejercicio sin carga, un + LASTRE para sumarle peso (solo en el
+/// entrenamiento: en el calentamiento y la movilidad no tiene sentido).
+class _LoadControl extends StatelessWidget {
+  const _LoadControl({required this.runner});
+
+  final WorkoutRunner runner;
+
+  @override
+  Widget build(BuildContext context) {
+    final step = runner.current;
+    if (!runner.showsLoad) {
+      if (step.block.phase != BlockPhase.main) return const SizedBox.shrink();
+      return TextButton(
+        onPressed: () => runner.adjustLoad(WorkoutRunner.loadStep),
+        child: const OneLineText('+ LASTRE'),
+      );
+    }
+    final load = runner.loadDraft;
+    final stat = context.forja.stat.copyWith(fontSize: 48, height: 1);
+    return Column(
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            IconButton.outlined(
+              // Sin peso no hay qué bajar: el botón queda deshabilitado.
+              onPressed: load == null
+                  ? null
+                  : () => runner.adjustLoad(-WorkoutRunner.loadStep),
+              icon: const Icon(Icons.remove),
+              tooltip: 'Menos peso',
+            ),
+            const SizedBox(width: ForjaSpace.s4),
+            InkWell(
+              onTap: () => _edit(context),
+              child: Text(
+                load == null ? '—' : formatKgNumber(load),
+                style: stat,
+              ),
+            ),
+            const SizedBox(width: ForjaSpace.s4),
+            IconButton.outlined(
+              onPressed: () => runner.adjustLoad(WorkoutRunner.loadStep),
+              icon: const Icon(Icons.add),
+              tooltip: 'Más peso',
+            ),
+          ],
+        ),
+        const SizedBox(height: ForjaSpace.s2),
+        Text(
+          step.item!.exercise!.loaded ? 'KG' : 'KG DE LASTRE',
+          style: Theme.of(context).textTheme.labelSmall,
+        ),
+      ],
+    );
+  }
+
+  /// Escribir el peso exacto (ver [_LoadDialog]).
+  Future<void> _edit(BuildContext context) async {
+    final kg = await showDialog<double>(
+      context: context,
+      builder: (_) => _LoadDialog(initial: runner.loadDraft),
+    );
+    if (kg != null) runner.setLoad(kg);
+  }
+}
+
+/// El diálogo para escribir el peso. Es un StatefulWidget para que el
+/// TextEditingController viva lo mismo que el diálogo: se crea en initState
+/// y se libera en dispose, que Flutter llama recién cuando el diálogo sale
+/// del árbol (después de su animación de cierre).
+///
+/// Liberarlo apenas vuelve showDialog, como se hacía antes, rompe en debug:
+/// el diálogo todavía se está cerrando en pantalla y su TextField sigue
+/// usando el controller ("_dependents.isEmpty: is not true").
+class _LoadDialog extends StatefulWidget {
+  const _LoadDialog({required this.initial});
+
+  final double? initial;
+
+  @override
+  State<_LoadDialog> createState() => _LoadDialogState();
+}
+
+class _LoadDialogState extends State<_LoadDialog> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    final initial = widget.initial;
+    _controller = TextEditingController(
+      text: initial == null ? '' : formatKgNumber(initial),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  /// Acepta coma o punto decimal; vacío o 0, sin carga.
+  void _submit() => Navigator.of(context)
+      .pop(double.tryParse(_controller.text.trim().replaceAll(',', '.')) ?? 0);
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('PESO'),
+      content: TextField(
+        controller: _controller,
+        autofocus: true,
+        // El teclado numérico con decimales (en Android, con coma o punto
+        // según el idioma del teléfono).
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        decoration: const InputDecoration(suffixText: 'kg'),
+        onSubmitted: (_) => _submit(),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const OneLineText('CANCELAR'),
+        ),
+        TextButton(onPressed: _submit, child: const OneLineText('LISTO')),
       ],
     );
   }
@@ -621,6 +770,8 @@ class _TimedStep extends StatelessWidget {
         ),
         const SizedBox(height: ForjaSpace.s8),
         _StepClock(runner: runner),
+        const SizedBox(height: ForjaSpace.s6),
+        _LoadControl(runner: runner),
       ],
     );
   }

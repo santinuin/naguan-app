@@ -50,7 +50,8 @@ select i.id         as item_id,
        i.duration_s,
        i.reps,
        e.slug       as exercise_slug,
-       e.name       as exercise_name
+       e.name       as exercise_name,
+       e.loaded     as exercise_loaded
 from block b
 join block_item i     on i.block_id = b.id
 left join exercise e  on e.id = i.exercise_id
@@ -60,7 +61,7 @@ order by b.position, i.round, i.position;
 -- ── Ejercicio ───────────────────────────────────────────────────────────────
 
 -- name: GetExerciseBySlug :one
-select id, slug, name, unilateral, description
+select id, slug, name, unilateral, loaded, description
 from exercise
 where slug = $1;
 
@@ -91,12 +92,12 @@ order by j.name;
 -- sqlc.arg pone nombre al parámetro: se usa dos veces, y sin nombre sqlc lo
 -- llamaría como la primera columna con la que se compara (HarderID), que
 -- confunde.
-select 'easier'::text as direction, e.slug, e.name
+select 'easier'::text as direction, e.slug, e.name, e.loaded
 from exercise_progression p
 join exercise e on e.id = p.easier_id
 where p.harder_id = sqlc.arg(exercise_id)
 union all
-select 'harder'::text as direction, e.slug, e.name
+select 'harder'::text as direction, e.slug, e.name, e.loaded
 from exercise_progression p
 join exercise e on e.id = p.harder_id
 where p.easier_id = sqlc.arg(exercise_id)

@@ -37,7 +37,7 @@ func RenderSQL(out io.Writer, cat *Catalog, programs []*Program) error {
 	for _, e := range cat.Exercises {
 		exRows = append(exRows, []string{
 			num(e.ID), str(e.Slug), str(e.Name), strconv.FormatBool(e.Unilateral),
-			nullStr(e.Description), strconv.FormatFloat(e.MET, 'f', -1, 64),
+			strconv.FormatBool(e.Loaded), nullStr(e.Description), strconv.FormatFloat(e.MET, 'f', -1, 64),
 		})
 		for _, side := range []Side{SideNone, SideLeft, SideRight} {
 			if url, ok := e.Videos[side]; ok {
@@ -51,7 +51,7 @@ func RenderSQL(out io.Writer, cat *Catalog, programs []*Program) error {
 			ejRows = append(ejRows, []string{num(e.ID), num(jointID[j])})
 		}
 	}
-	w.insert("exercise", []string{"id", "slug", "name", "unilateral", "description", "met"}, exRows)
+	w.insert("exercise", []string{"id", "slug", "name", "unilateral", "loaded", "description", "met"}, exRows)
 	w.insert("exercise_video", []string{"exercise_id", "side", "url"}, videoRows)
 	w.insert("exercise_muscle", []string{"exercise_id", "muscle_id"}, emRows)
 	w.insert("exercise_joint", []string{"exercise_id", "joint_id"}, ejRows)

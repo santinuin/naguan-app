@@ -1,0 +1,49 @@
+# Ejercicios del índice de Mammoth Hunters que se hacen con carga (barra,
+# kettlebell, mancuerna): la app pide el peso. En los demás el peso es opcional
+# (lastre). Un nombre del catálogo por línea. Lo lee `go run ./cmd/seed sql`; la
+# migración 20261030200000_loads.sql marcó los mismos en las bases que ya
+# existían. Los ejercicios nuevos de cada plan se marcan en su catálogo
+# («| carga»).
+
+Abrazos al sol
+Arrancada en dos
+Caminata del grangero
+Caminata del granjero
+Cargada a hombro
+Cargada completa con kettlebell
+Clean
+Cohete con carga
+Cohete con peso
+Crol
+Desplante adelante con peso
+Desplante atrás con peso
+Desplante lateral con peso
+El puente con carga
+El puente isometrico con carga
+Espalda
+Hip thrust con carga
+Hombro a hombro
+Lanzada adelante
+Levantamiento turco
+Levantamiento turco con peso
+Media cargada
+Molino
+Molino con peso
+Paladas
+Pendulo
+Péndulo americano
+Peso muerto
+Peso muerto a una pierna con kettlebell
+Press
+Push press
+Remo
+Sentada con peso
+Sentadilla búlgara con peso
+Sentadilla con peso
+Sentadilla con peso frontal
+Sentadilla con salto con carga
+Squat con carga
+Step up con peso
+Thruster con kettlebell
+Zancada con salto con peso
+Zancadas OH con peso

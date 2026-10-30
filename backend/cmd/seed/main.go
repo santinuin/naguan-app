@@ -126,7 +126,15 @@ func buildCatalog(source, namesPath string) (*mhimport.Catalog, []string, error)
 	if names == nil {
 		return nil, nil, fmt.Errorf("no existe %s: corré primero el comando names", namesPath)
 	}
-	return mhimport.BuildCatalog(index, names)
+	cat, warns, err := mhimport.BuildCatalog(index, names)
+	if err != nil {
+		return nil, nil, err
+	}
+	loaded, err := mhimport.ReadLoaded("seed/ejercicios_con_carga.txt")
+	if err != nil {
+		return nil, nil, err
+	}
+	return cat, warns, cat.MarkLoaded(loaded)
 }
 
 func runSQL(source, namesPath, titlesPath, outPath string) error {

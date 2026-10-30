@@ -298,7 +298,7 @@ func TestRecordWorkoutWithSwappedExercise(t *testing.T) {
 	}
 
 	records, _ := svc.Records(ctx, user)
-	got := map[string]int32{}
+	got := map[string]float64{}
 	for _, r := range records {
 		got[r.ExerciseSlug] = r.Value
 	}
@@ -493,5 +493,78 @@ func TestWarmupIsNotARecord(t *testing.T) {
 	}
 	if n != 2 {
 		t.Errorf("ítems registrados = %d, want 2", n)
+	}
+}
+
+func TestLoadRecordsAndLastLoads(t *testing.T) {
+	svc, pool, user := setup(t)
+	ctx := context.Background()
+	s1, item := sessionAt(t, pool, "aurum", 1)
+
+	// record registra una Fraga con un solo ítem. workoutFor usa la hora
+	// actual: las Fraguas seguidas tendrían el mismo finished_at, así que se
+	// corren de a un segundo para que "la última" sea la última de verdad.
+	n := 0
+	record := func(reps int16, load *float64) []Record {
+		t.Helper()
+		w := workoutFor(s1, ItemResult{BlockItemID: item, Reps: ptr(reps), LoadKg: load})
+		n++
+		w.FinishedAt = w.FinishedAt.Add(time.Duration(n-10) * time.Second)
+		out, _, err := svc.RecordWorkout(ctx, user, w)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return out.NewRecords
+	}
+	metrics := func(rs []Record) map[string]float64 {
+		m := map[string]float64{}
+		for _, r := range rs {
+			m[r.Metric] = r.Value
+		}
+		return m
+	}
+
+	// La primera vez con carga no es Mojón.
+	if got := record(5, ptr(100.0)); len(got) != 0 {
+		t.Errorf("primera vez: %+v", got)
+	}
+	// Más peso con menos reps: Mojón de peso (105 > 100), pero no de 1RM
+	// estimado (3 × 105 = 115,5 contra 5 × 100 = 116,7).
+	if got := metrics(record(3, ptr(105.0))); len(got) != 1 || got["load_kg"] != 105 {
+		t.Errorf("3 × 105: %v", got)
+	}
+	// Menos peso con más reps: Mojón de 1RM estimado (5 × 102,5 = 119,6).
+	if got := metrics(record(5, ptr(102.5))); len(got) != 1 || got["e1rm_kg"] != 119.6 {
+		t.Errorf("5 × 102,5: %v", got)
+	}
+	// Sin carga: las reps no compiten con las series con carga (no había
+	// marca sin carga, así que no es Mojón).
+	if got := record(12, nil); len(got) != 0 {
+		t.Errorf("sin carga: %+v", got)
+	}
+
+	records, err := svc.Records(ctx, user)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := metrics(records); len(got) != 3 || got["load_kg"] != 105 || got["e1rm_kg"] != 119.6 || got["reps"] != 12 {
+		t.Errorf("mojones = %v", got)
+	}
+
+	// El último peso: el de la última Fragua con carga (la sin carga no
+	// cuenta).
+	loads, err := svc.LastLoads(ctx, user)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(loads) != 1 || loads[0].LoadKg != 102.5 || loads[0].ExerciseSlug != records[0].ExerciseSlug {
+		t.Errorf("últimos pesos = %+v", loads)
+	}
+
+	// Un peso fuera de rango se rechaza antes de tocar la base.
+	_, _, err = svc.RecordWorkout(ctx, user, workoutFor(s1, ItemResult{BlockItemID: item, Reps: ptr[int16](5), LoadKg: ptr(-5.0)}))
+	var verr *ValidationError
+	if !errors.As(err, &verr) {
+		t.Errorf("peso negativo: err = %v", err)
 	}
 }

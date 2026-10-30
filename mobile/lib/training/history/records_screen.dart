@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:naguan_app/catalog/catalog_client.dart';
 import 'package:naguan_app/catalog/exercise_screen.dart';
-import 'package:naguan_app/catalog/format.dart';
 import 'package:naguan_app/common/load_view.dart';
 import 'package:naguan_app/theme/forja_tokens.dart';
 import 'package:naguan_app/training/history/dates.dart';
@@ -97,9 +96,6 @@ class _RecordRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-    final value = record.isReps
-        ? formatReps(record.value)
-        : formatDuration(record.value);
 
     return InkWell(
       onTap: onTap,
@@ -123,7 +119,7 @@ class _RecordRow extends StatelessWidget {
             // La marca, que es lo que se viene a mirar: a la derecha y en
             // el estilo de título, como el valor de una tabla.
             Text(
-              value,
+              record.formatted,
               style: context.forja.stat.copyWith(fontSize: 24, height: 1.2),
             ),
           ],

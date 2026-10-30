@@ -133,6 +133,8 @@ class WorkoutRunner extends ChangeNotifier {
           ? time('paused_at')
           : time('saved_at')
       .._repsDraft = snapshot['reps_draft'] as int
+      // Opcional: un snapshot de una versión anterior no lo trae.
+      .._loadDraft = (snapshot['load_draft'] as num?)?.toDouble()
       .._amrapRounds = snapshot['amrap_rounds'] as int;
     for (final r in snapshot['results'] as List) {
       final result = ItemResult.fromJson(r as Map<String, dynamic>);
@@ -150,6 +152,12 @@ class WorkoutRunner extends ChangeNotifier {
 
   /// La preparación (3, 2, 1) antes de un paso con tiempo.
   static const leadIn = Duration(seconds: 3);
+
+  /// De a cuánto sube y baja el peso con − y +.
+  static const loadStep = 2.5;
+
+  /// El peso más alto que acepta la API (workout_item.load_kg).
+  static const maxLoadKg = 999.99;
 
   final Session session;
   final List<WorkoutStep> steps;
@@ -170,6 +178,16 @@ class WorkoutRunner extends ChangeNotifier {
   /// Las reps que se van a registrar en el paso actual: empiezan en las
   /// indicadas y el usuario las ajusta con +/−.
   int _repsDraft = 0;
+
+  /// El peso del paso actual, en kilos; null: sin carga. Empieza en el
+  /// propuesto (ver [_proposedLoad]) y el usuario lo ajusta.
+  double? _loadDraft;
+
+  /// El último peso que usaste en cada ejercicio (por slug), de la API o del
+  /// teléfono: la propuesta para la primera serie de un bloque. Se puede
+  /// asignar después de crear el runner (llega asincrónico), siempre antes
+  /// de EMPEZAR. No va en el snapshot: al retomar se vuelve a pedir.
+  Map<String, double> lastLoads = const {};
 
   /// Vueltas completadas en el AMRAP actual.
   int _amrapRounds = 0;
@@ -203,6 +221,16 @@ class WorkoutRunner extends ChangeNotifier {
   double get progress => steps.isEmpty ? 1 : _index / steps.length;
 
   int get repsDraft => _repsDraft;
+  double? get loadDraft => _loadDraft;
+
+  /// Si el paso actual muestra el peso: los ejercicios con carga siempre;
+  /// los demás, solo si se les sumó lastre.
+  bool get showsLoad {
+    final exercise = current.item?.exercise;
+    if (exercise == null) return false;
+    return exercise.loaded || _loadDraft != null;
+  }
+
   int get amrapRounds => _amrapRounds;
   int get revision => _revision;
   DateTime? get startedAt => _startedAt;
@@ -255,6 +283,18 @@ class WorkoutRunner extends ChangeNotifier {
     _changed();
   }
 
+  /// Ajusta el peso del paso actual (± [loadStep]). Por debajo de cero
+  /// queda sin carga (así se saca el lastre).
+  void adjustLoad(double delta) => setLoad((_loadDraft ?? 0) + delta);
+
+  /// Fija el peso del paso actual (lo escrito a mano); null o 0: sin carga.
+  void setLoad(double? kg) {
+    _loadDraft = kg == null || kg <= 0
+        ? null
+        : (min(kg, maxLoadKg) * 100).round() / 100;
+    _changed();
+  }
+
   void addAmrapRound() {
     _amrapRounds++;
     _changed();
@@ -270,6 +310,7 @@ class WorkoutRunner extends ChangeNotifier {
           item.id,
           _repsDraft,
           exerciseSlug: item.exercise!.slug,
+          loadKg: _loadDraft,
         );
       case StepKind.timed:
         // Terminó antes de tiempo: se registra lo que hizo.
@@ -279,6 +320,7 @@ class WorkoutRunner extends ChangeNotifier {
             item.id,
             done,
             exerciseSlug: item.exercise!.slug,
+            loadKg: _loadDraft,
           );
         }
       case StepKind.amrap:
@@ -308,6 +350,8 @@ class WorkoutRunner extends ChangeNotifier {
     if (step.kind == StepKind.amrap) _amrapsDone.remove(step.block.position);
     _enterStep(i);
     if (undone?.reps case final reps?) _repsDraft = reps;
+    // El peso que se había marcado (también si era sin carga).
+    if (undone != null) _loadDraft = undone.loadKg;
     _changed();
   }
 
@@ -342,6 +386,7 @@ class WorkoutRunner extends ChangeNotifier {
             item.id,
             item.durationS!,
             exerciseSlug: item.exercise!.slug,
+            loadKg: _loadDraft,
           );
         case StepKind.amrap:
           _amrapsDone[current.block.position] = _amrapRounds;
@@ -402,6 +447,37 @@ class WorkoutRunner extends ChangeNotifier {
     return null;
   }
 
+  /// El peso que se propone para el paso [i]: el de la serie anterior del
+  /// mismo ejercicio en el mismo bloque (las series de aproximación suben
+  /// de a una; las de trabajo repiten); si es la primera del bloque, el
+  /// último que usaste ese ejercicio, solo si es un ejercicio con carga (el
+  /// lastre no se propone solo: se suma a mano).
+  double? _proposedLoad(int i) {
+    final step = steps[i];
+    final exercise = step.item?.exercise;
+    if (exercise == null) return null;
+    for (var j = i - 1; j >= 0 && identical(steps[j].block, step.block); j--) {
+      final item = steps[j].item;
+      if (item?.exercise?.slug != exercise.slug) continue;
+      // Una serie anterior que no se registró (se salteó) no dice nada:
+      // se sigue buscando.
+      if (_results[item!.id] case final done?) return done.loadKg;
+    }
+    return exercise.loaded ? lastLoads[exercise.slug] : null;
+  }
+
+  /// Los pesos de esta Fragua por ejercicio: el más alto de cada uno, para
+  /// proponerlo la próxima vez (como hace la API con los registrados).
+  Map<String, double> get usedLoads {
+    final out = <String, double>{};
+    for (final r in _results.values) {
+      final (slug, kg) = (r.exerciseSlug, r.loadKg);
+      if (slug == null || kg == null) continue;
+      out[slug] = max(out[slug] ?? 0, kg);
+    }
+    return out;
+  }
+
   /// La Fragua terminada, lista para registrar en la API.
   NewWorkout toNewWorkout() {
     assert(isFinished, 'la Fragua todavía no terminó');
@@ -426,6 +502,7 @@ class WorkoutRunner extends ChangeNotifier {
     'paused_at': _pausedAt?.toIso8601String(),
     'saved_at': _now().toIso8601String(),
     'reps_draft': _repsDraft,
+    'load_draft': _loadDraft,
     'amrap_rounds': _amrapRounds,
     // Las claves de un objeto JSON son siempre strings.
     'amraps': {for (final e in _amrapsDone.entries) '${e.key}': e.value},
@@ -460,6 +537,7 @@ class WorkoutRunner extends ChangeNotifier {
       _stepStartedAt = _stepStartedAt.add(leadIn);
     }
     _repsDraft = step.item?.reps ?? 0;
+    _loadDraft = _proposedLoad(i);
     _amrapRounds = 0;
   }
 }

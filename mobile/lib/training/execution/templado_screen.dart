@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:naguan_app/catalog/format.dart';
 import 'package:naguan_app/catalog/session.dart';
 import 'package:naguan_app/theme/forja_theme.dart';
 import 'package:naguan_app/theme/forja_tokens.dart';
@@ -118,7 +117,6 @@ class _RecordChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = context.forja.palette;
     final textTheme = Theme.of(context).textTheme;
-    String fmt(int v) => record.isReps ? formatReps(v) : formatDuration(v);
 
     return DecoratedBox(
       decoration: BoxDecoration(
@@ -145,7 +143,8 @@ class _RecordChip extends StatelessWidget {
               ),
               const SizedBox(height: ForjaSpace.s1),
               Text(
-                '${fmt(record.value)}  (antes ${fmt(record.previous ?? 0)})',
+                '${record.formatted}  '
+                '(antes ${record.metric.format(record.previous ?? 0)})',
                 style: context.forja.bodyStrong.copyWith(
                   color: palette.onAccent,
                 ),

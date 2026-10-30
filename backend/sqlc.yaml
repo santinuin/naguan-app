@@ -38,3 +38,13 @@ sql:
               pointer: true
           - db_type: date
             go_type: time.Time
+          # numeric (kilos, MET) como float64: los pesos van de a 0,25 kg, que
+          # float64 representa exacto, y salen a JSON como número. pgtype.Numeric
+          # (decimal exacto) haría falta para plata, no para esto.
+          - db_type: pg_catalog.numeric
+            go_type: float64
+          - db_type: pg_catalog.numeric
+            nullable: true
+            go_type:
+              type: float64
+              pointer: true

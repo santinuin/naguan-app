@@ -24,6 +24,7 @@ type Exercise struct {
 	Slug        string
 	Name        string
 	Unilateral  bool
+	Loaded      bool // se hace con carga: la app pide el peso
 	Description string
 	MET         float64
 	Videos      map[Side]string

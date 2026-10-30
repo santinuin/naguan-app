@@ -180,6 +180,22 @@ func (h trainingHandlers) listRecords(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, records)
 }
 
+// listLastLoads devuelve el último peso del usuario en cada ejercicio, para
+// que la app lo proponga en la próxima serie.
+func (h trainingHandlers) listLastLoads(w http.ResponseWriter, r *http.Request) {
+	uid, err := userID(r)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	loads, err := h.tr.LastLoads(r.Context(), uid)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, loads)
+}
+
 // maxBodyBytes acota el tamaño del cuerpo: sin límite, un cliente podría
 // mandar gigas y agotar la memoria del servidor.
 const maxBodyBytes = 1 << 20 // 1 MiB

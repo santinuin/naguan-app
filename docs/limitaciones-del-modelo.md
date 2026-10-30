@@ -36,19 +36,6 @@ mantenés el peso hasta llegar al máximo en todas las series, y entonces lo sub
   número al terminar. Hoy el `check` de `block_item` exige que haya exactamente uno de
   los dos valores.
 
-### Cargas
-
-*Barra Libre* (todo gira alrededor del peso), *Efecto Kettlebell* (kilos),
-*Desencadenado* («sentadillas búlgaras con peso», «si podés más de 8, sumá una
-mochila»).
-
-- **Hoy:** el ejercicio "con peso" del catálogo (Desencadenado), el de kettlebell
-  (Efecto Kettlebell) o el de barra (Barra Libre); la carga no se guarda: la
-  descripción del programa pide anotarla aparte. Los Mojones de Barra Libre no dicen
-  nada (siempre son 5 reps; lo que mejora es el peso).
-- **Haría falta:** `load_kg` (o `% 1RM`) en `block_item` y en `workout_item`, el 1RM
-  del usuario por ejercicio y Mojones que comparen carga además de reps.
-
 ### Progresión de carga y porcentajes
 
 *Barra Libre* receta la carga, no solo las reps:
@@ -64,10 +51,13 @@ mochila»).
 
 - **Hoy:** el plan de reps y descansos se carga entero (incluidas las series de
   aproximación como pasos); los porcentajes y la regla de progreso van en la
-  descripción. Calcular el peso queda del lado del usuario.
-- **Haría falta:** después de las cargas, una regla de progresión por ejercicio
-  (incremento por sesión o por semana, cuándo repetir o bajar) y cargas relativas
-  (`% de` una marca o del peso de otra serie) que la app resuelva con el historial.
+  descripción. El peso se registra por serie (`workout_item.load_kg`, desde el
+  2026-10-30) y la app propone el último usado, pero calcular el de hoy (subir 2,5 kg,
+  el 90 % del 5RM) queda del lado del usuario.
+- **Haría falta:** una regla de progresión por ejercicio (incremento por sesión o por
+  semana, cuándo repetir o bajar) y cargas relativas en el plan (`% de` una marca o del
+  peso de otra serie) que la app resuelva con el historial. El 1RM del usuario ya se
+  puede estimar de lo registrado (es el Mojón `e1rm_kg`).
 
 ## Cómo se arma un bloque
 

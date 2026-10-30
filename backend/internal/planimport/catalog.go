@@ -24,20 +24,24 @@ import (
 //	+ Flexión a una mano | 4 | unilateral
 //	…
 //
+//	+ Swing | 9 | carga                  ← se hace con carga: la app pide el peso
+//	…
+//
 //	progresión: Flexión inclinada > Flexión con rodillas > Flexión
 
 // CatalogExtras es el archivo leído.
 type CatalogExtras struct {
 	Exercises []mhimport.NewExercise
-	// Unilateral, por slug, de los ejercicios nuevos (NewExercise no lo
-	// tiene: los de mhimport son todos bilaterales).
+	// Unilateral y Loaded (con carga), por slug, de los ejercicios nuevos
+	// (NewExercise no los tiene: los de mhimport son bilaterales y sin carga).
 	Unilateral map[string]bool
+	Loaded     map[string]bool
 	// Cadenas de nombres, de la más fácil a la más difícil.
 	Chains [][]string
 }
 
 var (
-	newExerciseLine = regexp.MustCompile(`^\+\s*(.+?)\s*\|\s*(\d+(?:\.\d+)?)\s*(\|\s*unilateral\s*)?$`)
+	newExerciseLine = regexp.MustCompile(`^\+\s*(.+?)\s*\|\s*(\d+(?:\.\d+)?)\s*((?:\|\s*(?:unilateral|carga)\s*)*)$`)
 	chainLine       = regexp.MustCompile(`^progresión:\s*(.+)$`)
 )
 
@@ -52,7 +56,7 @@ func ReadCatalogExtras(path string) (*CatalogExtras, error) {
 }
 
 func parseCatalogExtras(r io.Reader) (*CatalogExtras, error) {
-	ex := &CatalogExtras{Unilateral: map[string]bool{}}
+	ex := &CatalogExtras{Unilateral: map[string]bool{}, Loaded: map[string]bool{}}
 	var errs []error
 	var current *mhimport.NewExercise // ejercicio cuya descripción se lee
 	var desc []string
@@ -81,7 +85,8 @@ func parseCatalogExtras(r io.Reader) (*CatalogExtras, error) {
 			m := newExerciseLine.FindStringSubmatch(text)
 			met, _ := strconv.ParseFloat(m[2], 64)
 			current = &mhimport.NewExercise{Slug: mhimport.Slug(m[1]), Name: m[1], MET: met}
-			ex.Unilateral[current.Slug] = m[3] != ""
+			ex.Unilateral[current.Slug] = strings.Contains(m[3], "unilateral")
+			ex.Loaded[current.Slug] = strings.Contains(m[3], "carga")
 		case chainLine.MatchString(text):
 			var chain []string
 			for name := range strings.SplitSeq(chainLine.FindStringSubmatch(text)[1], ">") {

@@ -4,6 +4,8 @@ library;
 
 import 'dart:math';
 
+import 'package:naguan_app/catalog/format.dart';
+
 /// Una Fragua sugerida o referida: posición en la Senda, id y título.
 class SessionRef {
   const SessionRef({
@@ -106,11 +108,54 @@ class Stats {
   }
 }
 
+/// Qué mide un Mojón.
+enum RecordMetric {
+  /// Repeticiones, en las series sin carga.
+  reps,
+
+  /// Segundos.
+  durationS,
+
+  /// El peso más alto, en kilos.
+  loadKg,
+
+  /// El 1RM estimado (peso × reps × 0,0333 + peso), en kilos: compara
+  /// series de distintas reps.
+  e1rmKg;
+
+  /// El nombre que usa la API. Un switch sobre el propio enum ([this]):
+  /// si se agrega un valor, el compilador avisa que falta su caso.
+  String get apiName => switch (this) {
+    reps => 'reps',
+    durationS => 'duration_s',
+    loadKg => 'load_kg',
+    e1rmKg => 'e1rm_kg',
+  };
+
+  /// La métrica de un nombre de la API, o null si no se conoce (una API
+  /// más nueva que la app).
+  static RecordMetric? fromApi(String name) {
+    for (final m in values) {
+      if (m.apiName == name) return m;
+    }
+    return null;
+  }
+
+  /// Un valor de esta métrica como se lee en la app: "×12", "45″",
+  /// "102,5 kg", "1RM 119,6 kg".
+  String format(double value) => switch (this) {
+    reps => formatReps(value.round()),
+    durationS => formatDuration(value.round()),
+    loadKg => formatKg(value),
+    e1rmKg => '1RM ${formatKg(value)}',
+  };
+}
+
 /// Un Mojón: la mejor marca en un ejercicio.
 class Record {
   const Record({
     required this.exercise,
-    required this.isReps,
+    required this.metric,
     required this.value,
     this.exerciseSlug,
     this.achievedOn,
@@ -123,34 +168,49 @@ class Record {
   /// una API anterior no lo manda, y el Mojón se muestra igual.
   final String? exerciseSlug;
 
-  /// true: reps; false: segundos.
-  final bool isReps;
-  final int value;
+  final RecordMetric metric;
+
+  /// double: los kilos tienen decimales. Las reps y los segundos llegan
+  /// como enteros y se formatean como tales (ver [RecordMetric.format]).
+  final double value;
 
   /// El día (en el teléfono) en que se logró la marca.
   final DateTime? achievedOn;
 
   /// La marca anterior (solo en los Mojones nuevos).
-  final int? previous;
+  final double? previous;
 
-  factory Record.fromJson(Map<String, dynamic> json) {
+  /// El valor formateado según la métrica.
+  String get formatted => metric.format(value);
+
+  /// Lee un Mojón; null si su métrica es una que esta versión de la app no
+  /// conoce (así una API más nueva no rompe la pantalla).
+  ///
+  /// `num` es el padre de int y double en Dart: el JSON trae 12 (int) o
+  /// 102.5 (double), y toDouble() los unifica.
+  static Record? fromJson(Map<String, dynamic> json) {
     return switch (json) {
       {
         'exercise': String exercise,
-        'metric': String metric,
-        'value': int value,
+        'metric': String metricName,
+        'value': num value,
       } =>
-        Record(
-          exercise: exercise,
-          exerciseSlug: json['exercise_slug'] as String?,
-          isReps: metric == 'reps',
-          value: value,
-          // tryParse devuelve null (en vez de lanzar, como parse) si el
-          // texto no es una fecha; si el campo no vino, `?? ''` le pasa un
-          // texto vacío, que tampoco lo es.
-          achievedOn: DateTime.tryParse((json['achieved_on'] as String?) ?? ''),
-          previous: json['previous'] as int?,
-        ),
+        switch (RecordMetric.fromApi(metricName)) {
+          null => null,
+          final metric => Record(
+            exercise: exercise,
+            exerciseSlug: json['exercise_slug'] as String?,
+            metric: metric,
+            value: value.toDouble(),
+            // tryParse devuelve null (en vez de lanzar, como parse) si el
+            // texto no es una fecha; si el campo no vino, `?? ''` le pasa un
+            // texto vacío, que tampoco lo es.
+            achievedOn: DateTime.tryParse(
+              (json['achieved_on'] as String?) ?? '',
+            ),
+            previous: (json['previous'] as num?)?.toDouble(),
+          ),
+        },
       _ => throw FormatException('Mojón con formato inválido: $json'),
     };
   }
@@ -214,12 +274,17 @@ class Workout {
 class ItemResult {
   // {this.exerciseSlug} entre llaves: un parámetro con nombre y opcional,
   // que se pasa como `exerciseSlug: 'dominada'`.
-  const ItemResult.reps(this.blockItemId, int this.reps, {this.exerciseSlug})
-    : durationS = null;
+  const ItemResult.reps(
+    this.blockItemId,
+    int this.reps, {
+    this.exerciseSlug,
+    this.loadKg,
+  }) : durationS = null;
   const ItemResult.duration(
     this.blockItemId,
     int this.durationS, {
     this.exerciseSlug,
+    this.loadKg,
   }) : reps = null;
 
   final int blockItemId;
@@ -231,25 +296,34 @@ class ItemResult {
   final int? reps;
   final int? durationS;
 
+  /// El peso de la serie, en kilos; null sin carga.
+  final double? loadKg;
+
   Map<String, Object> toJson() => {
     'block_item_id': blockItemId,
     'exercise_slug': ?exerciseSlug,
     'reps': ?reps,
     'duration_s': ?durationS,
+    'load_kg': ?loadKg,
   };
 
   factory ItemResult.fromJson(Map<String, dynamic> json) {
     final slug = json['exercise_slug'] as String?;
+    // Opcional: las Fraguas que una versión anterior dejó en la cola no lo
+    // traen. num, porque jsonDecode da int para 100 y double para 102.5.
+    final load = (json['load_kg'] as num?)?.toDouble();
     return switch (json) {
       {'block_item_id': int id, 'reps': int reps} => ItemResult.reps(
         id,
         reps,
         exerciseSlug: slug,
+        loadKg: load,
       ),
       {'block_item_id': int id, 'duration_s': int s} => ItemResult.duration(
         id,
         s,
         exerciseSlug: slug,
+        loadKg: load,
       ),
       _ => throw FormatException('Resultado con formato inválido: $json'),
     };
@@ -357,7 +431,7 @@ class WorkoutResult {
         id: id,
         newRecords: [
           for (final r in (json['new_records'] as List?) ?? const [])
-            Record.fromJson(r as Map<String, dynamic>),
+            ?Record.fromJson(r as Map<String, dynamic>),
         ],
       ),
       _ => throw FormatException('Workout con formato inválido: $json'),

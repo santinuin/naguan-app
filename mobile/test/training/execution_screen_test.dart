@@ -37,7 +37,82 @@ final session = Session.fromJson({
   ],
 });
 
+/// Una serie de press con carga.
+final loadedSession = Session.fromJson({
+  'id': 6,
+  'kind': 'workout',
+  'title': 'Con carga',
+  'description': null,
+  'blocks': [
+    {
+      'position': 1,
+      'type': 'rounds',
+      'items': [
+        {
+          'id': 1,
+          'round': 1,
+          'position': 1,
+          'kind': 'exercise',
+          'exercise': {'slug': 'press', 'name': 'Press', 'loaded': true},
+          'reps': 5,
+        },
+      ],
+    },
+  ],
+});
+
 void main() {
+  testWidgets('propone el último peso, se ajusta y se registra', (
+    tester,
+  ) async {
+    final training = FakeTrainingClient()..lastLoads = {'press': 60};
+    final store = MemoryLocalStore();
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: forjaHierro,
+        home: ExecutionScreen(
+          session: loadedSession,
+          catalog: FakeCatalogClient(),
+          training: fakeServices(client: training, store: store),
+          keepScreenOn: false,
+        ),
+      ),
+    );
+    // Los últimos pesos llegan mientras se mira PRIMER GOLPE.
+    await tester.pump();
+    await tester.tap(find.text('EMPEZAR'));
+    await tester.pump();
+
+    expect(find.text('60'), findsOneWidget);
+    expect(find.text('KG'), findsOneWidget);
+    await tester.tap(find.byTooltip('Más peso'));
+    await tester.pump();
+    expect(find.text('62,5'), findsOneWidget);
+
+    // Tocando el número se escribe el exacto (con coma). pumpAndSettle deja
+    // terminar la animación de cierre del diálogo: ahí es donde rompía
+    // liberar el controller antes de tiempo.
+    await tester.tap(find.text('62,5'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), '63,75');
+    await tester.tap(find.text('LISTO').last);
+    await tester.pumpAndSettle();
+    expect(find.text('63,75'), findsOneWidget);
+
+    await tester.tap(find.text('LISTO'));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(training.recorded.single.items.single.loadKg, 63.75);
+
+    training.recordCalls.single.complete(
+      const WorkoutResult(id: 1, newRecords: []),
+    );
+    await tester.pumpAndSettle();
+    // Queda guardado en el teléfono para proponerlo la próxima vez.
+    expect(await fakeServices(store: store).lastLoads.cached(), {
+      'press': 63.75,
+    });
+  });
+
   testWidgets('recorre la Fragua, la registra y muestra TEMPLADO', (
     tester,
   ) async {
@@ -96,7 +171,12 @@ void main() {
       const WorkoutResult(
         id: 1,
         newRecords: [
-          Record(exercise: 'Sentadilla', isReps: true, value: 12, previous: 10),
+          Record(
+            exercise: 'Sentadilla',
+            metric: RecordMetric.reps,
+            value: 12,
+            previous: 10,
+          ),
         ],
       ),
     );

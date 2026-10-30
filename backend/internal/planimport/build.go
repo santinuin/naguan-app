@@ -17,7 +17,7 @@ type Program struct {
 	Slug, Name, Description string
 	Position                int // orden en la app (0 = sin posición: al final)
 	NewExercises            []mhimport.NewExercise
-	Unilateral              map[string]bool // de los ejercicios nuevos
+	Unilateral, Loaded      map[string]bool // de los ejercicios nuevos
 	Progressions            [][2]string     // pares (más fácil, más difícil) por slug
 	Videos                  [][2]string     // (slug, url) de ejercicios nuevos
 	Sessions                []Session       // en orden de posición
@@ -96,7 +96,7 @@ func Build(slug, name string, plan *Plan, extras *CatalogExtras, cat *mhimport.C
 
 	prog := &Program{
 		Slug: slug, Name: name, Description: plan.Description,
-		NewExercises: extras.Exercises, Unilateral: extras.Unilateral,
+		NewExercises: extras.Exercises, Unilateral: extras.Unilateral, Loaded: extras.Loaded,
 	}
 	for _, chain := range extras.Chains {
 		for i := 1; i < len(chain); i++ {

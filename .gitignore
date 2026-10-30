@@ -6,3 +6,6 @@
 # fuente. Se regenera con `go run ./cmd/seed sql` desde backend/.
 /supabase/seed.sql
 /supabase/seed_*.sql
+
+# Backups de la base de producción (supabase db dump): tienen datos de usuarios.
+/backup*.sql

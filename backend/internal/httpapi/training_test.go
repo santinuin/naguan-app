@@ -62,6 +62,11 @@ func (f *fakeTraining) Records(_ context.Context, uid string) ([]training.Record
 	return []training.Record{}, f.err
 }
 
+func (f *fakeTraining) LastLoads(_ context.Context, uid string) ([]training.LastLoad, error) {
+	f.gotUserID = uid
+	return []training.LastLoad{{ExerciseSlug: "press-de-banca", LoadKg: 62.5, On: "2026-10-30"}}, f.err
+}
+
 // doTraining hace un request autenticado (usuario "u1") con cuerpo opcional.
 func doTraining(t *testing.T, tr Training, method, path, body string) *httptest.ResponseRecorder {
 	t.Helper()
@@ -111,7 +116,7 @@ func TestRecordWorkoutEndpoint(t *testing.T) {
 		"started_at": "2026-10-01T20:00:00Z",
 		"finished_at": "2026-10-01T20:40:00Z",
 		"local_date": "2026-10-01",
-		"items": [{"block_item_id": 10, "reps": 12}]
+		"items": [{"block_item_id": 10, "reps": 12}, {"block_item_id": 11, "reps": 5, "load_kg": 62.5}]
 	}`
 	tr := &fakeTraining{}
 
@@ -121,9 +126,27 @@ func TestRecordWorkoutEndpoint(t *testing.T) {
 		t.Fatalf("status = %d, want 201: %s", rec.Code, rec.Body)
 	}
 	w := tr.gotWorkout
-	if w.SessionID != 3 || len(w.Items) != 1 || *w.Items[0].Reps != 12 ||
+	if w.SessionID != 3 || len(w.Items) != 2 || *w.Items[0].Reps != 12 ||
 		!w.FinishedAt.Equal(time.Date(2026, 10, 1, 20, 40, 0, 0, time.UTC)) {
 		t.Errorf("workout decodificado = %+v", w)
+	}
+	// Sin load_kg, nil (sin carga); con él, el peso.
+	if w.Items[0].LoadKg != nil || w.Items[1].LoadKg == nil || *w.Items[1].LoadKg != 62.5 {
+		t.Errorf("load_kg decodificado = %v, %v", w.Items[0].LoadKg, w.Items[1].LoadKg)
+	}
+}
+
+func TestLastLoadsEndpoint(t *testing.T) {
+	tr := &fakeTraining{}
+
+	rec := doTraining(t, tr, http.MethodGet, "/v1/me/loads", "")
+
+	if rec.Code != http.StatusOK || tr.gotUserID != "u1" {
+		t.Fatalf("status %d, usuario %q", rec.Code, tr.gotUserID)
+	}
+	want := `[{"exercise_slug":"press-de-banca","load_kg":62.5,"on":"2026-10-30"}]`
+	if got := strings.TrimSpace(rec.Body.String()); got != want {
+		t.Errorf("cuerpo = %s, want %s", got, want)
 	}
 }
 

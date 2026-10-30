@@ -1,5 +1,6 @@
 import 'package:naguan_app/training/execution/beeper.dart';
 import 'package:naguan_app/training/offline/active_workout_store.dart';
+import 'package:naguan_app/training/offline/last_loads.dart';
 import 'package:naguan_app/training/offline/pending_workouts.dart';
 import 'package:naguan_app/training/training_client.dart';
 
@@ -14,6 +15,7 @@ class TrainingServices {
     required this.activeWorkout,
     required this.pending,
     required this.beeper,
+    required this.lastLoads,
   });
 
   /// La API de `/v1/me/...`.
@@ -27,4 +29,7 @@ class TrainingServices {
 
   /// Los pitidos de la cuenta regresiva durante una Fragua.
   final Beeper beeper;
+
+  /// El último peso por ejercicio, para proponerlo en la próxima serie.
+  final LastLoads lastLoads;
 }

@@ -9,84 +9,84 @@
 #
 # Formato: ver backend/internal/planimport/catalog.go.
 
-+ Sentadilla con barra | 6
++ Sentadilla con barra | 6 | carga
 La barra apoyada sobre los trapecios, no sobre el cuello, con las manos un
 poco más abiertas que los hombros. Pies al ancho de los hombros y en punta
 hacia afuera. Tomá aire, apretá el abdomen y bajá llevando la cadera atrás
 hasta que quede por debajo de las rodillas. Subí empujando el suelo, sin que
 las rodillas se vayan hacia adentro ni la espalda se redondee abajo.
 
-+ Sentadilla frontal con barra | 6
++ Sentadilla frontal con barra | 6 | carga
 La barra apoyada adelante, sobre los hombros, con los codos altos y los dedos
 debajo de la barra. El torso queda más vertical que en la sentadilla trasera.
 Bajá hasta el fondo sin dejar caer los codos y subí.
 
-+ Press de banca | 5
++ Press de banca | 5 | carga
 Acostado en el banco, con los ojos debajo de la barra, los omóplatos juntos y
 los pies firmes en el suelo. Bajá la barra controlada hasta rozar el pecho, a
 la altura del esternón, con los codos a unos 45° del cuerpo, y empujá hasta
 bloquear los brazos. Sin un compañero o una jaula, no vayas al fallo.
 
-+ Press militar | 5
++ Press militar | 5 | carga
 De pie, la barra en la parte alta del pecho, con las manos al ancho de los
 hombros. Glúteos y abdomen apretados: empujá la barra hacia arriba, pasando
 cerca de la cara, y terminá con los brazos estirados y la barra sobre la
 nuca. Las piernas no ayudan.
 
-+ Peso muerto con barra | 6
++ Peso muerto con barra | 6 | carga
 La barra sobre la mitad del pie, con las tibias casi tocándola. Agarrala al
 ancho de los hombros, bajá la cadera, sacá pecho y tensá la espalda antes de
 despegarla del suelo. Subí empujando el suelo, con la barra pegada a las
 piernas, hasta quedar derecho. Bajá por el mismo camino.
 
-+ Peso muerto rumano | 5
++ Peso muerto rumano | 5 | carga
 De pie con la barra en las manos, rodillas apenas flexionadas. Llevá la
 cadera hacia atrás y bajá la barra pegada a las piernas, con la espalda recta,
 hasta sentir estirarse los isquiotibiales (más o menos a media tibia). Subí
 llevando la cadera adelante.
 
-+ Clean con barra | 7
++ Clean con barra | 7 | carga
 Desde la posición del peso muerto, subí la barra hasta las rodillas y
 extendé la cadera de golpe: la barra sube pegada al cuerpo, metés los codos
 por debajo y la recibís sobre los hombros, en posición de sentadilla frontal
 alta. Ponete de pie y bajala controlada.
 
-+ Push press con barra | 6
++ Push press con barra | 6 | carga
 Como el press militar, pero con impulso: una flexión corta de rodillas y una
 extensión rápida de cadera lanzan la barra, y los brazos terminan el
 recorrido hasta bloquearse arriba.
 
-+ Remo con barra | 5
++ Remo con barra | 5 | carga
 Con la barra en las manos, inclinate llevando la cadera atrás hasta que el
 torso quede casi paralelo al suelo, con la espalda recta. Tirá de la barra
 hacia la parte baja del pecho, llevando los codos atrás, y bajala estirando
 los brazos.
 
-+ Press jabalina | 4 | unilateral
++ Press jabalina | 4 | unilateral | carga
 Un extremo de la barra apoyado en una esquina (o en el suelo, contra algo que
 no se mueva) y el otro en una mano, a la altura del hombro. Empujá hacia
 arriba y adelante hasta estirar el brazo, sin arquear la espalda.
 
-+ Encogimiento con barra | 3
++ Encogimiento con barra | 3 | carga
 De pie con la barra en las manos y los brazos estirados. Subí los hombros
 hacia las orejas, aguantá un segundo arriba y bajá lento. Los brazos no se
 doblan.
 
-+ Sit-up con barra | 4
++ Sit-up con barra | 4 | carga
 Acostado boca arriba, con las rodillas dobladas y la barra (o un disco)
 sostenida con los brazos estirados por encima del pecho. Subí el torso hasta
 quedar sentado sin bajar la barra y volvé lento.
 
-+ Curl de bíceps con barra | 3
++ Curl de bíceps con barra | 3 | carga
 De pie, la barra con agarre supino (palmas hacia adelante) al ancho de los
 hombros. Doblá los codos llevando la barra hasta el pecho sin balancear el
 cuerpo, con los codos pegados al costado, y bajá lento.
 
-+ Curl invertido con barra | 3
++ Curl invertido con barra | 3 | carga
 Como el curl con barra, pero con agarre prono (palmas hacia atrás). Trabaja
 más los antebrazos.
 
-+ Desplante con barra | 5
++ Desplante con barra | 5 | carga
 La barra sobre los trapecios, como en la sentadilla. Da un paso largo hacia
 adelante y bajá hasta que las dos rodillas formen un ángulo recto; volvé
 empujando con la pierna de adelante. Alterná las piernas.
@@ -96,7 +96,7 @@ De rodillas, con las manos en una barra cargada con discos redondos. Rodá la
 barra hacia adelante, estirando el cuerpo lo más que puedas sin hundir la
 cadera, y volvé con la fuerza del abdomen.
 
-+ Elevación de talones con barra | 3
++ Elevación de talones con barra | 3 | carga
 La barra sobre los trapecios y la punta de los pies sobre un disco o un
 escalón. Subí hasta quedar en puntas y bajá hasta que los talones pasen el
 borde.

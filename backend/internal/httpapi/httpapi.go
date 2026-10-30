@@ -36,6 +36,7 @@ type Training interface {
 	ListWorkouts(ctx context.Context, userID string, limit int32, before int64) ([]training.Workout, error)
 	Stats(ctx context.Context, userID string, today time.Time) (training.Stats, error)
 	Records(ctx context.Context, userID string) ([]training.Record, error)
+	LastLoads(ctx context.Context, userID string) ([]training.LastLoad, error)
 }
 
 // Deps son las dependencias del router. Un struct en vez de una lista de
@@ -75,6 +76,7 @@ func NewRouter(d Deps) http.Handler {
 	v1.HandleFunc("GET /v1/me/workouts", t.listWorkouts)
 	v1.HandleFunc("GET /v1/me/stats", t.getStats)
 	v1.HandleFunc("GET /v1/me/records", t.listRecords)
+	v1.HandleFunc("GET /v1/me/loads", t.listLastLoads)
 
 	mux := http.NewServeMux()
 	// /health es público y sin versión: lo consulta la infraestructura

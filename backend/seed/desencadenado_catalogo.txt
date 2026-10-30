@@ -5,7 +5,7 @@
 # versiona; la transcripción del plan no (vive en docs/source). Formato: ver
 # backend/internal/planimport/catalog.go.
 #
-#   + Nombre | MET [| unilateral]
+#   + Nombre | MET [| unilateral] [| carga]
 #   Descripción en Markdown, hasta la próxima línea en blanco.
 #
 #   progresión: más fácil > … > más difícil

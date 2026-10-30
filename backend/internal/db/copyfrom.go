@@ -68,6 +68,7 @@ func (r iteratorForCreateWorkoutItems) Values() ([]interface{}, error) {
 		r.rows[0].ExerciseID,
 		r.rows[0].Reps,
 		r.rows[0].DurationS,
+		r.rows[0].LoadKg,
 	}, nil
 }
 
@@ -78,5 +79,5 @@ func (r iteratorForCreateWorkoutItems) Err() error {
 // Inserta muchas filas de una con el protocolo COPY de Postgres: mucho más
 // rápido que un INSERT por fila (el equivalente a un batch de JDBC).
 func (q *Queries) CreateWorkoutItems(ctx context.Context, arg []CreateWorkoutItemsParams) (int64, error) {
-	return q.db.CopyFrom(ctx, []string{"workout_item"}, []string{"workout_id", "block_item_id", "exercise_id", "reps", "duration_s"}, &iteratorForCreateWorkoutItems{rows: arg})
+	return q.db.CopyFrom(ctx, []string{"workout_item"}, []string{"workout_id", "block_item_id", "exercise_id", "reps", "duration_s", "load_kg"}, &iteratorForCreateWorkoutItems{rows: arg})
 }

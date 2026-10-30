@@ -254,10 +254,15 @@ calistenia, pero también fuerza con barra (Barra Libre) y movilidad ("flexifuer
 - **Brasa:** días entrenados; se apaga con 2 días hábiles seguidos sin entrenar; sábado y
   domingo opcionales (no cuentan como falta); `at_risk` si ya faltó un día hábil y hoy
   no entrenó. Función pura en `training/brasa.go`.
-- **Mojones:** por ejercicio (ambos lados juntos), mejor reps y/o mejor duración; la
+- **Cargas:** `workout_item.load_kg` (por serie; null = sin carga) y `exercise.loaded`
+  (la app pide el peso; en los demás, lastre opcional). La app propone el peso de la
+  serie anterior del mismo bloque o, en la primera, el último usado
+  (`GET /v1/me/loads`, con caché en el teléfono), y se ajusta de a 2,5 kg o a mano.
+- **Mojones:** por ejercicio (ambos lados juntos): mejor reps (series sin carga), mejor
+  duración y, con carga, peso máximo y 1RM estimado (peso × reps × 0,0333 + peso); la
   primera vez e igualar no cuentan. `POST /v1/me/workouts` devuelve `new_records`.
-- Segunda etapa (cuando haya datos que lo pidan): cargas (`load_kg` / % 1RM), rangos de
-  reps (`4x15-20`), niveles por test.
+- Lo que el modelo todavía no soporta (rangos de reps, progresión de carga, niveles por
+  test...): `docs/limitaciones-del-modelo.md`.
 - Nombres de los programas: se mantienen los originales por ahora.
 
 ## Convenciones (a completar a medida que se implemente)

@@ -68,7 +68,7 @@ void main() {
         'metric': 'reps',
         'value': 15,
         'achieved_on': '2026-09-15',
-      });
+      })!;
       expect(record.exerciseSlug, 'dominada');
       expect(record.achievedOn, DateTime(2026, 9, 15));
 
@@ -77,10 +77,27 @@ void main() {
         'exercise': 'Plancha',
         'metric': 'duration_s',
         'value': 60,
-      });
-      expect(old.isReps, isFalse);
+      })!;
+      expect(old.metric, RecordMetric.durationS);
       expect(old.exerciseSlug, isNull);
       expect(old.achievedOn, isNull);
+    });
+
+    test('los Mojones con carga, en kilos y con decimales', () {
+      Record? read(String metric, num value) => Record.fromJson({
+        'exercise': 'Press de banca',
+        'metric': metric,
+        'value': value,
+        'previous': 60,
+      });
+      final load = read('load_kg', 62.5)!;
+      expect(load.metric, RecordMetric.loadKg);
+      expect(load.formatted, '62,5 kg');
+      expect(load.metric.format(load.previous!), '60 kg');
+      expect(read('e1rm_kg', 72.9)!.formatted, '1RM 72,9 kg');
+      expect(read('reps', 12)!.formatted, '×12');
+      // Una métrica que esta versión de la app no conoce se ignora.
+      expect(read('potencia_w', 300), isNull);
     });
 
     test('fechas en castellano', () {
@@ -231,11 +248,15 @@ void main() {
       Record(
         exercise: 'Dominada',
         exerciseSlug: 'dominada',
-        isReps: true,
+        metric: RecordMetric.reps,
         value: 15,
         achievedOn: DateTime(2026, 9, 15),
       ),
-      const Record(exercise: 'Plancha', isReps: false, value: 60),
+      const Record(
+        exercise: 'Plancha',
+        metric: RecordMetric.durationS,
+        value: 60,
+      ),
     ]);
     await tester.pump();
 

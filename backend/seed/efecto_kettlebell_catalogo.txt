@@ -10,93 +10,93 @@
 #
 # Formato: ver backend/internal/planimport/catalog.go.
 
-+ Swing | 9
++ Swing | 9 | carga
 Con la kettlebell en el suelo, un poco por delante de los pies, agarrala con
 las dos manos. Llevala hacia atrás entre las piernas, con la espalda recta y
 la cadera atrás, y extendé la cadera de golpe: la kettlebell sube por inercia
 hasta la altura del pecho. Los brazos solo guían; la fuerza sale de glúteos y
 cadera.
 
-+ Swing a una mano | 9 | unilateral
++ Swing a una mano | 9 | unilateral | carga
 Como el swing, con una sola mano en el asa. El hombro, firme y hacia atrás;
 el torso no gira para seguir a la kettlebell.
 
-+ Power swing | 10
++ Power swing | 10 | carga
 Un swing en el que, además de extender la cadera, tirás la kettlebell hacia
 atrás con fuerza en la bajada, para acelerarla. Cada repetición, a máxima
 potencia y con pausa breve entre una y otra.
 
-+ Sentadilla en rack | 6 | unilateral
++ Sentadilla en rack | 6 | unilateral | carga
 La kettlebell en rack: apoyada en el antebrazo, contra el pecho, con el codo
 pegado al cuerpo y la muñeca recta. Bajá a una sentadilla profunda sin que el
 torso se incline hacia el lado de la kettlebell y subí.
 
-+ Peso muerto maleta | 5 | unilateral
++ Peso muerto maleta | 5 | unilateral | carga
 La kettlebell al costado de un pie, como si fuera una valija. Bajá con la
 cadera atrás y la espalda recta, agarrala y subí sin inclinarte hacia ese
 lado: el abdomen trabaja para mantenerte derecho.
 
-+ Peso muerto sumo | 5
++ Peso muerto sumo | 5 | carga
 Pies bien separados y en punta hacia afuera, la kettlebell entre ellos. Bajá
 con la espalda recta y las rodillas hacia afuera, agarrala con las dos manos
 y subí empujando el suelo.
 
-+ Peso muerto con remo alto | 7
++ Peso muerto con remo alto | 7 | carga
 Un peso muerto sumo que, al terminar de subir, sigue con un tirón: la
 kettlebell sube pegada al cuerpo hasta el pecho, con los codos altos. Bajala
 controlada y repetí.
 
-+ Dead clean | 6 | unilateral
++ Dead clean | 6 | unilateral | carga
 Un clean que arranca cada vez desde el suelo, sin swing previo. Con la
 kettlebell entre los pies, extendé la cadera de golpe y recibila en rack sin
 que te golpee el antebrazo. Bajala al suelo y repetí.
 
-+ Press en el suelo | 4 | unilateral
++ Press en el suelo | 4 | unilateral | carga
 Boca arriba, con la kettlebell en una mano, el codo apoyado en el suelo y el
 antebrazo vertical. Empujá hasta estirar el brazo y bajá hasta que el codo
 toque el suelo. Con dos kettlebells, las dos a la vez.
 
-+ High pull | 7 | unilateral
++ High pull | 7 | unilateral | carga
 Un swing con una mano que, en vez de terminar con el brazo estirado, sigue con
 un tirón del codo hacia atrás y arriba: la kettlebell queda a la altura del
 hombro, cerca del cuerpo. Soltala de nuevo hacia abajo y repetí.
 
-+ Snatch | 9 | unilateral
++ Snatch | 9 | unilateral | carga
 De un swing con una mano a la kettlebell arriba de la cabeza, con el brazo
 estirado, en un solo movimiento. Al subir, la mano entra en el asa para que la
 kettlebell no golpee el antebrazo. Bajala con un arco controlado y repetí.
 
-+ Dead snatch | 9 | unilateral
++ Dead snatch | 9 | unilateral | carga
 Un snatch que arranca cada vez desde el suelo, sin swing previo. Exige más
 potencia de cadera.
 
-+ Renegade row | 6 | unilateral
++ Renegade row | 6 | unilateral | carga
 En plancha, con las manos en el asa de dos kettlebells y los pies separados.
 Tirá de una hacia la cadera sin girar el cuerpo y apoyala; después la otra. Con
 una sola kettlebell, la mano libre se apoya en algo de la misma altura.
 
-+ Russian twist | 4
++ Russian twist | 4 | carga
 Sentado, con la espalda inclinada hacia atrás y la kettlebell agarrada con las
 dos manos frente al pecho. Girá el torso hacia un lado y hacia el otro, sin
 mover la cadera. Cada giro cuenta como una repetición. Más difícil: con los
 pies en el aire.
 
-+ Around the world | 3
++ Around the world | 3 | carga
 De pie, pasá la kettlebell alrededor de la cintura cambiándola de mano por
 delante y por detrás, sin mover la cadera. Una vuelta es una repetición; hacé
 la mitad en cada sentido.
 
-+ El ocho | 4
++ El ocho | 4 | carga
 Con las piernas abiertas y semiflexionadas, pasá la kettlebell entre las
 piernas de una mano a la otra, dibujando un ocho alrededor de ellas. Cada pase
 entre las piernas cuenta como una repetición.
 
-+ Halo | 3
++ Halo | 3 | carga
 La kettlebell agarrada por los cuernos del asa, con la base hacia arriba,
 frente a la cara. Pasala alrededor de la cabeza, cerca de ella, en un sentido
 y en el otro. El abdomen, firme: que no se arquee la espalda.
 
-+ Around the world y ocho | 4
++ Around the world y ocho | 4 | carga
 Encadená los dos: una vuelta de around the world alrededor de la cintura y,
 sin parar, un ocho entre las piernas. Cambiá de sentido a mitad del tiempo.
 
@@ -105,14 +105,14 @@ Una flexión con una o las dos manos agarrando el asa de una kettlebell
 invertida (la base hacia arriba). Cuidado: si la base es chica, puede volcar;
 en ese caso apoyá la mano sobre el cuerpo de la kettlebell, de costado.
 
-+ Clean y press | 7 | unilateral
++ Clean y press | 7 | unilateral | carga
 Un clean hasta el rack y, sin pausa, un press hasta estirar el brazo arriba.
 Bajá la kettlebell al rack y de ahí entre las piernas para la siguiente.
 
-+ Clean y push press | 7 | unilateral
++ Clean y push press | 7 | unilateral | carga
 Un clean hasta el rack y un push press: una flexión corta de rodillas y el
 impulso de las piernas para subir la kettlebell hasta arriba.
 
-+ Burpee, clean y press | 10 | unilateral
++ Burpee, clean y press | 10 | unilateral | carga
 Un burpee con las manos al lado de la kettlebell y, al levantarte, un clean y
 un press. Bajala al suelo y repetí.

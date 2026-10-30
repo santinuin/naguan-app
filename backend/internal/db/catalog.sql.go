@@ -11,7 +11,7 @@ import (
 
 const getExerciseBySlug = `-- name: GetExerciseBySlug :one
 
-select id, slug, name, unilateral, description
+select id, slug, name, unilateral, loaded, description
 from exercise
 where slug = $1
 `
@@ -21,6 +21,7 @@ type GetExerciseBySlugRow struct {
 	Slug        string
 	Name        string
 	Unilateral  bool
+	Loaded      bool
 	Description *string
 }
 
@@ -33,6 +34,7 @@ func (q *Queries) GetExerciseBySlug(ctx context.Context, slug string) (GetExerci
 		&i.Slug,
 		&i.Name,
 		&i.Unilateral,
+		&i.Loaded,
 		&i.Description,
 	)
 	return i, err
@@ -148,12 +150,12 @@ func (q *Queries) ListExerciseMuscles(ctx context.Context, exerciseID int64) ([]
 }
 
 const listExerciseProgressions = `-- name: ListExerciseProgressions :many
-select 'easier'::text as direction, e.slug, e.name
+select 'easier'::text as direction, e.slug, e.name, e.loaded
 from exercise_progression p
 join exercise e on e.id = p.easier_id
 where p.harder_id = $1
 union all
-select 'harder'::text as direction, e.slug, e.name
+select 'harder'::text as direction, e.slug, e.name, e.loaded
 from exercise_progression p
 join exercise e on e.id = p.harder_id
 where p.easier_id = $1
@@ -164,6 +166,7 @@ type ListExerciseProgressionsRow struct {
 	Direction string
 	Slug      string
 	Name      string
+	Loaded    bool
 }
 
 // Los vecinos directos en el grafo de progresiones: de qué ejercicios se
@@ -180,7 +183,12 @@ func (q *Queries) ListExerciseProgressions(ctx context.Context, exerciseID int64
 	var items []ListExerciseProgressionsRow
 	for rows.Next() {
 		var i ListExerciseProgressionsRow
-		if err := rows.Scan(&i.Direction, &i.Slug, &i.Name); err != nil {
+		if err := rows.Scan(
+			&i.Direction,
+			&i.Slug,
+			&i.Name,
+			&i.Loaded,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -330,7 +338,8 @@ select i.id         as item_id,
        i.duration_s,
        i.reps,
        e.slug       as exercise_slug,
-       e.name       as exercise_name
+       e.name       as exercise_name,
+       e.loaded     as exercise_loaded
 from block b
 join block_item i     on i.block_id = b.id
 left join exercise e  on e.id = i.exercise_id
@@ -339,19 +348,20 @@ order by b.position, i.round, i.position
 `
 
 type ListSessionItemsRow struct {
-	ItemID        int64
-	BlockPosition int16
-	BlockType     BlockType
-	BlockPhase    BlockPhase
-	TimeCapS      *int32
-	Round         int16
-	Position      int16
-	Kind          ItemKind
-	Side          *Side
-	DurationS     *int32
-	Reps          *int16
-	ExerciseSlug  *string
-	ExerciseName  *string
+	ItemID         int64
+	BlockPosition  int16
+	BlockType      BlockType
+	BlockPhase     BlockPhase
+	TimeCapS       *int32
+	Round          int16
+	Position       int16
+	Kind           ItemKind
+	Side           *Side
+	DurationS      *int32
+	Reps           *int16
+	ExerciseSlug   *string
+	ExerciseName   *string
+	ExerciseLoaded *bool
 }
 
 // Todos los ítems de una sesión en orden de ejecución, una fila por ítem con los
@@ -381,6 +391,7 @@ func (q *Queries) ListSessionItems(ctx context.Context, sessionID int64) ([]List
 			&i.Reps,
 			&i.ExerciseSlug,
 			&i.ExerciseName,
+			&i.ExerciseLoaded,
 		); err != nil {
 			return nil, err
 		}

@@ -14,6 +14,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"regexp"
 	"slices"
 	"time"
@@ -111,17 +112,37 @@ type Workout struct {
 	NewRecords []Record `json:"new_records,omitempty"`
 }
 
-// Record es un Mojón: la mejor marca en un ejercicio, en reps o en segundos.
+// Record es un Mojón: la mejor marca en un ejercicio.
 type Record struct {
 	Exercise     string `json:"exercise"`
 	ExerciseSlug string `json:"exercise_slug"`
-	// Metric es "reps" o "duration_s".
+	// Metric es "reps" (series sin carga), "duration_s", "load_kg" (el peso
+	// más alto) o "e1rm_kg" (el 1RM estimado: ver e1rm).
 	Metric string `json:"metric"`
-	Value  int32  `json:"value"`
+	// Value es float64 porque los kilos tienen decimales (102,5); las reps y
+	// los segundos salen igual como enteros en el JSON (12, no 12.0).
+	Value float64 `json:"value"`
 	// AchievedOn es el día (local) en que se logró la marca.
 	AchievedOn string `json:"achieved_on"`
 	// Previous es la marca anterior (solo en los Mojones nuevos).
-	Previous int32 `json:"previous,omitempty"`
+	Previous float64 `json:"previous,omitempty"`
+}
+
+// LastLoad es el último peso que el usuario usó en un ejercicio: el más alto
+// de la última Fragua en la que lo hizo con carga. La app lo propone.
+type LastLoad struct {
+	ExerciseSlug string  `json:"exercise_slug"`
+	LoadKg       float64 `json:"load_kg"`
+	On           string  `json:"on"` // el día de esa Fragua
+}
+
+// maxLoadKg es el máximo de workout_item.load_kg (numeric(5, 2)).
+const maxLoadKg = 999.99
+
+// e1rm es el 1RM estimado de una serie, con la fórmula del libro Barra Libre
+// (peso × reps × 0,0333 + peso), redondeado a 0,1 kg como en ListRecords.
+func e1rm(loadKg float64, reps int16) float64 {
+	return math.Round(loadKg*(1+float64(reps)*0.0333)*10) / 10
 }
 
 // Stats es el resumen del usuario.
@@ -254,6 +275,9 @@ type ItemResult struct {
 	ExerciseSlug *string `json:"exercise_slug"`
 	Reps         *int16  `json:"reps"`
 	DurationS    *int32  `json:"duration_s"`
+	// LoadKg es el peso de la serie, en kilos (opcional: sin carga). Un
+	// puntero distingue "no vino" (nil) de un valor.
+	LoadKg *float64 `json:"load_kg"`
 }
 
 // exerciseRef es un ejercicio ya resuelto: el id para la base, el nombre y
@@ -328,6 +352,8 @@ func (w NewWorkout) validate(now time.Time) (localDate time.Time, err error) {
 			return time.Time{}, invalid("el ítem %d no tiene reps ni duration_s", it.BlockItemID)
 		case (it.Reps != nil && *it.Reps < 0) || (it.DurationS != nil && *it.DurationS < 0):
 			return time.Time{}, invalid("el ítem %d tiene valores negativos", it.BlockItemID)
+		case it.LoadKg != nil && (*it.LoadKg <= 0 || *it.LoadKg > maxLoadKg):
+			return time.Time{}, invalid("el peso del ítem %d tiene que estar entre 0 y %v kg", it.BlockItemID, maxLoadKg)
 		}
 		seen[it.BlockItemID] = true
 	}
@@ -412,6 +438,12 @@ func (s *Service) RecordWorkout(ctx context.Context, userID string, w NewWorkout
 			if it.ExerciseSlug != nil {
 				ex = swaps[*it.ExerciseSlug]
 			}
+			if it.LoadKg != nil {
+				// La base guarda dos decimales: redondeamos acá también, así
+				// los Mojones de esta Fragua se calculan con el mismo valor.
+				load := math.Round(*it.LoadKg*100) / 100
+				it.LoadKg = &load
+			}
 			p := performedItem{ItemResult: it, exercise: ex}
 			performed = append(performed, p)
 			if si.Phase == db.BlockPhaseMain {
@@ -454,7 +486,7 @@ func (s *Service) RecordWorkout(ctx context.Context, userID string, w NewWorkout
 		for i, it := range performed {
 			items[i] = db.CreateWorkoutItemsParams{
 				WorkoutID: id, BlockItemID: it.BlockItemID, ExerciseID: it.exercise.id,
-				Reps: it.Reps, DurationS: it.DurationS,
+				Reps: it.Reps, DurationS: it.DurationS, LoadKg: it.LoadKg,
 			}
 		}
 		if _, err := q.CreateWorkoutItems(ctx, items); err != nil {
@@ -575,9 +607,11 @@ func newRecords(
 	ctx context.Context, q *db.Queries, userID string, items []performedItem, localDate string,
 ) ([]Record, error) {
 	// La mejor marca de ESTA Fragua por ejercicio (juntando ambos lados).
+	// Las reps cuentan solo en las series sin carga, como en BestResults.
 	type best struct {
 		name, slug     string
-		reps, duration int32
+		reps, duration float64
+		loadKg, e1rmKg float64
 	}
 	current := map[int64]*best{}
 	for _, it := range items {
@@ -586,11 +620,17 @@ func newRecords(
 			b = &best{name: it.exercise.name, slug: it.exercise.slug}
 			current[it.exercise.id] = b
 		}
-		if it.Reps != nil {
-			b.reps = max(b.reps, int32(*it.Reps))
+		switch {
+		case it.LoadKg != nil:
+			b.loadKg = max(b.loadKg, *it.LoadKg)
+			if it.Reps != nil && *it.Reps > 0 {
+				b.e1rmKg = max(b.e1rmKg, e1rm(*it.LoadKg, *it.Reps))
+			}
+		case it.Reps != nil:
+			b.reps = max(b.reps, float64(*it.Reps))
 		}
 		if it.DurationS != nil {
-			b.duration = max(b.duration, *it.DurationS)
+			b.duration = max(b.duration, float64(*it.DurationS))
 		}
 	}
 	if len(current) == 0 {
@@ -610,16 +650,24 @@ func newRecords(
 	for _, p := range prev {
 		c := current[p.ExerciseID]
 		// r es un valor, no una referencia: append guarda una copia, así que
-		// reusarlo para la segunda métrica no pisa la primera (en Java, con
-		// un objeto, la lista tendría dos veces el mismo).
+		// reusarlo para la métrica siguiente no pisa la anterior (en Java,
+		// con un objeto, la lista tendría varias veces el mismo).
 		r := Record{Exercise: c.name, ExerciseSlug: c.slug, AchievedOn: localDate}
-		if p.BestReps > 0 && c.reps > p.BestReps {
-			r.Metric, r.Value, r.Previous = "reps", c.reps, p.BestReps
-			out = append(out, r)
-		}
-		if p.BestDurationS > 0 && c.duration > p.BestDurationS {
-			r.Metric, r.Value, r.Previous = "duration_s", c.duration, p.BestDurationS
-			out = append(out, r)
+		// Una métrica es Mojón si había marca previa (la primera vez no
+		// cuenta) y esta Fragua la superó.
+		for _, m := range []struct {
+			metric        string
+			current, prev float64
+		}{
+			{"reps", c.reps, float64(p.BestReps)},
+			{"duration_s", c.duration, float64(p.BestDurationS)},
+			{"load_kg", c.loadKg, p.BestLoadKg},
+			{"e1rm_kg", c.e1rmKg, p.BestE1rmKg},
+		} {
+			if m.prev > 0 && m.current > m.prev {
+				r.Metric, r.Value, r.Previous = m.metric, m.current, m.prev
+				out = append(out, r)
+			}
 		}
 	}
 	// Orden estable para la respuesta (las filas de la base no tienen orden).
@@ -680,6 +728,20 @@ func (s *Service) Records(ctx context.Context, userID string) ([]Record, error) 
 			Exercise: r.Name, ExerciseSlug: r.Slug, Metric: r.Metric, Value: r.Value,
 			AchievedOn: r.LocalDate.Format(time.DateOnly),
 		})
+	}
+	return out, nil
+}
+
+// LastLoads devuelve el último peso del usuario en cada ejercicio que hizo
+// con carga.
+func (s *Service) LastLoads(ctx context.Context, userID string) ([]LastLoad, error) {
+	rows, err := s.q.ListLastLoads(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("leyendo los últimos pesos: %w", err)
+	}
+	out := make([]LastLoad, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, LastLoad{ExerciseSlug: r.Slug, LoadKg: r.LoadKg, On: r.LocalDate.Format(time.DateOnly)})
 	}
 	return out, nil
 }
