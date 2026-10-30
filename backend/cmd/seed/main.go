@@ -1,10 +1,12 @@
-// Command seed importa los programas de Mammoth Hunters (nivel A de
-// docs/source) al modelo de la app.
+// Command seed importa los programas de docs/source al modelo de la app: los
+// de Mammoth Hunters (nivel A, desde los Excel) y los transcriptos a mano
+// (planimport).
 //
 //	go run ./cmd/seed names   # crea o completa el CSV de nombres para revisar
 //	go run ./cmd/seed sql     # genera el seed SQL a partir del CSV curado
 //	go run ./cmd/seed phases  # genera el SQL del calentamiento y la movilidad de cada programa
 //	go run ./cmd/seed titles  # imprime el UPDATE de los títulos de las sesiones
+//	go run ./cmd/seed plans   # genera el SQL de los programas transcriptos a mano
 //
 // El CSV de nombres se versiona (solo tiene nombres); el SQL no, porque
 // incluye descripciones y videos de la fuente.
@@ -19,6 +21,7 @@ import (
 	"strings"
 
 	"github.com/santinuin/naguan-app/backend/internal/mhimport"
+	"github.com/santinuin/naguan-app/backend/internal/planimport"
 )
 
 // programs son los programas del nivel A, en el orden en que se cargan.
@@ -35,9 +38,9 @@ func main() {
 	namesPath := flag.String("names", "seed/exercise_names.csv", "CSV curado de nombres")
 	titlesPath := flag.String("titles", "seed/session_titles.csv", "CSV de títulos de las sesiones")
 	outPath := flag.String("out", "../supabase/seed.sql", "archivo SQL a generar (sql)")
-	phasesDir := flag.String("phases-dir", "../supabase", "carpeta de los SQL a generar (phases)")
+	phasesDir := flag.String("phases-dir", "../supabase", "carpeta de los SQL a generar (phases y plans)")
 	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "uso: seed [flags] names|sql|phases|titles\n")
+		fmt.Fprintf(os.Stderr, "uso: seed [flags] names|sql|phases|titles|plans\n")
 		flag.PrintDefaults()
 	}
 	flag.Parse()
@@ -52,6 +55,8 @@ func main() {
 		err = runTitles(*titlesPath)
 	case "phases":
 		err = runPhases(*source, *namesPath, *phasesDir)
+	case "plans":
+		err = runPlans(*source, *namesPath, *phasesDir)
 	default:
 		flag.Usage()
 		os.Exit(2)
@@ -226,4 +231,65 @@ func runTitles(titlesPath string) error {
 		return err
 	}
 	return mhimport.RenderTitlesSQL(os.Stdout, titles)
+}
+
+// plans son los programas transcriptos a mano (ver internal/planimport). La
+// transcripción es contenido de la fuente y vive en docs/source (no se
+// versiona); los ejercicios nuevos y las progresiones tienen texto propio y
+// se versionan. Como en phasePrograms, cada programa genera su propio SQL.
+var plans = []struct {
+	slug, name string
+	plan       string // transcripción
+	extras     string // ejercicios nuevos y progresiones
+	out        string // SQL a generar, dentro de -phases-dir
+}{
+	{
+		"desencadenado", "Desencadenado",
+		"{source}/Programas/Desencadenado /desencadenado.txt",
+		"seed/desencadenado_catalogo.txt",
+		"seed_desencadenado.sql",
+	},
+}
+
+// runPlans genera el SQL de cada programa de plans. Va aparte de seed.sql
+// por lo mismo que las fases: se aplica también sobre la base de
+// producción, que ya tiene el catálogo y Fraguas templadas.
+func runPlans(source, namesPath, outDir string) error {
+	cat, _, err := buildCatalog(source, namesPath)
+	if err != nil {
+		return err
+	}
+	var errs []error
+	for _, p := range plans {
+		if err := writePlan(cat, p.slug, p.name, strings.Replace(p.plan, "{source}", source, 1),
+			p.extras, filepath.Join(outDir, p.out)); err != nil {
+			errs = append(errs, fmt.Errorf("%s: %w", p.slug, err))
+		}
+	}
+	return errors.Join(errs...)
+}
+
+func writePlan(cat *mhimport.Catalog, slug, name, planPath, extrasPath, outPath string) error {
+	plan, err := planimport.ReadPlan(planPath)
+	if err != nil {
+		return err
+	}
+	extras, err := planimport.ReadCatalogExtras(extrasPath)
+	if err != nil {
+		return err
+	}
+	prog, err := planimport.Build(slug, name, plan, extras, cat)
+	if err != nil {
+		return err
+	}
+
+	f, err := os.Create(outPath)
+	if err != nil {
+		return err
+	}
+	if err := errors.Join(planimport.RenderSQL(f, prog), f.Close()); err != nil {
+		return err
+	}
+	fmt.Printf("%s: %s\n", outPath, prog)
+	return nil
 }

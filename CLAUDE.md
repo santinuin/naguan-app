@@ -101,8 +101,14 @@ a la hora de asistir en el desarrollo:
      `GET /v1/me/workouts?before=<id>`; `RecordsScreen` con el día de cada Mojón; acceso
      desde el inicio). Pendiente: el detalle de una Fragua templada (qué se hizo en cada
      ejercicio), que pide un `GET /v1/me/workouts/{id}`.
-  5. Datos: niveles B y C (ver "Datos fuente"); ajustes de contenido (nombres de
-     sesiones, calentamiento y estiramiento de los programas que no son Unbreakable).
+  5. Datos: programas nuevos, en este orden de prioridad: ~~Desencadenado~~ (cargado
+     en local el 2026-10-30; falta `supabase db push --include-seed` en producción),
+     Efecto Kettlebell y Barra Libre. Se cargan con el modelo actual (las decisiones y
+     lo que queda pendiente para después: `docs/limitaciones-del-modelo.md`). Elite,
+     Primal y Aurum tienen prioridad baja (no se usan): sus nombres de sesión y su
+     calentamiento y estiramiento quedan para más adelante.
+  6. Mostrar la descripción del programa en `ProgramScreen` (la API ya la manda; la
+     de Desencadenado explica cómo elegir el nivel).
 
 ## Forma de trabajo
 
@@ -123,7 +129,9 @@ a la hora de asistir en el desarrollo:
   por escrito sobre diseño, arquitectura o cómo funcionan los frameworks por debajo (Go,
   Flutter, Supabase). Se crean o amplían a medida que aparecen los temas. Hoy:
   `docs/go-para-devs-spring.md`, `docs/flutter-como-funciona.md`, `docs/autenticacion.md`,
-  `docs/modelo-de-datos.md`, `docs/despliegue.md`.
+  `docs/modelo-de-datos.md`, `docs/despliegue.md`,
+  `docs/limitaciones-del-modelo.md` (lo que los planes piden y el modelo todavía no
+  soporta, con cómo se carga mientras tanto; se amplía al cargar cada plan).
 - Guía de entorno, emulador y comandos útiles: `mobile/README.md`.
 
 ## Stack decidido
@@ -287,6 +295,10 @@ calistenia, pero también fuerza con barra (Barra Libre) y movilidad ("flexifuer
   - `internal/db`: **generado por sqlc** (`sqlc generate` desde `backend/`, config en
     `sqlc.yaml`); las consultas viven en `internal/db/queries/*.sql`. No editar el `.go`.
   - `cmd/seed` + `internal/mhimport`: importador de los programas (ver `backend/README.md`).
+    `internal/planimport`: los planes transcriptos a mano (PDF de Fitness
+    Revolucionario): texto con bloques como los escribe el libro → SQL por slugs
+    (`go run ./cmd/seed plans`); ejercicios nuevos y niveles en
+    `backend/seed/<programa>_catalogo.txt` (versionado).
   - Interfaces chicas y del lado del consumidor; nada de interfaz + `Impl` por servicio.
 - Notas de Go para quien viene de Spring: `docs/go-para-devs-spring.md` (se completa a
   medida que aparecen conceptos).

@@ -1,0 +1,152 @@
+# Ejercicios nuevos y progresiones de Desencadenado (Fitness Revolucionario).
+#
+# Ejercicios que pide el plan y que el índice de Mammoth Hunters no tiene.
+# Las descripciones son propias (no son del libro), por eso este archivo se
+# versiona; la transcripción del plan no (vive en docs/source). Formato: ver
+# backend/internal/planimport/catalog.go.
+#
+#   + Nombre | MET [| unilateral]
+#   Descripción en Markdown, hasta la próxima línea en blanco.
+#
+#   progresión: más fácil > … > más difícil
+#
+# No tienen video: la pantalla del ejercicio muestra solo CÓMO SE HACE.
+
+# ── Niveles de los cinco ejercicios básicos ─────────────────────────────────
+# El libro organiza todo alrededor de 5 ejercicios con 5 niveles cada uno. Las
+# sesiones traen el nivel 3 (o el más conocido) y en el editor de la Fragua se
+# baja o se sube por estas cadenas.
+
++ Flexión a una mano | 4.5 | unilateral
+Piernas bien abiertas y una mano bajo el pecho; la otra, a la espalda. Bajá con
+el cuerpo duro, sin girar la cadera, hasta que el pecho quede cerca del suelo, y
+empujá de vuelta.
+
++ Pino de cabeza | 3
+Apoyá la frente y las manos en el suelo formando un triángulo, cerca de una
+pared. Subí las rodillas a los codos y después estirá las piernas contra la
+pared. El peso va en las manos, no en el cuello. Aguantá el tiempo que puedas.
+
++ Pino contra la pared | 3.5
+Con las manos a un palmo de la pared, pateá hasta quedar cabeza abajo con los
+talones apoyados. Brazos estirados, abdomen y glúteos apretados. Aguantá el
+tiempo que puedas.
+
++ Semiflexión vertical | 4
+En pino contra la pared, flexioná los codos hasta la mitad del recorrido y
+volvé a estirarlos. Cuando lo controles, bajá un poco más cada semana.
+
++ Flexión vertical profunda | 5
+Como la flexión vertical, pero con las manos sobre dos apoyos altos (sillas,
+libros, paralelas) para que la cabeza baje más allá de las manos. Bajá lento y
+empujá hasta estirar los brazos.
+
++ Dominada con mano y media | 5 | unilateral
+Una mano en la barra y la otra agarrando la muñeca o el antebrazo de la
+primera. Subí hasta pasar la barbilla y bajá controlado. La mano de arriba hace
+casi todo el trabajo.
+
++ Dominada a una mano | 5.5 | unilateral
+Colgado de una sola mano, con el otro brazo pegado al cuerpo. Subí hasta pasar
+la barbilla sin balancearte y bajá lento.
+
++ Media sentadilla con apoyo | 3
+De pie, agarrado de una mesa, una baranda o el marco de una puerta. Bajá hasta
+que los muslos queden paralelos al suelo, ayudándote con los brazos lo justo, y
+volvé a subir.
+
++ Sentadilla con apoyo | 3.5
+Igual que la media sentadilla con apoyo, pero bajando hasta el fondo, con los
+talones en el suelo y la espalda recta. Los brazos solo ayudan a no perder el
+equilibrio.
+
++ Abdominales en silla | 2.5
+Sentado en el borde de una silla, con las manos agarrando los costados del
+asiento. Inclinate un poco hacia atrás y llevá las rodillas al pecho; estiralas
+de nuevo sin apoyar los pies.
+
++ Levantamiento de piernas encogidas en el suelo | 3
+Boca arriba, con las manos bajo los glúteos. Con las rodillas dobladas, llevalas
+hacia el pecho levantando un poco la cadera y bajá sin tocar el suelo con los
+pies.
+
+progresión: Flexión inclinada > Flexión con rodillas > Flexión > Flexión declinada > Flexión a una mano
+progresión: Pino de cabeza > Pino contra la pared > Semiflexión vertical > Flexión vertical > Flexión vertical profunda
+progresión: Colgarse > Dominada asistida > Dominada > Dominada con mano y media > Dominada a una mano
+progresión: Media sentadilla con apoyo > Sentadilla con apoyo > Sentadilla > Sentadilla pistolero asistida > Sentadilla de pistolero
+progresión: Abdominales en silla > Levantamiento de piernas encogidas en el suelo > Levantamiento de piernas en suelo > Levantamiento de piernas Flexiónadas > Levantamiento de piernas
+
+# ── Variantes del plan ──────────────────────────────────────────────────────
+
++ Semidominada horizontal a una mano | 4 | unilateral
+Como la dominada en mesa (rodillas dobladas, pies en el suelo), pero tirando
+con una sola mano. La otra, en el pecho. Acercá el pecho al borde sin girar el
+torso.
+
++ Extensión lumbar | 3
+Boca abajo, con los pies trabados bajo un mueble y una toalla enrollada bajo la
+cadera. Manos en la espalda o detrás de la cabeza: levantá el tronco lo más
+alto que puedas sin mover los pies, apretando glúteos, y bajá lento.
+
++ Elevación de talones | 2.5
+Con la punta de los pies en el borde de un escalón y una mano en la pared para
+el equilibrio, subí hasta quedar en puntas y bajá hasta que los talones pasen
+el borde. Si es fácil, de a una pierna.
+
++ Flexión S&M | 2.5
+En cuatro patas, estirá un brazo hacia adelante y la pierna contraria hacia
+atrás, en línea con la espalda. Aguantá 3 segundos y cambiá de lado. Cada lado
+cuenta como una repetición. Más difícil: apoyado en la punta del pie en vez de
+en la rodilla.
+
++ Bicicleta | 3.5
+Boca arriba, manos detrás de la cabeza y piernas en el aire. Llevá un codo a la
+rodilla contraria mientras estirás la otra pierna, y alterná sin apoyar los
+pies. Cada lado cuenta como una repetición.
+
++ Salto con rodillas al pecho | 8
+De pie, con las manos abiertas delante de la cadera. Saltá llevando las rodillas
+arriba hasta tocar las manos y caé suave para encadenar el siguiente salto.
+
++ Flexión en T | 4
+Una flexión clásica que, al subir, gira el cuerpo hacia un lado y lleva esa mano
+al techo: el cuerpo queda en forma de T, apoyado en una mano y los pies.
+Aguantá 2 segundos, volvé y repetí hacia el otro lado.
+
++ Dominada comando | 4.5
+Debajo de la barra y de costado a ella, con una mano delante de la otra. Subí
+pasando la cabeza por un lado de la barra, bajá y en la siguiente pasala por el
+otro lado.
+
++ Flexión sobre balón | 4 | unilateral
+Una mano en el suelo y la otra sobre un balón (o una pila de libros). Bajá
+llevando el hombro del lado libre cerca del suelo y empujá. Todas las
+repeticiones de un lado y después del otro.
+
++ Flexión sobre balón alternando | 5
+Una mano sobre el balón y la otra en el suelo. En cada flexión, empujá fuerte y
+pasá el balón a la otra mano en el aire.
+
++ Flexión con las dos manos sobre balón | 4.5
+Las dos manos juntas sobre un balón, cuerpo recto. Bajá el pecho hasta el balón
+sin que se mueva y empujá. Exige mucho a los tríceps y al abdomen.
+
++ Bombardero en picado | 5
+Desde la V invertida (cadera arriba, manos y pies en el suelo), bajá la cabeza
+entre las manos, pasá rozando el suelo hacia adelante y terminá con los brazos
+estirados y el pecho arriba. Volvé por el mismo camino hasta la V.
+
++ Extensión de tríceps en pared | 3
+De frente a una pared, con las manos juntas y apoyadas bajo la altura del
+pecho. Flexioná los codos hasta apoyar los antebrazos en la pared y empujá con
+los tríceps hasta estirar los brazos. Cuanto más bajas las manos, más difícil;
+la versión más dura es en el suelo.
+
++ Flexión espartana | 6
+En posición de flexión, con una mano un poco más adelante que el hombro y la
+otra un poco más atrás. Empujá explosivo, cambiá la posición de las manos en el
+aire y bajá a la siguiente.
+
++ Plancha lateral con flexión | 3.5 | unilateral
+En plancha lateral, con la cadera casi tocando el suelo. Subí la cadera rápido
+lo más alto que puedas, aguantá 2 segundos y bajá lento.

@@ -205,7 +205,7 @@ func RenderPhasesSQL(out io.Writer, programSlug string, sessions []SessionPhases
 	// Los ejercicios que el índice original no tiene. Con on conflict: si
 	// ya existen (el script se corrió antes), el error lo da la
 	// verificación de abajo, que es más clara.
-	for _, e := range phaseNewExercises {
+	for _, e := range PhaseNewExercises {
 		w.printf("\ninsert into exercise (slug, name, unilateral, description, met)\n")
 		w.printf("  values (%s, %s, false, %s, %s)\n  on conflict (slug) do nothing;\n",
 			str(e.Slug), str(e.Name), str(e.Description), strconv.FormatFloat(e.MET, 'f', -1, 64))

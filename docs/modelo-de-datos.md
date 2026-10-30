@@ -2,6 +2,8 @@
 
 Cómo está organizada la base de Naguan y por qué. El esquema vive en
 `supabase/migrations/` (se aplica en orden); acá están las decisiones de diseño.
+Lo que los planes piden y el modelo todavía no soporta está en
+`limitaciones-del-modelo.md`.
 
 ## Vista general
 

@@ -238,7 +238,8 @@ llega por `host.docker.internal` pero los tokens dicen `127.0.0.1`.
 pisaría IDs a los que ya apuntan Fraguas templadas. El contenido que se agrega
 después va en archivos aparte que se aplican sobre lo que ya hay. Hoy:
 `seed_phases.sql` y `seed_phases_ring_master.sql`, el calentamiento y la
-movilidad de Unbreakable y de Ring Master (ver `backend/README.md`). Un archivo
+movilidad de Unbreakable y de Ring Master, y `seed_desencadenado.sql`, un programa
+completo transcripto a mano (ver `backend/README.md`). Un archivo
 por programa: la CLI aplica cada uno una sola vez. Para Unbreakable fue en este
 orden (para Ring Master alcanza con el paso 3: la migración, la API y la app ya
 estaban):
@@ -267,6 +268,11 @@ estaban):
 4. **App:** un APK nuevo para ver los títulos CALENTAMIENTO / ENTRENAMIENTO /
    MOVILIDAD. La versión anterior sigue funcionando (ignora `phase` y muestra los
    bloques nuevos como bloques comunes).
+
+**Un programa nuevo** (`seed_<programa>.sql`, de `go run ./cmd/seed plans`) no
+necesita migración ni API ni APK nuevos: es el paso 3 solo. El dry-run tiene que
+listar únicamente el archivo nuevo (si lista otro con «hash update», el mismo truco
+de `sql_paths`). El script aborta si el programa ya existe.
 
 **Corregir contenido ya cargado.** Un seed que ya se aplicó no sirve para corregir:
 la CLI no lo vuelve a correr como un archivo nuevo, y el de fases además aborta si el

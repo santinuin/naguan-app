@@ -26,6 +26,7 @@ ejercicios, progresiones, músculos, programas y sesiones. El esquema está en
 go run ./cmd/seed names   # crea o completa seed/exercise_names.csv
 go run ./cmd/seed sql     # genera /supabase/seed.sql (no versionado)
 go run ./cmd/seed phases  # genera /supabase/seed_phases*.sql (no versionados)
+go run ./cmd/seed plans   # genera /supabase/seed_<programa>.sql (no versionados)
 ```
 
 `seed/exercise_names.csv` es la **fuente de verdad de la identidad y el nombre** de cada
@@ -50,7 +51,7 @@ formato está explicado al principio del archivo y en `internal/mhimport/phases.
 ejercicios, con `phase` `warmup` o `mobility`. Los nombres de las capturas que no
 coinciden con el catálogo se traducen en `phaseAliases` (la app original decía
 "hombros" donde el índice dice "deltoides"); los que no existen en el índice se crean
-(`phaseNewExercises`, hoy solo «Colgarse»). Un nombre sin resolver corta con error.
+(`PhaseNewExercises`, hoy solo «Colgarse»). Un nombre sin resolver corta con error.
 Un bloque de un solo ejercicio con varias vueltas («Colgarse | 20s | x2») lleva un
 Enfriá de 10 s (`PhaseRestS`) entre vuelta y vuelta; lo cargado antes de esa regla lo
 corrige la migración `20261030000000_phase_rests.sql`.
@@ -81,3 +82,42 @@ Para producción, `go run ./cmd/seed titles` imprime un `UPDATE` (por programa y
 posición, se puede correr las veces que haga falta) para pegar en el editor SQL de
 Supabase. No es un archivo de seed: la CLI no vuelve a correr un seed ya aplicado que
 cambió, solo le actualiza el hash.
+
+### Programas transcriptos a mano (`plans`)
+
+Los planes de Fitness Revolucionario vienen en PDF: no hay un Excel con una fila
+por vuelta. Se transcriben a un archivo de texto que describe los bloques **como los
+escribe el libro** («3 tandas de 8, 1 minuto entre tandas»), y `internal/planimport`
+los despliega al modelo: una fila por ejercicio, por lado y por vuelta, con los Enfriá
+en su lugar. El formato está explicado en `internal/planimport/plan.go`:
+
+- `= N | Título | CAL MOV` abre la sesión N, con sus plantillas de calentamiento y de
+  movilidad (`@CAL`, `@MOV…`, definidas antes con los mismos bloques).
+  `= N | copia de M` repite la sesión M (semanas iguales).
+- Bloques: `vueltas xN`, `superset xN`, `pirámide 1-7-1` (escalera de reps) y
+  `tabata x8 20/10`, con `| entre S` (Enfriá entre vueltas) y `| después S`
+  (Enfriá antes del bloque siguiente). Una línea por ejercicio (`Nombre | 8r` o
+  `| 60s`; sin medida en pirámides y tabatas), o `Enfriá | 20s`, hasta `end`.
+- `>` agrega texto a la descripción del programa o de la sesión (Markdown).
+
+Cada plan tiene dos archivos (ver `plans` en `cmd/seed/main.go`):
+
+- **La transcripción**, en `docs/source/` (no versionada: es contenido del libro).
+  Hoy: `Programas/Desencadenado /desencadenado.txt`. Su encabezado anota las
+  decisiones de carga (rangos, pirámides, niveles), que siguen a
+  `/docs/limitaciones-del-modelo.md`.
+- **Lo que suma al catálogo**, en `seed/<programa>_catalogo.txt` (versionado: el
+  texto es propio): ejercicios que el índice no tiene (`+ Nombre | MET [| unilateral]`
+  y su descripción) y cadenas de progresión (`progresión: A > B > C`, los niveles
+  del libro). Desencadenado suma 26 ejercicios, sin video.
+
+Los nombres se resuelven contra el catálogo de `mhimport` (más «Colgarse», que crea
+el seed de fases, y los ejercicios nuevos del plan); uno que no existe corta con
+error. El SQL va por slugs, sin IDs, como el de las fases, porque se aplica también
+sobre la base de producción, y aborta si el programa ya está cargado. En local:
+`supabase db reset` lo carga último (ver `sql_paths`), o se aplica sobre la base que
+ya está, sin perder usuarios ni Fraguas:
+
+```bash
+docker exec -i supabase_db_naguan-app psql -U postgres -v ON_ERROR_STOP=1 < ../supabase/seed_desencadenado.sql
+```

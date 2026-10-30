@@ -207,9 +207,10 @@ type NewExercise struct {
 	MET                     float64
 }
 
-// phaseNewExercises son los ejercicios de las capturas que el índice no
-// tiene. El texto es propio (no viene de la fuente).
-var phaseNewExercises = []NewExercise{{
+// PhaseNewExercises son los ejercicios de las capturas que el índice no
+// tiene. El texto es propio (no viene de la fuente). Se exporta porque
+// planimport los da por existentes: sus seeds se cargan después de este.
+var PhaseNewExercises = []NewExercise{{
 	Slug: "colgarse",
 	Name: "Colgarse",
 	Description: "Colgate de una barra con las manos a la altura de los hombros y los brazos " +
@@ -234,7 +235,7 @@ func resolvePhaseExercises(plan *PhasePlan, cat *Catalog) (map[string]phaseExerc
 		bySlug[e.Slug] = e
 	}
 	added := map[string]bool{}
-	for _, e := range phaseNewExercises {
+	for _, e := range PhaseNewExercises {
 		added[e.Slug] = true
 	}
 
