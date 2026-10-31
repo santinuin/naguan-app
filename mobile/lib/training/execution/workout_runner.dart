@@ -17,6 +17,10 @@ enum StepKind {
 
   /// Un bloque AMRAP entero: se repite la vuelta hasta que se acaba el tope.
   amrap,
+
+  /// Una pirámide con tope: peldaños de 1, 2, 3... × el incremento de cada
+  /// ejercicio, hasta el máximo, de vuelta a 1 y otra vez, hasta el tope.
+  pyramid,
 }
 
 /// Un pitido de la cuenta regresiva: "pi" en el 3, el 2 y el 1, y "piiii"
@@ -40,7 +44,8 @@ class WorkoutStep {
   final StepKind kind;
   final Block block;
 
-  /// El ítem del paso; null en un AMRAP (que abarca el bloque entero).
+  /// El ítem del paso; null en un AMRAP o una pirámide (que abarcan el
+  /// bloque entero).
   final Item? item;
 
   /// Cuántas vueltas tiene el bloque (para mostrar "VUELTA 3 / 8").
@@ -52,7 +57,7 @@ class WorkoutStep {
   /// descanso, o el tope del AMRAP. Null en los pasos por reps.
   Duration? get duration => switch (kind) {
     StepKind.timed || StepKind.rest => Duration(seconds: item!.durationS!),
-    StepKind.amrap => Duration(seconds: block.timeCapS!),
+    StepKind.amrap || StepKind.pyramid => Duration(seconds: block.timeCapS!),
     StepKind.reps => null,
   };
 }
@@ -63,6 +68,8 @@ List<WorkoutStep> buildSteps(Session session) {
     for (final block in session.blocks)
       if (block.type == BlockType.amrap)
         WorkoutStep(kind: StepKind.amrap, block: block, roundCount: 1)
+      else if (block.type == BlockType.pyramid)
+        WorkoutStep(kind: StepKind.pyramid, block: block, roundCount: 1)
       else
         for (final item in block.items)
           WorkoutStep(
@@ -144,6 +151,29 @@ class WorkoutRunner extends ChangeNotifier {
         in (snapshot['amraps'] as Map<String, dynamic>).entries) {
       runner._amrapsDone[int.parse(key)] = value as int;
     }
+    // La pirámide: opcional, un snapshot de una versión anterior no la trae.
+    if (snapshot['pyramid'] case final Map<String, dynamic> p) {
+      runner
+        .._rung = p['rung'] as int
+        .._descending = p['descending'] as bool
+        .._peak = p['peak'] as int
+        .._rungSum = p['rung_sum'] as int
+        .._lastRung = p['last_rung'] as int
+        .._rungStart = Duration(milliseconds: p['rung_start_ms'] as int)
+        .._restEnd = switch (p['rest_end_ms']) {
+          final int ms => Duration(milliseconds: ms),
+          _ => null,
+        };
+    }
+    for (final MapEntry(:key, :value)
+        in ((snapshot['pyramids'] as Map<String, dynamic>?) ?? const {})
+            .entries) {
+      final v = value as Map<String, dynamic>;
+      runner._pyramidsDone[int.parse(key)] = (
+        peak: v['peak'] as int,
+        rungSum: v['rung_sum'] as int,
+      );
+    }
     if (runner._index >= runner.steps.length) {
       runner._finishedAt = time('saved_at');
     }
@@ -195,6 +225,32 @@ class WorkoutRunner extends ChangeNotifier {
   /// Vueltas de los AMRAP ya terminados, por posición del bloque.
   final Map<int, int> _amrapsDone = {};
 
+  // ── La pirámide en curso ──
+  // Los tiempos son de [stepElapsed] (el reloj del paso, sin pausas): así la
+  // pausa y el snapshot los cubren sin código aparte.
+
+  /// El peldaño que se está haciendo (o el que sigue, si se descansa).
+  int _rung = 1;
+
+  /// Si ya se pasó el máximo y se está bajando.
+  bool _descending = false;
+
+  /// El peldaño más alto completado, y la suma de los completados.
+  int _peak = 0;
+  int _rungSum = 0;
+
+  /// El último peldaño completado (0: ninguno): BAJAR baja desde ahí.
+  int _lastRung = 0;
+
+  /// Cuándo empezó el peldaño actual, para saber cuánto se tardó.
+  Duration _rungStart = Duration.zero;
+
+  /// Cuándo termina el descanso entre peldaños; null si no se descansa.
+  Duration? _restEnd;
+
+  /// Lo hecho en las pirámides ya terminadas, por posición del bloque.
+  final Map<int, PyramidResult> _pyramidsDone = {};
+
   /// Sube con cada cambio que vale la pena guardar (no con cada tick): la
   /// pantalla lo usa para saber cuándo guardar el snapshot.
   int _revision = 0;
@@ -221,6 +277,26 @@ class WorkoutRunner extends ChangeNotifier {
   double get progress => steps.isEmpty ? 1 : _index / steps.length;
 
   int get repsDraft => _repsDraft;
+
+  int get rung => _rung;
+  bool get isDescending => _descending;
+  int get pyramidPeak => _peak;
+
+  /// Las reps totales de la pirámide hasta ahora, en peldaños (× el
+  /// incremento de cada ejercicio).
+  int get rungSum => _rungSum;
+
+  /// Si se está descansando entre peldaños.
+  bool get isPyramidResting => _restEnd != null;
+
+  /// Cuánto falta del descanso entre peldaños; null si no se descansa.
+  Duration? get pyramidRestLeft {
+    final end = _restEnd;
+    if (end == null) return null;
+    final left = end - stepElapsed;
+    return left.isNegative ? Duration.zero : left;
+  }
+
   double? get loadDraft => _loadDraft;
 
   /// Si el paso actual muestra el peso: los ejercicios con carga siempre;
@@ -295,6 +371,22 @@ class WorkoutRunner extends ChangeNotifier {
     _changed();
   }
 
+  /// BAJAR: llegaste a tu máximo. El próximo peldaño es uno menos que el
+  /// último completado (y desde ahí se baja).
+  void pyramidDown() {
+    if (current.kind != StepKind.pyramid || _descending) return;
+    _descending = true;
+    _rung = max(1, _lastRung - 1);
+    _changed();
+  }
+
+  /// Termina la pirámide antes del tope: registra lo hecho y sigue.
+  void finishPyramid() {
+    if (current.kind != StepKind.pyramid) return;
+    _recordPyramid();
+    _advance();
+  }
+
   void addAmrapRound() {
     _amrapRounds++;
     _changed();
@@ -325,10 +417,62 @@ class WorkoutRunner extends ChangeNotifier {
         }
       case StepKind.amrap:
         _amrapsDone[step.block.position] = _amrapRounds;
+      case StepKind.pyramid:
+        // HECHO no termina la pirámide: completa un peldaño (o corta el
+        // descanso). Termina sola con el tope, o con finishPyramid.
+        _pyramidStep();
+        return;
       case StepKind.rest:
         break; // nada que registrar
     }
     _advance();
+  }
+
+  /// HECHO en una pirámide. Descansando: corta el descanso y arranca el
+  /// peldaño. Si no: el peldaño está hecho, se cuenta y empieza un descanso
+  /// de lo mismo que se tardó (el libro: "el descanso es igual al tiempo
+  /// que te llevó hacer el ejercicio").
+  void _pyramidStep() {
+    if (isPreparing) return;
+    final now = stepElapsed;
+    if (_restEnd != null) {
+      _restEnd = null;
+      _rungStart = now;
+      _changed();
+      return;
+    }
+    _rungSum += _rung;
+    _peak = max(_peak, _rung);
+    _lastRung = _rung;
+    if (!_descending) {
+      _rung++;
+    } else if (_rung > 1) {
+      _rung--;
+    } else {
+      // Se llegó a 1 bajando y sobra tiempo: se vuelve a subir.
+      _descending = false;
+      _rung = 1;
+    }
+    _restEnd = now + (now - _rungStart);
+    _changed();
+  }
+
+  /// Registra lo hecho en la pirámide actual: el pico y la suma, y para cada
+  /// ejercicio sus reps totales (así la API sabe cuál se hizo, si se cambió
+  /// por una progresión). Sin peldaños completos, nada.
+  void _recordPyramid() {
+    final block = current.block;
+    if (_rungSum == 0) return;
+    _pyramidsDone[block.position] = (peak: _peak, rungSum: _rungSum);
+    for (final item in block.items) {
+      final exercise = item.exercise;
+      if (exercise == null) continue;
+      _results[item.id] = ItemResult.reps(
+        item.id,
+        _rungSum * (item.reps ?? 1),
+        exerciseSlug: exercise.slug,
+      );
+    }
   }
 
   /// Saltea el paso sin registrar nada.
@@ -348,6 +492,12 @@ class WorkoutRunner extends ChangeNotifier {
       null => null,
     };
     if (step.kind == StepKind.amrap) _amrapsDone.remove(step.block.position);
+    if (step.kind == StepKind.pyramid) {
+      _pyramidsDone.remove(step.block.position);
+      for (final item in step.block.items) {
+        _results.remove(item.id);
+      }
+    }
     _enterStep(i);
     if (undone?.reps case final reps?) _repsDraft = reps;
     // El peso que se había marcado (también si era sin carga).
@@ -390,6 +540,8 @@ class WorkoutRunner extends ChangeNotifier {
           );
         case StepKind.amrap:
           _amrapsDone[current.block.position] = _amrapRounds;
+        case StepKind.pyramid:
+          _recordPyramid();
         case StepKind.reps || StepKind.rest:
           break;
       }
@@ -402,6 +554,13 @@ class WorkoutRunner extends ChangeNotifier {
       // empieza con su preparación, el "pi" del 3 se pisaría con este piiii.
       _announced = _countMark;
       return Cue.go;
+    }
+
+    // Terminó el descanso entre peldaños: arranca el siguiente.
+    if (_restEnd case final end? when stepElapsed >= end) {
+      _restEnd = null;
+      _rungStart = end;
+      _changed();
     }
 
     // ¿Se entró en un segundo nuevo de la cuenta? Comparar con el último
@@ -429,12 +588,16 @@ class WorkoutRunner extends ChangeNotifier {
   /// Es un record: un valor con campos con nombre, sin declarar una clase.
   /// Los records se comparan por valor, así que `!=` en [tick] compara los
   /// dos campos.
+  ///
+  /// El descanso entre peldaños de una pirámide cuenta como preparación: pita
+  /// 3, 2, 1 y "piiii" al arrancar el peldaño siguiente.
   _CountMark? get _countMark {
     if (isFinished) return null; // no hay paso actual
-    final left = preparationLeft ?? remaining;
+    final rest = pyramidRestLeft;
+    final left = preparationLeft ?? rest ?? remaining;
     if (left == null) return null;
     return (
-      preparing: isPreparing,
+      preparing: isPreparing || rest != null,
       seconds: (left.inMilliseconds / 1000).ceil(),
     );
   }
@@ -488,6 +651,7 @@ class WorkoutRunner extends ChangeNotifier {
       finishedAt: _finishedAt!,
       items: _results.values.toList(),
       amrapRounds: Map.of(_amrapsDone),
+      pyramids: Map.of(_pyramidsDone),
     );
   }
 
@@ -506,6 +670,19 @@ class WorkoutRunner extends ChangeNotifier {
     'amrap_rounds': _amrapRounds,
     // Las claves de un objeto JSON son siempre strings.
     'amraps': {for (final e in _amrapsDone.entries) '${e.key}': e.value},
+    'pyramids': {
+      for (final MapEntry(:key, :value) in _pyramidsDone.entries)
+        '$key': {'peak': value.peak, 'rung_sum': value.rungSum},
+    },
+    'pyramid': {
+      'rung': _rung,
+      'descending': _descending,
+      'peak': _peak,
+      'rung_sum': _rungSum,
+      'last_rung': _lastRung,
+      'rung_start_ms': _rungStart.inMilliseconds,
+      'rest_end_ms': _restEnd?.inMilliseconds,
+    },
     'results': [for (final r in _results.values) r.toJson()],
   };
 
@@ -533,9 +710,18 @@ class WorkoutRunner extends ChangeNotifier {
     }
     final step = steps[i];
     if (withLeadIn &&
-        (step.kind == StepKind.timed || step.kind == StepKind.amrap)) {
+        (step.kind == StepKind.timed ||
+            step.kind == StepKind.amrap ||
+            step.kind == StepKind.pyramid)) {
       _stepStartedAt = _stepStartedAt.add(leadIn);
     }
+    _rung = 1;
+    _descending = false;
+    _peak = 0;
+    _rungSum = 0;
+    _lastRung = 0;
+    _rungStart = Duration.zero;
+    _restEnd = null;
     _repsDraft = step.item?.reps ?? 0;
     _loadDraft = _proposedLoad(i);
     _amrapRounds = 0;

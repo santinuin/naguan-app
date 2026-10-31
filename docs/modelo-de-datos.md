@@ -64,8 +64,11 @@ exercise ──< exercise_video                      │           │  (Fragua 
 - **El descanso es un ítem (`kind = 'rest'`), no un ejercicio.** Un `check` garantiza que
   un descanso no tenga ejercicio ni reps, y que un ejercicio se mida por tiempo **o** por
   reps, nunca por ambos. La regla vive en la base, no solo en el código.
-- **`amrap`** es el único bloque con `time_cap_s`: sus ítems describen una vuelta que se
-  repite hasta que se acaba el tiempo. Otro `check` liga las dos cosas.
+- **`amrap` y `pyramid`** son los únicos bloques con `time_cap_s` (otro `check` liga las
+  dos cosas). En un `amrap`, los ítems son una vuelta que se repite hasta el tope. En una
+  `pyramid`, son el peldaño modelo, con el incremento como reps: el peldaño n pide n ×
+  reps de cada ejercicio, se sube hasta el máximo, se baja a 1 y se vuelve a subir hasta
+  el tope; entre peldaños, la app descansa lo que se tardó.
 - **`block.phase`: calentamiento, entrenamiento o movilidad** (`warmup` | `main` |
   `mobility`). Las tres partes son bloques de la **misma** sesión: se templan juntas, en
   una sola Fragua, y la app las titula por separado. Se descartó modelarlas como sesiones
@@ -155,6 +158,14 @@ varios null).
 Cuántas vueltas completó el usuario en cada bloque AMRAP, por posición del bloque. Van en
 su propia tabla y no en `workout_item`: las reps de un AMRAP no son "una serie", y
 mezclarlas arruinaría los Mojones.
+
+### `workout_pyramid`: las pirámides
+
+Por pirámide (posición del bloque): el peldaño más alto (`peak`) y la suma de los
+completados (`rung_sum`). Además, cada ejercicio de la pirámide va en `workout_item` con
+las reps totales (`rung_sum` × incremento) y el ejercicio que se hizo de verdad (si se
+cambió por una progresión). Esas reps no compiten como serie: el Mojón de una pirámide
+es `peak_reps`, el pico × el incremento.
 
 ### `program_reset`: empezar una Senda de cero
 

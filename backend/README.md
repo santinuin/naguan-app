@@ -103,11 +103,13 @@ en su lugar. El formato está explicado en `internal/planimport/plan.go`:
 - `= N | Título | CAL MOV` abre la sesión N, con sus plantillas de calentamiento y de
   movilidad (`@CAL`, `@MOV…`, definidas antes con los mismos bloques).
   `= N | copia de M` repite la sesión M (semanas iguales).
-- Bloques: `vueltas xN`, `superset xN`, `pirámide 1-7-1` (escalera de reps),
-  `tabata x8 20/10` (con `alterna`, un ejercicio distinto por vuelta) y `amrap 300`
-  (tope en segundos), con `| entre S` (Enfriá entre vueltas) y `| después S`
-  (Enfriá antes del bloque siguiente; en un AMRAP, en un bloque aparte). Una línea
-  por ejercicio (`Nombre | 8r` o `| 60s`; sin medida en pirámides y tabatas), o
+- Bloques: `vueltas xN`, `superset xN`, `pirámide 1-7-1` (escalera fija de reps),
+  `pirámide 420s` (pirámide con tope de tiempo: los ítems son el peldaño modelo, con el
+  incremento como reps, `Flexión | 1r`), `tabata x8 20/10` (con `alterna`, un
+  ejercicio distinto por vuelta) y `amrap 300` (tope en segundos), con `| entre S`
+  (Enfriá entre vueltas) y `| después S` (Enfriá antes del bloque siguiente; en un
+  AMRAP o una pirámide con tope, en un bloque aparte). Una línea por ejercicio
+  (`Nombre | 8r` o `| 60s`; sin medida en las escaleras fijas y los tabatas), o
   `Enfriá | 20s`, hasta `end`. Un unilateral se hace por los dos lados, salvo que
   la línea termine en `| der`, `| izq` o `| alternando` (un solo paso sin lado).
 - `video: Nombre | url` da el video de un ejercicio nuevo del plan (va en la

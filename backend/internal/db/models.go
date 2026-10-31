@@ -62,6 +62,7 @@ const (
 	BlockTypeSuperset       BlockType = "superset"
 	BlockTypeLadder         BlockType = "ladder"
 	BlockTypeAmrap          BlockType = "amrap"
+	BlockTypePyramid        BlockType = "pyramid"
 )
 
 func (e *BlockType) Scan(src interface{}) error {
@@ -341,4 +342,11 @@ type WorkoutItem struct {
 	DurationS   *int32
 	ExerciseID  int64
 	LoadKg      *float64
+}
+
+type WorkoutPyramid struct {
+	WorkoutID     int64
+	BlockPosition int16
+	Peak          int16
+	RungSum       int32
 }

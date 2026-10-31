@@ -63,7 +63,8 @@ enum BlockType {
   tabata('TÁBATA'),
   superset('SUPERSERIE'),
   ladder('ESCALERA'),
-  amrap('AMRAP');
+  amrap('AMRAP'),
+  pyramid('PIRÁMIDE');
 
   const BlockType(this.label);
 
@@ -77,6 +78,7 @@ enum BlockType {
     superset => 'superset',
     ladder => 'ladder',
     amrap => 'amrap',
+    pyramid => 'pyramid',
   };
 
   /// Traduce el valor de la API ("rounds_with_rest") al enum.
@@ -87,6 +89,7 @@ enum BlockType {
     'superset' => superset,
     'ladder' => ladder,
     'amrap' => amrap,
+    'pyramid' => pyramid,
     _ => throw FormatException('Tipo de bloque desconocido: $value'),
   };
 }
@@ -129,7 +132,7 @@ class Block {
   final BlockPhase phase;
   final BlockType type;
 
-  /// Solo en los amrap: la duración total del bloque.
+  /// Solo en los amrap y las pirámides: la duración total del bloque.
   final int? timeCapS;
 
   /// Todos los ítems del bloque, ordenados por vuelta y posición.

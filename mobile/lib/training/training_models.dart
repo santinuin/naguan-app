@@ -121,7 +121,10 @@ enum RecordMetric {
 
   /// El 1RM estimado (peso × reps × 0,0333 + peso), en kilos: compara
   /// series de distintas reps.
-  e1rmKg;
+  e1rmKg,
+
+  /// El pico de una pirámide: el peldaño más alto × el incremento.
+  peakReps;
 
   /// El nombre que usa la API. Un switch sobre el propio enum ([this]):
   /// si se agrega un valor, el compilador avisa que falta su caso.
@@ -130,6 +133,7 @@ enum RecordMetric {
     durationS => 'duration_s',
     loadKg => 'load_kg',
     e1rmKg => 'e1rm_kg',
+    peakReps => 'peak_reps',
   };
 
   /// La métrica de un nombre de la API, o null si no se conoce (una API
@@ -148,6 +152,7 @@ enum RecordMetric {
     durationS => formatDuration(value.round()),
     loadKg => formatKg(value),
     e1rmKg => '1RM ${formatKg(value)}',
+    peakReps => 'PICO ${formatReps(value.round())}',
   };
 }
 
@@ -339,6 +344,7 @@ class NewWorkout {
     required this.finishedAt,
     required this.items,
     this.amrapRounds = const {},
+    this.pyramids = const {},
   });
 
   /// La clave de idempotencia: un UUID generado en el teléfono, uno por
@@ -352,6 +358,9 @@ class NewWorkout {
 
   /// Vueltas completadas en cada AMRAP, por posición del bloque.
   final Map<int, int> amrapRounds;
+
+  /// Lo hecho en cada pirámide, por posición del bloque.
+  final Map<int, PyramidResult> pyramids;
 
   Duration get duration => finishedAt.difference(startedAt);
 
@@ -367,6 +376,10 @@ class NewWorkout {
     'amraps': [
       for (final MapEntry(key: position, value: rounds) in amrapRounds.entries)
         {'block_position': position, 'rounds': rounds},
+    ],
+    'pyramids': [
+      for (final MapEntry(key: position, value: p) in pyramids.entries)
+        {'block_position': position, 'peak': p.peak, 'rung_sum': p.rungSum},
     ],
   };
 
@@ -396,11 +409,27 @@ class NewWorkout {
               (a as Map<String, dynamic>)['block_position'] as int:
                   a['rounds'] as int,
           },
+          // Opcional: las Fraguas que una versión anterior dejó en la cola
+          // no lo traen.
+          pyramids: {
+            for (final p in (json['pyramids'] as List?) ?? const [])
+              if (p case {
+                'block_position': int position,
+                'peak': int peak,
+                'rung_sum': int rungSum,
+              })
+                position: (peak: peak, rungSum: rungSum),
+          },
         ),
       _ => throw FormatException('Fragua guardada con formato inválido: $json'),
     };
   }
 }
+
+/// Lo hecho en una pirámide: el peldaño más alto y la suma de los peldaños
+/// completados (1+2+...+7+6+...). Las reps de cada ejercicio son esos
+/// números por su incremento. Un record: un valor con nombre, sin clase.
+typedef PyramidResult = ({int peak, int rungSum});
 
 /// Un UUID versión 4 (aleatorio), con el generador seguro del sistema.
 ///

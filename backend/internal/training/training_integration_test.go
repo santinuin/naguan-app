@@ -568,3 +568,79 @@ func TestLoadRecordsAndLastLoads(t *testing.T) {
 		t.Errorf("peso negativo: err = %v", err)
 	}
 }
+
+func TestPyramidPeakRecords(t *testing.T) {
+	svc, pool, user := setup(t)
+	ctx := context.Background()
+
+	// La primera pirámide de Desencadenado: su posición, su ítem (el peldaño
+	// modelo, de a 1) y la sesión.
+	var sessionID, item int64
+	var position int16
+	err := pool.QueryRow(ctx, `
+		select b.session_id, b.position, min(i.id)
+		from block b
+		join block_item i on i.block_id = b.id
+		join program_session ps on ps.session_id = b.session_id
+		join program p on p.id = ps.program_id
+		where p.slug = 'desencadenado' and b.type = 'pyramid'
+		group by b.session_id, b.position
+		order by b.session_id, b.position
+		limit 1`).Scan(&sessionID, &position, &item)
+	if errors.Is(err, pgx.ErrNoRows) {
+		t.Skip("la base no tiene pirámides (faltan seed_desencadenado.sql o la migración)")
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	n := 0
+	record := func(peak int16, rungSum int32, slug *string) []Record {
+		t.Helper()
+		w := workoutFor(sessionID, ItemResult{BlockItemID: item, Reps: ptr(int16(rungSum)), ExerciseSlug: slug})
+		w.Pyramids = []PyramidResult{{BlockPosition: position, Peak: peak, RungSum: rungSum}}
+		n++
+		w.FinishedAt = w.FinishedAt.Add(time.Duration(n-10) * time.Second)
+		out, _, err := svc.RecordWorkout(ctx, user, w)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return out.NewRecords
+	}
+
+	// 1..7..1 = 49 reps: la primera vez no es Mojón.
+	if got := record(7, 49, nil); len(got) != 0 {
+		t.Errorf("primera vez: %+v", got)
+	}
+	// Pico 9: Mojón de pico (y no de reps, aunque el total sea 81).
+	got := record(9, 81, nil)
+	if len(got) != 1 || got[0].Metric != "peak_reps" || got[0].Value != 9 || got[0].Previous != 7 {
+		t.Errorf("pico 9: %+v", got)
+	}
+
+	// Hecha con otro ejercicio (una progresión): el pico es de ese.
+	rodillas := "flexion-con-rodillas"
+	record(12, 144, &rodillas)
+	records, err := svc.Records(ctx, user)
+	if err != nil {
+		t.Fatal(err)
+	}
+	peaks := map[string]float64{}
+	for _, r := range records {
+		if r.Metric != "peak_reps" {
+			t.Errorf("las reps totales de una pirámide no son un Mojón de serie: %+v", r)
+		}
+		peaks[r.ExerciseSlug] = r.Value
+	}
+	if peaks[rodillas] != 12 || len(peaks) != 2 {
+		t.Errorf("picos = %v", peaks)
+	}
+
+	// Una pirámide en un bloque que no lo es se rechaza.
+	w := workoutFor(sessionID)
+	w.Pyramids = []PyramidResult{{BlockPosition: 1, Peak: 3, RungSum: 6}}
+	var verr *ValidationError
+	if _, _, err := svc.RecordWorkout(ctx, user, w); !errors.As(err, &verr) {
+		t.Errorf("bloque que no es pirámide: err = %v", err)
+	}
+}

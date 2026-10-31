@@ -386,3 +386,50 @@ func TestBuildUsesOtherPlansExercises(t *testing.T) {
 		t.Errorf("programa = %+v", prog)
 	}
 }
+
+func TestTimedPyramid(t *testing.T) {
+	plan, err := parsePlan(strings.NewReader(`= 1 | P
+pirámide 420s | después 60
+Sentadilla búlgara | 1r
+end
+pirámide 300s
+Flexión | 2r
+Dominada | 2r
+end
+`), nil)
+	if err != nil {
+		t.Fatalf("parsePlan: %v", err)
+	}
+	prog, err := Build("x", "X", plan, &CatalogExtras{}, testCatalog())
+	if err != nil {
+		t.Fatalf("Build: %v", err)
+	}
+	blocks := prog.Sessions[0].Blocks
+	// La pirámide, el Enfriá en su propio bloque y la segunda pirámide.
+	if len(blocks) != 3 {
+		t.Fatalf("bloques = %+v", blocks)
+	}
+	wantFirst := []Item{
+		{Round: 1, Position: 1, ExerciseSlug: "sentadilla-bulgara", Side: mhimport.SideRight, Reps: 1},
+		{Round: 1, Position: 2, ExerciseSlug: "sentadilla-bulgara", Side: mhimport.SideLeft, Reps: 1},
+	}
+	if b := blocks[0]; b.Type != "pyramid" || b.TimeCapS != 420 || !slices.Equal(b.Items, wantFirst) {
+		t.Errorf("pirámide = %+v", b)
+	}
+	if b := blocks[1]; len(b.Items) != 1 || !b.Items[0].Rest || b.Items[0].DurationS != 60 {
+		t.Errorf("Enfriá después = %+v", b)
+	}
+	if b := blocks[2]; b.Type != "pyramid" || b.TimeCapS != 300 || len(b.Items) != 2 || b.Items[1].Reps != 2 {
+		t.Errorf("pirámide de a 2 = %+v", b)
+	}
+
+	for name, text := range map[string]string{
+		"sin incremento":    "= 1 | X\npirámide 420s\nFlexión\nend",
+		"por tiempo":        "= 1 | X\npirámide 420s\nPlancha | 30s\nend",
+		"entre en una sola": "= 1 | X\npirámide 420s | entre 30\nFlexión | 1r\nend",
+	} {
+		if _, err := parsePlan(strings.NewReader(text), nil); err == nil {
+			t.Errorf("%s: quería un error", name)
+		}
+	}
+}

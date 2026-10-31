@@ -327,10 +327,11 @@ class _ReadyView extends StatelessWidget {
                         onOpenExercise: onOpenExercise,
                       )
                     else
-                      ForjaHeadline(
-                        first.kind == StepKind.amrap ? 'AMRAP' : 'ENFRIÁ',
-                        style: textTheme.displayMedium,
-                      ),
+                      ForjaHeadline(switch (first.kind) {
+                        StepKind.amrap => 'AMRAP',
+                        StepKind.pyramid => 'PIRÁMIDE',
+                        _ => 'ENFRIÁ',
+                      }, style: textTheme.displayMedium),
                     const SizedBox(height: ForjaSpace.s6),
                     Text(
                       _metric(first),
@@ -416,6 +417,10 @@ class _StepView extends StatelessWidget {
                     runner: runner,
                     onOpenExercise: onOpenExercise,
                   ),
+                  StepKind.pyramid => _PyramidStep(
+                    runner: runner,
+                    onOpenExercise: onOpenExercise,
+                  ),
                 },
               ),
             ),
@@ -436,7 +441,11 @@ class _StepView extends StatelessWidget {
     final block = step.block.phase == BlockPhase.main
         ? 'BLOQUE ${step.block.position} · ${step.block.type.label}'
         : step.block.phase.label;
-    if (step.kind == StepKind.amrap || step.roundCount <= 1) return block;
+    if (step.kind == StepKind.amrap ||
+        step.kind == StepKind.pyramid ||
+        step.roundCount <= 1) {
+      return block;
+    }
     return '$block · VUELTA ${step.round} / ${step.roundCount}';
   }
 }
@@ -478,7 +487,10 @@ class _NextStep extends StatelessWidget {
 /// "Flexión ×10", "Plancha 45 s", "Enfriá 20 s".
 String _describe(WorkoutStep step) {
   final item = step.item;
-  if (item == null) return 'AMRAP ${formatDuration(step.block.timeCapS!)}';
+  if (item == null) {
+    final kind = step.kind == StepKind.pyramid ? 'Pirámide' : 'AMRAP';
+    return '$kind ${formatDuration(step.block.timeCapS!)}';
+  }
   if (item.isRest) return 'Enfriá ${formatDuration(item.durationS!)}';
   final metric = item.reps != null
       ? formatReps(item.reps!)
@@ -849,6 +861,111 @@ class _AmrapStep extends StatelessWidget {
   }
 }
 
+/// Una pirámide con tope: el peldaño actual (o el descanso entre peldaños),
+/// el tiempo que le queda al bloque, BAJAR al llegar al máximo y TERMINAR
+/// antes de tiempo. El peldaño se marca con el CTA (HECHO).
+class _PyramidStep extends StatelessWidget {
+  const _PyramidStep({required this.runner, required this.onOpenExercise});
+
+  final WorkoutRunner runner;
+  final ValueChanged<ExerciseRef> onOpenExercise;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final palette = context.forja.palette;
+    final block = runner.current.block;
+
+    // La preparación (3, 2, 1) antes de arrancar: como cualquier paso con
+    // tiempo.
+    if (runner.isPreparing) {
+      return Column(
+        children: [
+          ForjaHeadline('PIRÁMIDE', style: textTheme.displayLarge),
+          const SizedBox(height: ForjaSpace.s6),
+          _StepClock(runner: runner),
+        ],
+      );
+    }
+
+    final rest = runner.pyramidRestLeft;
+    return Column(
+      children: [
+        // Lo que le queda al bloque, chico: lo grande es el peldaño.
+        Text(
+          'QUEDAN ${_clock(runner.remaining!)}',
+          style: textTheme.labelSmall,
+        ),
+        const SizedBox(height: ForjaSpace.s4),
+        if (rest != null) ...[
+          ForjaHeadline('ENFRIÁ', style: textTheme.displayMedium),
+          const SizedBox(height: ForjaSpace.s2),
+          _Countdown(remaining: rest, color: palette.accent),
+          const SizedBox(height: ForjaSpace.s2),
+          Text('SIGUE EL PELDAÑO ${runner.rung}', style: textTheme.labelSmall),
+        ] else ...[
+          Text('PELDAÑO', style: textTheme.labelSmall),
+          Text(
+            '${runner.rung}',
+            style: context.forja.stat.copyWith(fontSize: 96, height: 1),
+          ),
+        ],
+        const SizedBox(height: ForjaSpace.s4),
+        // Cada ejercicio con las reps de este peldaño: el número × su
+        // incremento (de a 1 en Desencadenado, de a 2 en Kettlebell).
+        for (final item in block.items)
+          if (item.exercise case final exercise?)
+            InkWell(
+              onTap: () => onOpenExercise(exercise),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: ForjaSpace.s1),
+                child: Text(
+                  '${exercise.name}'
+                  '${item.side != null ? ' (${item.side!.label.toLowerCase()})' : ''}'
+                  ' ${formatReps(runner.rung * (item.reps ?? 1))}',
+                  style: textTheme.bodyLarge,
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
+        const SizedBox(height: ForjaSpace.s2),
+        Text(
+          'PICO ${runner.pyramidPeak} · ${runner.rungSum} EN TOTAL',
+          style: textTheme.labelSmall,
+        ),
+        const SizedBox(height: ForjaSpace.s4),
+        // Wrap: en un teléfono angosto, los dos botones pueden no entrar en
+        // un renglón.
+        Wrap(
+          alignment: WrapAlignment.center,
+          spacing: ForjaSpace.s2,
+          runSpacing: ForjaSpace.s2,
+          children: [
+            // BAJAR: solo subiendo, y con al menos un peldaño hecho.
+            if (!runner.isDescending && runner.pyramidPeak > 0)
+              OutlinedButton(
+                onPressed: runner.pyramidDown,
+                child: const OneLineText('BAJAR'),
+              ),
+            TextButton(
+              onPressed: runner.finishPyramid,
+              child: const OneLineText('TERMINAR PIRÁMIDE'),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  /// "5:32" o "45″": lo que le queda al bloque.
+  static String _clock(Duration d) {
+    final seconds = (d.inMilliseconds / 1000).ceil();
+    return seconds >= 60
+        ? '${seconds ~/ 60}:${(seconds % 60).toString().padLeft(2, '0')}'
+        : formatDuration(seconds);
+  }
+}
+
 class _Controls extends StatelessWidget {
   const _Controls({required this.runner});
 
@@ -894,6 +1011,9 @@ class _Controls extends StatelessWidget {
               StepKind.timed => 'TERMINÉ',
               StepKind.rest => 'SEGUIR',
               StepKind.amrap => 'TERMINAR',
+              // En la pirámide, el CTA es el peldaño (o cortar el descanso);
+              // terminar antes va en el paso.
+              StepKind.pyramid => runner.isPyramidResting ? 'SEGUIR' : 'HECHO',
             }),
           ),
         ),

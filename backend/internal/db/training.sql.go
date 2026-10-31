@@ -12,15 +12,18 @@ import (
 
 const bestResults = `-- name: BestResults :many
 select wi.exercise_id,
-       coalesce(max(wi.reps) filter (where wi.load_kg is null), 0)::int as best_reps,
+       coalesce(max(wi.reps) filter (where wi.load_kg is null and b.type <> 'pyramid'), 0)::int as best_reps,
        coalesce(max(wi.duration_s), 0)::int as best_duration_s,
        coalesce(max(wi.load_kg), 0)::float8 as best_load_kg,
        coalesce(max(round(wi.load_kg * (1 + wi.reps * 0.0333), 1))
-                filter (where wi.reps > 0), 0)::float8 as best_e1rm_kg
+                filter (where wi.reps > 0 and b.type <> 'pyramid'), 0)::float8 as best_e1rm_kg,
+       coalesce(max(wp.peak * bi.reps), 0)::int as best_peak_reps
 from workout_item wi
 join workout w     on w.id = wi.workout_id
 join block_item bi on bi.id = wi.block_item_id
 join block b       on b.id = bi.block_id
+left join workout_pyramid wp on wp.workout_id = wi.workout_id and wp.block_position = b.position
+                            and b.type = 'pyramid'
 where w.user_id = $1
   and b.phase = 'main'
   and wi.exercise_id = any($2::bigint[])
@@ -38,6 +41,7 @@ type BestResultsRow struct {
 	BestDurationS int32
 	BestLoadKg    float64
 	BestE1rmKg    float64
+	BestPeakReps  int32
 }
 
 // Las mejores marcas previas del usuario en estos ejercicios (0 = sin marca).
@@ -48,6 +52,10 @@ type BestResultsRow struct {
 // Las reps cuentan solo en las series sin carga (5 con la barra vacía no
 // empatan con 5 con 100 kg); con carga, el peso máximo y el 1RM estimado
 // (ver e1rm en ListRecords). "filter" es un where solo para ese agregado.
+//
+// En una pirámide, wi.reps son las reps totales del bloque (no una serie):
+// no compiten por reps ni por 1RM. Su marca es el pico: el peldaño más alto
+// (workout_pyramid.peak) × el incremento del ejercicio (bi.reps).
 func (q *Queries) BestResults(ctx context.Context, arg BestResultsParams) ([]BestResultsRow, error) {
 	rows, err := q.db.Query(ctx, bestResults, arg.UserID, arg.ExerciseIds)
 	if err != nil {
@@ -63,6 +71,7 @@ func (q *Queries) BestResults(ctx context.Context, arg BestResultsParams) ([]Bes
 			&i.BestDurationS,
 			&i.BestLoadKg,
 			&i.BestE1rmKg,
+			&i.BestPeakReps,
 		); err != nil {
 			return nil, err
 		}
@@ -127,6 +136,13 @@ type CreateWorkoutItemsParams struct {
 	Reps        *int16
 	DurationS   *int32
 	LoadKg      *float64
+}
+
+type CreateWorkoutPyramidsParams struct {
+	WorkoutID     int64
+	BlockPosition int16
+	Peak          int16
+	RungSum       int32
 }
 
 const getWorkout = `-- name: GetWorkout :one
@@ -404,13 +420,18 @@ func (q *Queries) ListProgramProgress(ctx context.Context, arg ListProgramProgre
 
 const listRecords = `-- name: ListRecords :many
 with result as (
-  select wi.exercise_id, wi.reps, wi.duration_s, wi.load_kg,
-         round(wi.load_kg * (1 + wi.reps * 0.0333), 1) as e1rm_kg,
+  select wi.exercise_id,
+         case when b.type <> 'pyramid' then wi.reps end as reps,
+         wi.duration_s, wi.load_kg,
+         case when b.type <> 'pyramid' then round(wi.load_kg * (1 + wi.reps * 0.0333), 1) end as e1rm_kg,
+         wp.peak * bi.reps as peak_reps,
          w.local_date, w.finished_at
   from workout_item wi
   join workout w     on w.id = wi.workout_id
   join block_item bi on bi.id = wi.block_item_id
   join block b       on b.id = bi.block_id
+  left join workout_pyramid wp on wp.workout_id = wi.workout_id and wp.block_position = b.position
+                              and b.type = 'pyramid'
   where w.user_id = $1
     and b.phase = 'main'
 ),
@@ -438,6 +459,12 @@ best as (
      from result
     where e1rm_kg > 0
     order by exercise_id, e1rm_kg desc, finished_at)
+  union all
+  (select distinct on (exercise_id)
+          exercise_id, 'peak_reps'::text, peak_reps::float8, local_date
+     from result
+    where peak_reps > 0
+    order by exercise_id, peak_reps desc, finished_at)
 )
 select e.slug, e.name, b.metric, b.value, b.local_date
 from best b
@@ -471,6 +498,10 @@ type ListRecordsRow struct {
 // (el peso más alto) y e1rm_kg, el 1RM estimado con la fórmula del libro
 // Barra Libre (peso × reps × 0,0333 + peso), que compara series de distintas
 // reps: 3 × 105 kg (115,5) contra 5 × 100 kg (116,7).
+//
+// En una pirámide, las reps de workout_item son las totales del bloque: no
+// cuentan como serie (reps, e1rm_kg); su marca es peak_reps, el peldaño más
+// alto × el incremento del ejercicio.
 func (q *Queries) ListRecords(ctx context.Context, userID string) ([]ListRecordsRow, error) {
 	rows, err := q.db.Query(ctx, listRecords, userID)
 	if err != nil {
@@ -524,7 +555,8 @@ func (q *Queries) ListSessionAmrapPositions(ctx context.Context, sessionID int64
 }
 
 const listSessionItemsForWorkout = `-- name: ListSessionItemsForWorkout :many
-select i.id, i.kind, b.phase, i.exercise_id, e.slug as exercise_slug, e.name as exercise_name
+select i.id, i.kind, b.phase, b.type as block_type, b.position as block_position,
+       i.reps as planned_reps, i.exercise_id, e.slug as exercise_slug, e.name as exercise_name
 from block_item i
 join block b on b.id = i.block_id
 left join exercise e on e.id = i.exercise_id
@@ -532,16 +564,21 @@ where b.session_id = $1
 `
 
 type ListSessionItemsForWorkoutRow struct {
-	ID           int64
-	Kind         ItemKind
-	Phase        BlockPhase
-	ExerciseID   *int64
-	ExerciseSlug *string
-	ExerciseName *string
+	ID            int64
+	Kind          ItemKind
+	Phase         BlockPhase
+	BlockType     BlockType
+	BlockPosition int16
+	PlannedReps   *int16
+	ExerciseID    *int64
+	ExerciseSlug  *string
+	ExerciseName  *string
 }
 
 // Los ítems de una sesión con su tipo y ejercicio: para validar lo que manda
-// la app y para detectar Mojones (solo los de la fase 'main').
+// la app y para detectar Mojones (solo los de la fase 'main'). El tipo y la
+// posición del bloque y las reps del plan sirven para las pirámides: el pico
+// de un ejercicio es el peldaño más alto × su incremento (i.reps).
 func (q *Queries) ListSessionItemsForWorkout(ctx context.Context, sessionID int64) ([]ListSessionItemsForWorkoutRow, error) {
 	rows, err := q.db.Query(ctx, listSessionItemsForWorkout, sessionID)
 	if err != nil {
@@ -555,6 +592,9 @@ func (q *Queries) ListSessionItemsForWorkout(ctx context.Context, sessionID int6
 			&i.ID,
 			&i.Kind,
 			&i.Phase,
+			&i.BlockType,
+			&i.BlockPosition,
+			&i.PlannedReps,
 			&i.ExerciseID,
 			&i.ExerciseSlug,
 			&i.ExerciseName,
@@ -562,6 +602,32 @@ func (q *Queries) ListSessionItemsForWorkout(ctx context.Context, sessionID int6
 			return nil, err
 		}
 		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listSessionPyramidPositions = `-- name: ListSessionPyramidPositions :many
+select position from block where session_id = $1 and type = 'pyramid'
+`
+
+// Las posiciones de las pirámides de una sesión: para validar lo que manda la
+// app.
+func (q *Queries) ListSessionPyramidPositions(ctx context.Context, sessionID int64) ([]int16, error) {
+	rows, err := q.db.Query(ctx, listSessionPyramidPositions, sessionID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []int16
+	for rows.Next() {
+		var position int16
+		if err := rows.Scan(&position); err != nil {
+			return nil, err
+		}
+		items = append(items, position)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err

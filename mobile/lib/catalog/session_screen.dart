@@ -251,7 +251,10 @@ class _BlockCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     final groups = block.roundGroups;
+    // En un AMRAP y en una pirámide hay una sola vuelta escrita que se
+    // repite (en la pirámide, el peldaño modelo).
     final isAmrap = block.type == BlockType.amrap;
+    final isPyramid = block.type == BlockType.pyramid;
 
     var typeLabel = block.type.label;
     if (block.timeCapS case final cap?) {
@@ -290,11 +293,18 @@ class _BlockCard extends StatelessWidget {
               const SizedBox(height: ForjaSpace.s2),
               const Text('Repetí la vuelta hasta que se acabe el tiempo.'),
             ],
+            if (isPyramid) ...[
+              const SizedBox(height: ForjaSpace.s2),
+              const Text(
+                'Por peldaño: 1, 2, 3… veces lo indicado, hasta tu máximo; '
+                'después bajá y volvé a subir hasta que se acabe el tiempo.',
+              ),
+            ],
             for (final group in groups) ...[
               const SizedBox(height: ForjaSpace.s4),
               // En un amrap hay una sola vuelta escrita que se repite: no
               // tiene sentido numerarla.
-              if (!isAmrap)
+              if (!isAmrap && !isPyramid)
                 Text(_roundsLabel(group), style: textTheme.labelSmall),
               for (final item in group.items)
                 _ItemRow(

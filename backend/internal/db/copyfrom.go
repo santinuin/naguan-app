@@ -81,3 +81,38 @@ func (r iteratorForCreateWorkoutItems) Err() error {
 func (q *Queries) CreateWorkoutItems(ctx context.Context, arg []CreateWorkoutItemsParams) (int64, error) {
 	return q.db.CopyFrom(ctx, []string{"workout_item"}, []string{"workout_id", "block_item_id", "exercise_id", "reps", "duration_s", "load_kg"}, &iteratorForCreateWorkoutItems{rows: arg})
 }
+
+// iteratorForCreateWorkoutPyramids implements pgx.CopyFromSource.
+type iteratorForCreateWorkoutPyramids struct {
+	rows                 []CreateWorkoutPyramidsParams
+	skippedFirstNextCall bool
+}
+
+func (r *iteratorForCreateWorkoutPyramids) Next() bool {
+	if len(r.rows) == 0 {
+		return false
+	}
+	if !r.skippedFirstNextCall {
+		r.skippedFirstNextCall = true
+		return true
+	}
+	r.rows = r.rows[1:]
+	return len(r.rows) > 0
+}
+
+func (r iteratorForCreateWorkoutPyramids) Values() ([]interface{}, error) {
+	return []interface{}{
+		r.rows[0].WorkoutID,
+		r.rows[0].BlockPosition,
+		r.rows[0].Peak,
+		r.rows[0].RungSum,
+	}, nil
+}
+
+func (r iteratorForCreateWorkoutPyramids) Err() error {
+	return nil
+}
+
+func (q *Queries) CreateWorkoutPyramids(ctx context.Context, arg []CreateWorkoutPyramidsParams) (int64, error) {
+	return q.db.CopyFrom(ctx, []string{"workout_pyramid"}, []string{"workout_id", "block_position", "peak", "rung_sum"}, &iteratorForCreateWorkoutPyramids{rows: arg})
+}

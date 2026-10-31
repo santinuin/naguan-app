@@ -54,6 +54,9 @@ import (
 //	Enfriá | 20s                 ← un Enfriá dentro de la vuelta
 //	end
 //
+//	pirámide 420s | después 60   ← 420 s subiendo de a 1 rep (el peldaño n,
+//	Flexión | 1r                    n × 1), bajando y volviendo a subir
+//	end
 //	amrap 300 | después 120      ← todas las vueltas posibles en 300 s
 //	Clean y press | 5r
 //	Remo | 5r
@@ -103,6 +106,9 @@ const (
 	KindLadder   BlockKind = "pirámide"
 	KindTabata   BlockKind = "tabata"
 	KindAMRAP    BlockKind = "amrap"
+	// KindPyramid es la pirámide con tope de tiempo («pirámide 420s»): sus
+	// ítems son el peldaño modelo, con el incremento como reps.
+	KindPyramid BlockKind = "pirámide con tope"
 )
 
 // ItemSpec es una línea de un bloque: un ejercicio con su medida, o un
@@ -173,6 +179,7 @@ var (
 	roundsArg   = regexp.MustCompile(`^x(\d+)$`)
 	ladderArg   = regexp.MustCompile(`^(\d+)-(\d+)-(\d+)$`)
 	ladderList  = regexp.MustCompile(`^\d+(?:,\d+)+$`)
+	pyramidArg  = regexp.MustCompile(`^(\d+)s$`)
 	tabataArg   = regexp.MustCompile(`^x(\d+)\s+(\d+)/(\d+)(\s+alterna)?$`)
 	amrapArg    = regexp.MustCompile(`^(\d+)$`)
 	restArg     = regexp.MustCompile(`^(entre|después)\s+(\d+)$`)
@@ -258,6 +265,11 @@ func parsePlan(r io.Reader, open opener) (*Plan, error) {
 		case block != nil && text == "end":
 			if len(block.Items) == 0 {
 				fail("bloque vacío")
+			}
+			// El peldaño modelo de una pirámide va por reps (el incremento):
+			// un tiempo o un Enfriá adentro no tienen sentido.
+			if block.Kind == KindPyramid && slices.ContainsFunc(block.Items, func(it ItemSpec) bool { return it.Reps == 0 }) {
+				fail("en una pirámide con tope, cada ejercicio va con su incremento en reps (| 1r)")
 			}
 			*target = append(*target, *block)
 			block = nil
@@ -486,6 +498,13 @@ func parseBlockHeader(text string) (BlockSpec, error) {
 		}
 		b.Rounds = atoi(a[1])
 	case KindLadder:
+		if a := pyramidArg.FindStringSubmatch(arg); a != nil {
+			b.Kind, b.Rounds, b.TimeCapS = KindPyramid, 1, atoi(a[1])
+			if b.TimeCapS < 1 {
+				return b, fmt.Errorf("pirámide: el tope tiene que ser mayor que cero")
+			}
+			break
+		}
 		if ladderList.MatchString(arg) {
 			for n := range strings.SplitSeq(arg, ",") {
 				b.Ladder = append(b.Ladder, atoi(n))

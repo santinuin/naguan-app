@@ -62,8 +62,11 @@ on conflict (user_id, program_id) do update set reset_at = excluded.reset_at;
 
 -- name: ListSessionItemsForWorkout :many
 -- Los ítems de una sesión con su tipo y ejercicio: para validar lo que manda
--- la app y para detectar Mojones (solo los de la fase 'main').
-select i.id, i.kind, b.phase, i.exercise_id, e.slug as exercise_slug, e.name as exercise_name
+-- la app y para detectar Mojones (solo los de la fase 'main'). El tipo y la
+-- posición del bloque y las reps del plan sirven para las pirámides: el pico
+-- de un ejercicio es el peldaño más alto × su incremento (i.reps).
+select i.id, i.kind, b.phase, b.type as block_type, b.position as block_position,
+       i.reps as planned_reps, i.exercise_id, e.slug as exercise_slug, e.name as exercise_name
 from block_item i
 join block b on b.id = i.block_id
 left join exercise e on e.id = i.exercise_id
@@ -78,16 +81,23 @@ where b.session_id = $1;
 -- Las reps cuentan solo en las series sin carga (5 con la barra vacía no
 -- empatan con 5 con 100 kg); con carga, el peso máximo y el 1RM estimado
 -- (ver e1rm en ListRecords). "filter" es un where solo para ese agregado.
+--
+-- En una pirámide, wi.reps son las reps totales del bloque (no una serie):
+-- no compiten por reps ni por 1RM. Su marca es el pico: el peldaño más alto
+-- (workout_pyramid.peak) × el incremento del ejercicio (bi.reps).
 select wi.exercise_id,
-       coalesce(max(wi.reps) filter (where wi.load_kg is null), 0)::int as best_reps,
+       coalesce(max(wi.reps) filter (where wi.load_kg is null and b.type <> 'pyramid'), 0)::int as best_reps,
        coalesce(max(wi.duration_s), 0)::int as best_duration_s,
        coalesce(max(wi.load_kg), 0)::float8 as best_load_kg,
        coalesce(max(round(wi.load_kg * (1 + wi.reps * 0.0333), 1))
-                filter (where wi.reps > 0), 0)::float8 as best_e1rm_kg
+                filter (where wi.reps > 0 and b.type <> 'pyramid'), 0)::float8 as best_e1rm_kg,
+       coalesce(max(wp.peak * bi.reps), 0)::int as best_peak_reps
 from workout_item wi
 join workout w     on w.id = wi.workout_id
 join block_item bi on bi.id = wi.block_item_id
 join block b       on b.id = bi.block_id
+left join workout_pyramid wp on wp.workout_id = wi.workout_id and wp.block_position = b.position
+                            and b.type = 'pyramid'
 where w.user_id = @user_id
   and b.phase = 'main'
   and wi.exercise_id = any(@exercise_ids::bigint[])
@@ -135,6 +145,15 @@ select position from block where session_id = $1 and type = 'amrap';
 -- name: CreateWorkoutAmraps :copyfrom
 insert into workout_amrap (workout_id, block_position, rounds)
 values ($1, $2, $3);
+
+-- name: ListSessionPyramidPositions :many
+-- Las posiciones de las pirámides de una sesión: para validar lo que manda la
+-- app.
+select position from block where session_id = $1 and type = 'pyramid';
+
+-- name: CreateWorkoutPyramids :copyfrom
+insert into workout_pyramid (workout_id, block_position, peak, rung_sum)
+values ($1, $2, $3, $4);
 
 -- name: CreateWorkoutItems :copyfrom
 -- Inserta muchas filas de una con el protocolo COPY de Postgres: mucho más
@@ -210,14 +229,23 @@ select count(*) from workout where user_id = $1;
 -- (el peso más alto) y e1rm_kg, el 1RM estimado con la fórmula del libro
 -- Barra Libre (peso × reps × 0,0333 + peso), que compara series de distintas
 -- reps: 3 × 105 kg (115,5) contra 5 × 100 kg (116,7).
+--
+-- En una pirámide, las reps de workout_item son las totales del bloque: no
+-- cuentan como serie (reps, e1rm_kg); su marca es peak_reps, el peldaño más
+-- alto × el incremento del ejercicio.
 with result as (
-  select wi.exercise_id, wi.reps, wi.duration_s, wi.load_kg,
-         round(wi.load_kg * (1 + wi.reps * 0.0333), 1) as e1rm_kg,
+  select wi.exercise_id,
+         case when b.type <> 'pyramid' then wi.reps end as reps,
+         wi.duration_s, wi.load_kg,
+         case when b.type <> 'pyramid' then round(wi.load_kg * (1 + wi.reps * 0.0333), 1) end as e1rm_kg,
+         wp.peak * bi.reps as peak_reps,
          w.local_date, w.finished_at
   from workout_item wi
   join workout w     on w.id = wi.workout_id
   join block_item bi on bi.id = wi.block_item_id
   join block b       on b.id = bi.block_id
+  left join workout_pyramid wp on wp.workout_id = wi.workout_id and wp.block_position = b.position
+                              and b.type = 'pyramid'
   where w.user_id = @user_id
     and b.phase = 'main'
 ),
@@ -245,6 +273,12 @@ best as (
      from result
     where e1rm_kg > 0
     order by exercise_id, e1rm_kg desc, finished_at)
+  union all
+  (select distinct on (exercise_id)
+          exercise_id, 'peak_reps'::text, peak_reps::float8, local_date
+     from result
+    where peak_reps > 0
+    order by exercise_id, peak_reps desc, finished_at)
 )
 select e.slug, e.name, b.metric, b.value, b.local_date
 from best b

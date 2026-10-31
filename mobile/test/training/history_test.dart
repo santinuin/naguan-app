@@ -96,6 +96,7 @@ void main() {
       expect(load.metric.format(load.previous!), '60 kg');
       expect(read('e1rm_kg', 72.9)!.formatted, '1RM 72,9 kg');
       expect(read('reps', 12)!.formatted, '×12');
+      expect(read('peak_reps', 14)!.formatted, 'PICO ×14');
       // Una métrica que esta versión de la app no conoce se ignora.
       expect(read('potencia_w', 300), isNull);
     });

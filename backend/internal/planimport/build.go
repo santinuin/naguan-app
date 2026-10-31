@@ -149,8 +149,8 @@ func Build(slug, name string, plan *Plan, extras *CatalogExtras, cat *mhimport.C
 
 // expandBlock despliega un bloque: una fila por ejercicio, por lado y por
 // vuelta, con los Enfriá que pide la transcripción. Devuelve más de un
-// bloque solo en un AMRAP con "después": el Enfriá va en un bloque propio,
-// porque los ítems del AMRAP son la vuelta que se repite.
+// bloque solo en un AMRAP o una pirámide con "después": el Enfriá va en un
+// bloque propio, porque sus ítems son lo que se repite.
 func expandBlock(phase mhimport.Phase, spec BlockSpec, resolve func(string) exerciseInfo) ([]Block, error) {
 	b := Block{Type: blockType(spec), Phase: phase, TimeCapS: spec.TimeCapS}
 	var errs []error
@@ -203,18 +203,23 @@ func expandBlock(phase mhimport.Phase, spec BlockSpec, resolve func(string) exer
 			add(Item{Rest: true, DurationS: spec.RestS})
 		case spec.BetweenS > 0 && !last:
 			add(Item{Rest: true, DurationS: spec.BetweenS})
-		case spec.AfterS > 0 && last && spec.Kind != KindAMRAP:
+		case spec.AfterS > 0 && last && !repeats(spec.Kind):
 			add(Item{Rest: true, DurationS: spec.AfterS})
 		}
 	}
 	blocks := []Block{b}
-	if spec.Kind == KindAMRAP && spec.AfterS > 0 {
+	if repeats(spec.Kind) && spec.AfterS > 0 {
 		blocks = append(blocks, Block{Type: "rounds", Phase: phase, Items: []Item{
 			{Round: 1, Position: 1, Rest: true, DurationS: spec.AfterS},
 		}})
 	}
 	return blocks, errors.Join(errs...)
 }
+
+// repeats dice si los ítems del bloque se repiten hasta el tope (AMRAP y
+// pirámide): un Enfriá "después" no puede ir entre ellos, va en un bloque
+// aparte.
+func repeats(k BlockKind) bool { return k == KindAMRAP || k == KindPyramid }
 
 // blockType traduce el tipo de la transcripción al block_type de la base.
 // Las vueltas con Enfriá entre ellas son rounds_with_rest, como en los
@@ -223,6 +228,8 @@ func blockType(spec BlockSpec) string {
 	switch spec.Kind {
 	case KindAMRAP:
 		return "amrap"
+	case KindPyramid:
+		return "pyramid"
 	case KindSuperset:
 		return "superset"
 	case KindLadder:

@@ -237,7 +237,9 @@ calistenia, pero también fuerza con barra (Barra Libre) y movilidad ("flexifuer
   cooldown) para poder usarla suelta (p. ej. solo un calentamiento) o en varios programas;
   `program_session` da el orden dentro de un `program`.
 - **Ejecución:** `block` (`type`: rounds, rounds_with_rest, tabata, superset, ladder,
-  amrap; `time_cap_s` solo en amrap, cuyos ítems son una vuelta que se repite;
+  amrap, pyramid; `time_cap_s` solo en amrap y pyramid: en el amrap los ítems son una
+  vuelta que se repite, en la pirámide el peldaño modelo, con el incremento como reps;
+  lo hecho va en `workout_pyramid` y su Mojón es el pico;
   `phase`: warmup, main o mobility, partes de la misma sesión: solo `main` cuenta
   para Mojones) y
   `block_item` **desplegado** (una fila por ejercicio y por vuelta, en orden): `kind`

@@ -117,7 +117,8 @@ type Record struct {
 	Exercise     string `json:"exercise"`
 	ExerciseSlug string `json:"exercise_slug"`
 	// Metric es "reps" (series sin carga), "duration_s", "load_kg" (el peso
-	// más alto) o "e1rm_kg" (el 1RM estimado: ver e1rm).
+	// más alto), "e1rm_kg" (el 1RM estimado: ver e1rm) o "peak_reps" (el
+	// pico de una pirámide: el peldaño más alto × el incremento).
 	Metric string `json:"metric"`
 	// Value es float64 porque los kilos tienen decimales (102,5); las reps y
 	// los segundos salen igual como enteros en el JSON (12, no 12.0).
@@ -263,6 +264,10 @@ type NewWorkout struct {
 	Items      []ItemResult `json:"items"`
 	// Amraps son las vueltas completadas en cada bloque AMRAP.
 	Amraps []AmrapResult `json:"amraps"`
+	// Pyramids es lo hecho en cada pirámide con tope. Sus ejercicios van
+	// además en Items, con las reps totales (para saber cuál se hizo, si se
+	// cambió por una progresión).
+	Pyramids []PyramidResult `json:"pyramids"`
 }
 
 // ItemResult es lo que el usuario hizo en un ejercicio de la Fragua.
@@ -293,6 +298,10 @@ type exerciseRef struct {
 type performedItem struct {
 	ItemResult
 	exercise exerciseRef
+	// peakReps es el pico de la pirámide para este ejercicio (peldaño más
+	// alto × incremento); 0 si el ítem no es de una pirámide.
+	pyramid  bool
+	peakReps int32
 }
 
 // AmrapResult son las vueltas completadas en un bloque AMRAP, identificado
@@ -300,6 +309,16 @@ type performedItem struct {
 type AmrapResult struct {
 	BlockPosition int16 `json:"block_position"`
 	Rounds        int16 `json:"rounds"`
+}
+
+// PyramidResult es lo hecho en una pirámide con tope, identificada por la
+// posición del bloque: el peldaño más alto (Peak) y la suma de los peldaños
+// completados (RungSum: 1+2+...+7+6+...). Las reps de cada ejercicio son
+// esos números por su incremento (las reps del ítem en el plan).
+type PyramidResult struct {
+	BlockPosition int16 `json:"block_position"`
+	Peak          int16 `json:"peak"`
+	RungSum       int32 `json:"rung_sum"`
 }
 
 // uuidPattern valida el formato de un UUID (8-4-4-4-12 hexadecimales).
@@ -371,6 +390,16 @@ func (w NewWorkout) validate(now time.Time) (localDate time.Time, err error) {
 		}
 		seenBlock[a.BlockPosition] = true
 	}
+	seenPyramid := make(map[int16]bool, len(w.Pyramids))
+	for _, p := range w.Pyramids {
+		switch {
+		case seenPyramid[p.BlockPosition]:
+			return time.Time{}, invalid("la pirámide del bloque %d está repetida", p.BlockPosition)
+		case p.Peak < 0 || p.RungSum < int32(p.Peak):
+			return time.Time{}, invalid("la pirámide del bloque %d tiene valores inválidos", p.BlockPosition)
+		}
+		seenPyramid[p.BlockPosition] = true
+	}
 	return localDate, nil
 }
 
@@ -420,6 +449,12 @@ func (s *Service) RecordWorkout(ctx context.Context, userID string, w NewWorkout
 		if err != nil {
 			return err
 		}
+		// Las pirámides, por posición: cada ítem de una pirámide toma de acá
+		// su pico.
+		pyramids := make(map[int16]PyramidResult, len(w.Pyramids))
+		for _, p := range w.Pyramids {
+			pyramids[p.BlockPosition] = p
+		}
 		// performed es todo lo que se hizo (se registra entero); training,
 		// solo lo del entrenamiento, que es lo que compite por Mojones.
 		performed := make([]performedItem, 0, len(w.Items))
@@ -445,6 +480,14 @@ func (s *Service) RecordWorkout(ctx context.Context, userID string, w NewWorkout
 				it.LoadKg = &load
 			}
 			p := performedItem{ItemResult: it, exercise: ex}
+			if si.BlockType == db.BlockTypePyramid {
+				// El pico sale de lo que la app mandó para ese bloque (si no
+				// mandó nada, 0: no hay marca).
+				p.pyramid = true
+				if pr, ok := pyramids[si.BlockPosition]; ok && si.PlannedReps != nil {
+					p.peakReps = int32(pr.Peak) * int32(*si.PlannedReps)
+				}
+			}
 			performed = append(performed, p)
 			if si.Phase == db.BlockPhaseMain {
 				training = append(training, p)
@@ -459,6 +502,15 @@ func (s *Service) RecordWorkout(ctx context.Context, userID string, w NewWorkout
 		for _, a := range w.Amraps {
 			if !slices.Contains(amrapPositions, a.BlockPosition) {
 				return invalid("el bloque %d no es un AMRAP de la sesión %d", a.BlockPosition, w.SessionID)
+			}
+		}
+		pyramidPositions, err := q.ListSessionPyramidPositions(ctx, w.SessionID)
+		if err != nil {
+			return fmt.Errorf("leyendo los bloques de la sesión: %w", err)
+		}
+		for _, p := range w.Pyramids {
+			if !slices.Contains(pyramidPositions, p.BlockPosition) {
+				return invalid("el bloque %d no es una pirámide de la sesión %d", p.BlockPosition, w.SessionID)
 			}
 		}
 
@@ -499,6 +551,16 @@ func (s *Service) RecordWorkout(ctx context.Context, userID string, w NewWorkout
 		}
 		if _, err := q.CreateWorkoutAmraps(ctx, amraps); err != nil {
 			return fmt.Errorf("guardando las vueltas de los AMRAP: %w", err)
+		}
+
+		pyr := make([]db.CreateWorkoutPyramidsParams, len(w.Pyramids))
+		for i, p := range w.Pyramids {
+			pyr[i] = db.CreateWorkoutPyramidsParams{
+				WorkoutID: id, BlockPosition: p.BlockPosition, Peak: p.Peak, RungSum: p.RungSum,
+			}
+		}
+		if _, err := q.CreateWorkoutPyramids(ctx, pyr); err != nil {
+			return fmt.Errorf("guardando las pirámides: %w", err)
 		}
 		return nil
 	})
@@ -612,6 +674,7 @@ func newRecords(
 		name, slug     string
 		reps, duration float64
 		loadKg, e1rmKg float64
+		peakReps       float64
 	}
 	current := map[int64]*best{}
 	for _, it := range items {
@@ -620,9 +683,15 @@ func newRecords(
 			b = &best{name: it.exercise.name, slug: it.exercise.slug}
 			current[it.exercise.id] = b
 		}
-		switch {
-		case it.LoadKg != nil:
+		if it.LoadKg != nil {
 			b.loadKg = max(b.loadKg, *it.LoadKg)
+		}
+		switch {
+		case it.pyramid:
+			// Las reps de una pirámide son las totales del bloque, no una
+			// serie: su marca es el pico.
+			b.peakReps = max(b.peakReps, float64(it.peakReps))
+		case it.LoadKg != nil:
 			if it.Reps != nil && *it.Reps > 0 {
 				b.e1rmKg = max(b.e1rmKg, e1rm(*it.LoadKg, *it.Reps))
 			}
@@ -663,6 +732,7 @@ func newRecords(
 			{"duration_s", c.duration, float64(p.BestDurationS)},
 			{"load_kg", c.loadKg, p.BestLoadKg},
 			{"e1rm_kg", c.e1rmKg, p.BestE1rmKg},
+			{"peak_reps", c.peakReps, float64(p.BestPeakReps)},
 		} {
 			if m.prev > 0 && m.current > m.prev {
 				r.Metric, r.Value, r.Previous = m.metric, m.current, m.prev

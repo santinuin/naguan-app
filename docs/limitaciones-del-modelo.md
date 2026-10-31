@@ -61,20 +61,16 @@ mantenés el peso hasta llegar al máximo en todas las series, y entonces lo sub
 
 ## Cómo se arma un bloque
 
-### Pirámides y escaleras hasta el fallo, con tope de tiempo
+### Escaleras hasta el fallo, de un ejercicio por vez
 
-*Desencadenado*, semanas 1 y 2: durante 7 minutos subís 1, 2, 3… hasta tu máximo y
-bajás de nuevo. Si terminás antes, volvés a empezar. El descanso entre reps dura lo
-mismo que la serie anterior. *Efecto Kettlebell*, semana 10: una escalera de clean,
-press y sentadilla de 10 minutos (sube un ejercicio por vez hasta agotarte) y una
-pirámide de swings y thrusters de 5 minutos, que sube de a dos.
+*Efecto Kettlebell*, semana 10: una escalera de clean, press y sentadilla de 10 minutos
+que sube un ejercicio por vez hasta agotarte, cambiando de lado. (Las pirámides con tope
+de Desencadenado y la de swings y thrusters ya son bloques `pyramid`, desde el
+2026-10-30.)
 
-- **Hoy:** en Desencadenado, una escalera fija (`ladder`) de 1 a 7 y de vuelta a 1
-  (49 reps), sin tope de tiempo; se acorta o se alarga ajustando las reps antes de
-  empezar. En Efecto Kettlebell, un AMRAP con el tope de tiempo y una vuelta de
-  referencia; cómo subir va en la descripción.
-- **Haría falta:** un bloque con tope de tiempo cuyas vueltas cambien de reps (hoy el
-  `amrap` repite una vuelta idéntica) y con el pico definido por el usuario.
+- **Hoy:** un AMRAP con el tope y una vuelta de referencia; cómo subir va en la
+  descripción.
+- **Haría falta:** una pirámide cuyos peldaños suban solo uno de los ejercicios.
 
 ### Ejercicios opcionales
 
