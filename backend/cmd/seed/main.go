@@ -42,6 +42,9 @@ var programOrder = []string{
 	"barra-libre-2",
 	"barra-libre-3",
 	"barra-libre-4",
+	"pausas-activas",
+	"padel",
+	"futbol",
 	// Los de prioridad baja, al final.
 	"elite",
 	"primal",
@@ -330,6 +333,27 @@ var plans = []planSource{
 		"{source}/Programas/Barra Libre/barra_libre_4.txt",
 		"seed/barra_libre_catalogo.txt",
 		"seed_barra_libre_4.sql",
+	},
+	// Movilidad: pausas activas y antes y después de un deporte. No son de
+	// un libro sino propias, así que la "transcripción" también se versiona
+	// (en seed/, sin {source}). Comparten un catálogo.
+	{
+		"pausas-activas", "Pausas activas",
+		"seed/pausas_activas.txt",
+		"seed/movilidad_catalogo.txt",
+		"seed_pausas_activas.sql",
+	},
+	{
+		"padel", "Pádel",
+		"seed/padel.txt",
+		"seed/movilidad_catalogo.txt",
+		"seed_padel.sql",
+	},
+	{
+		"futbol", "Fútbol",
+		"seed/futbol.txt",
+		"seed/movilidad_catalogo.txt",
+		"seed_futbol.sql",
 	},
 }
 

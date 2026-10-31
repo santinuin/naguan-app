@@ -714,10 +714,11 @@ func (q *Queries) ListSessionTimeRecords(ctx context.Context, userID string) ([]
 }
 
 const listTrainingDays = `-- name: ListTrainingDays :many
-select distinct local_date
-from workout
-where user_id = $1 and local_date <= $2
-order by local_date desc
+select distinct w.local_date
+from workout w
+where w.user_id = $1 and w.local_date <= $2
+  and exists (select 1 from block b where b.session_id = w.session_id and b.phase = 'main')
+order by w.local_date desc
 `
 
 type ListTrainingDaysParams struct {
@@ -726,7 +727,9 @@ type ListTrainingDaysParams struct {
 }
 
 // Los días (locales) en que el usuario entrenó, del más reciente al más
-// viejo: la materia prima de la Brasa.
+// viejo: la materia prima de la Brasa. Como en los Mojones, cuenta solo el
+// entrenamiento: una Fragua que es solo calentamiento o movilidad (una pausa
+// activa, el antes y el después de un deporte) no prende la Brasa.
 func (q *Queries) ListTrainingDays(ctx context.Context, arg ListTrainingDaysParams) ([]time.Time, error) {
 	rows, err := q.db.Query(ctx, listTrainingDays, arg.UserID, arg.Today)
 	if err != nil {

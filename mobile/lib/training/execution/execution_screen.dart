@@ -12,6 +12,7 @@ import 'package:naguan_app/common/api_client.dart';
 import 'package:naguan_app/training/training_models.dart';
 import 'package:naguan_app/training/training_services.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
+import 'package:naguan_app/theme/forja_note.dart';
 import 'package:naguan_app/theme/forja_pill.dart';
 import 'package:naguan_app/theme/forja_theme.dart';
 import 'package:naguan_app/theme/forja_tokens.dart';
@@ -402,7 +403,7 @@ class _StepView extends StatelessWidget {
           // La indicación del bloque, para el momento (el ritmo).
           if (step.block.note case final note?) ...[
             const SizedBox(height: ForjaSpace.s2),
-            Text(note, style: context.forja.bodyStrong),
+            ForjaNote(note),
           ],
           // Expanded + Center: el contenido del paso ocupa el centro de la
           // pantalla, y los botones quedan abajo, al alcance del pulgar.

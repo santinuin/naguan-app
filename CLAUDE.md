@@ -105,7 +105,10 @@ a la hora de asistir en el desarrollo:
      ejercicio), que pide un `GET /v1/me/workouts/{id}`.
   5. Datos: programas nuevos, en este orden de prioridad: ~~Desencadenado~~ y
      ~~Efecto Kettlebell~~ (en producción) y ~~Barra Libre~~ (cinco Sendas, una por
-     fase más la Fase I para intermedios; en producción desde el 2026-10-30). Se cargan con el modelo actual (las decisiones y
+     fase más la Fase I para intermedios; en producción desde el 2026-10-30), y las Sendas de
+     movilidad propias (Pausas activas, Pádel y Fútbol: planes versionados en `backend/seed/`,
+     sesiones sin entrenamiento, solo calentamiento o movilidad; ver `backend/README.md`).
+     Faltan Muscle Hunters, Sinergia y Guerrera Espartana. Se cargan con el modelo actual (las decisiones y
      lo que queda pendiente para después: `docs/limitaciones-del-modelo.md`). Elite,
      Primal y Aurum tienen prioridad baja (no se usan): sus nombres de sesión y su
      calentamiento y estiramiento quedan para más adelante.
@@ -232,7 +235,7 @@ calistenia, pero también fuerza con barra (Barra Libre) y movilidad ("flexifuer
   difícil), `muscle`/`joint` con sus tablas de unión.
 - **Orden de las Sendas:** `program.position` (no el id), escrito por los importadores
   desde `programOrder` en `backend/cmd/seed`; reordenar pide además una migración.
-  Elite, Primal y Aurum van al final.
+  Elite, Primal y Aurum van al final (13 a 15, después de las de movilidad).
 - **Sesiones:** `session` es una entidad propia (`kind`: workout, warmup, mobility,
   cooldown) para poder usarla suelta (p. ej. solo un calentamiento) o en varios programas;
   `program_session` da el orden dentro de un `program`.
@@ -253,7 +256,8 @@ calistenia, pero también fuerza con barra (Barra Libre) y movilidad ("flexifuer
   checks por Senda (templada después del último reset), próxima sugerida (primera sin
   check), Brasa y Mojones. `program_reset` guarda el último reset de cada Senda (resetear
   no borra historial). `user_id` referencia `auth.users`.
-- **Brasa:** días entrenados; se apaga con 2 días hábiles seguidos sin entrenar; sábado y
+- **Brasa:** días entrenados (solo Fraguas con algún bloque `main`: las pausas activas y
+  el antes/después de un deporte no la prenden); se apaga con 2 días hábiles seguidos sin entrenar; sábado y
   domingo opcionales (no cuentan como falta); `at_risk` si ya faltó un día hábil y hoy
   no entrenó. Función pura en `training/brasa.go`.
 - **Cargas:** `workout_item.load_kg` (por serie; null = sin carga) y `exercise.loaded`

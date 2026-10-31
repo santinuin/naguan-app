@@ -102,7 +102,9 @@ en su lugar. El formato está explicado en `internal/planimport/plan.go`:
 
 - `= N | Título | CAL MOV` abre la sesión N, con sus plantillas de calentamiento y de
   movilidad (`@CAL`, `@MOV…`, definidas antes con los mismos bloques).
-  `= N | copia de M` repite la sesión M (semanas iguales).
+  `= N | copia de M` repite la sesión M (semanas iguales). Una sesión puede no
+  tener bloques propios si tiene alguna plantilla (`= 1 | Pausa | - MOV`): es
+  solo un calentamiento o solo movilidad, y no da Mojones.
 - Bloques: `vueltas xN`, `superset xN`, `pirámide 1-7-1` (escalera fija de reps),
   `pirámide 420s` (pirámide con tope de tiempo: los ítems son el peldaño modelo, con el
   incremento como reps, `Flexión | 1r`), `tabata x8 20/10` (con `alterna`, un
@@ -140,6 +142,13 @@ Cada plan tiene dos archivos (ver `plans` en `cmd/seed/main.go`):
   del libro). Desencadenado suma 26 ejercicios, sin video; Efecto Kettlebell, 22
   movimientos con kettlebell, 15 de ellos con el video del libro; Barra Libre, 17
   movimientos con barra (11 con video), en un archivo que comparten sus cinco Sendas.
+
+**Las Sendas de movilidad** (Pausas activas, Pádel y Fútbol) usan el mismo
+importador, pero no salen de un libro: son propias, así que también el plan se
+versiona, en `seed/` (`pausas_activas.txt`, `padel.txt`, `futbol.txt`, con el
+criterio en el encabezado de cada uno), y comparten `seed/movilidad_catalogo.txt`
+(10 ejercicios nuevos, sin video). Sus sesiones son solo plantillas: las pausas y
+el después del deporte, en fase `mobility`; el antes, en `warmup`.
 
 Un plan puede usar los ejercicios nuevos de otro (los HIIT de Barra Libre usan los
 swings de Efecto Kettlebell): los conoce, pero no los inserta, así que su seed va

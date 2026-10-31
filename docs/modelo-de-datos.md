@@ -110,7 +110,7 @@ demás se calcula:
 | **Check** de una Fragua en una Senda | Se templó al menos una vez después del último reset de esa Senda |
 | **Próxima Fragua sugerida** | La primera, por posición, sin check |
 | **Progreso** de una Senda | Cantidad de Fraguas distintas con check / total |
-| **Brasa** (racha) | Los días distintos (`local_date`) con al menos una Fragua |
+| **Brasa** (racha) | Los días distintos (`local_date`) con al menos una Fragua con entrenamiento (fase `main`) |
 | **Mojones** (récords) | La mejor marca en `workout_item` por ejercicio |
 
 Guardar cualquiera de esas cosas (un "puntero a la próxima", un contador de racha) sería
@@ -202,6 +202,10 @@ entrenar**:
 - Hoy nunca cuenta como falta: el día no terminó.
 - **En riesgo** (`at_risk`): ya faltaste un día hábil y hoy (hábil) todavía no
   entrenaste. Es el momento de «No la dejes apagar».
+- Solo cuenta el **entrenamiento**: una Fragua cuya sesión no tiene ningún bloque
+  `main` (una pausa activa, el antes o el después de un deporte) se templa y suma al
+  historial, pero no prende la Brasa. Es el mismo criterio que los Mojones, y vive en
+  la consulta que junta los días (`ListTrainingDays`), no en `brasa.go`.
 
 La regla vive en una función pura (`training/brasa.go`) con un test por caso sobre un
 calendario concreto. La app manda su "hoy" (`GET /v1/me/stats?today=AAAA-MM-DD`), porque

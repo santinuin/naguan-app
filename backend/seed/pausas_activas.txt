@@ -1,0 +1,269 @@
+# Pausas activas: cortes de unos 15 minutos para quien trabaja muchas horas
+# sentado frente a la computadora. No es la transcripción de un plan: es una
+# reconstrucción propia (por eso se versiona), con ejercicios del índice
+# original y los de seed/movilidad_catalogo.txt.
+#
+# Criterio (Fitness Revolucionario):
+# - La mejor postura es la próxima: el problema no es sentarse "mal", es pasar
+#   horas sin moverse. Pausas frecuentes, sin dolor y con el rango que haya.
+# - Cada pausa tiene cuatro partes, en este orden:
+#   1. Despertar: caminar, sacudirse y abrir el pecho (circulación).
+#   2. Movilizar la zona del día con movimientos lentos y controlados: cuello
+#      (retracción cervical, el gesto contrario a acercarse a la pantalla),
+#      espalda alta (extensión y rotación torácica), cintura y cadera.
+#   3. Activar lo que se "apaga" sentado: retractores de las escápulas y
+#      glúteos.
+#   4. Estirar lo que se acorta (pectorales, trapecio, flexores de la cadera) y
+#      terminar con respiración diafragmática (exhalación larga).
+# - Todo de pie o en la silla, salvo la pausa "en el suelo". Hace falta, como
+#   mucho, una pared y el marco de una puerta.
+# - Las cuatro pausas de pie suman un ejercicio con kettlebell liviana: el Halo
+#   (hombros y espalda alta con carga, en todo el rango), el Around the world
+#   (abdomen y agarre, sin mover la cadera) y el Ocho (bisagra de cadera y
+#   glúteos, lo contrario de estar sentado). Movilidad con carga, no fuerza: la
+#   app pide el peso, pero en fase mobility no da Mojones. Suelo y Exprés
+#   quedan sin nada, para hacerlas en cualquier lado.
+# - Todo va en fase mobility (sesiones sin entrenamiento, solo la plantilla de
+#   movilidad): no dan Mojones.
+#
+# Formato: el de los planes transcriptos (ver internal/planimport/plan.go).
+# Cada sesión es "= N | Título | - PLANTILLA": sin calentamiento y con la
+# plantilla de movilidad. Los unilaterales se hacen por los dos lados.
+
+> Pausas de unos 15 minutos para cortar las horas de silla. Si trabajás frente
+> a la computadora, hacé una cada 60 a 90 minutos: no importa tanto cuál, sino
+> moverte seguido.
+>
+> - **Cuello y hombros**, **Espalda alta** y **Cintura y cadera**: de pie o en
+>   la silla, para la zona que más moleste ese día.
+> - **Cintura en el suelo**: la más completa para la zona lumbar, cuando hay
+>   lugar para acostarse.
+> - **Completa**: un poco de todo, para los días sin una molestia puntual.
+> - **Exprés**: cinco minutos, para cuando no hay tiempo para más.
+>
+> Las cuatro de pie usan una **kettlebell liviana** (8 a 12 kg): Halo, Around the
+> world u Ocho. Si no tenés una a mano, saltealos.
+>
+> Movete lento y sin dolor, en el rango que tengas. Si el dolor es fuerte, se
+> va hacia los brazos o las piernas, o no mejora en unas semanas, consultá con
+> un kinesiólogo.
+
+# ── Despertar: el mismo comienzo en todas (no hay plantillas anidadas) ─────
+
+@CUELLO
+vueltas x1
+nota: Despertá el cuerpo: caminá, sacudite y abrí el pecho.
+Andar | 60s
+Shaking global | 30s
+Expansiones de tórax | 8r
+end
+vueltas x1
+nota: Movimientos lentos, sin forzar el final del recorrido.
+Retracción cervical | 10r
+Ondas de cuello anteroposteriores | 8r
+Deslizamientos laterales de cuello | 8r
+Reloj de cuello | 30s
+end
+vueltas x1
+Círculos de deltoides | 10r
+Nadadores de deltoides | 10r
+Retracción escapular | 12r
+Wall angels | 10r
+Círculos de codos y muñecas | 10r
+end
+vueltas x1
+nota: Kettlebell liviana: la mitad de las vueltas en cada sentido, cerca de la cabeza.
+Halo | 10r
+end
+vueltas x1
+nota: Estirá sin rebotes, respirando lento.
+Estiramiento de trapecio | 30s
+Estiramiento cuello | 60s
+Estiramiento pectorales en puerta | 30s
+Estiramiento hombro | 30s
+Estiramiento antebrazo | 30s
+Respiración diafragmática | 60s
+end
+
+@ESPALDA
+vueltas x1
+nota: Despertá el cuerpo: caminá, sacudite y abrí el pecho.
+Andar | 60s
+Shaking global | 30s
+Expansiones de tórax | 8r
+end
+vueltas x2
+nota: Movimientos lentos, vértebra a vértebra.
+Deslizamientos de tórax anteroposteriores | 8r
+Deslizamientos laterales de tórax | 8r
+De pie, el gato | 6r
+Extensiones segmentadas en pared | 5r
+end
+vueltas x1
+Rotación torácica sentado | 8r
+Extensión torácica en silla | 8r
+Circunducciones de tórax | 6r
+end
+vueltas x1
+Deslizamiento escapular | 10r
+Retracción escapular | 12r
+Wall angels | 10r
+end
+vueltas x1
+nota: Kettlebell liviana: la mitad de las vueltas en cada sentido, cerca de la cabeza.
+Halo | 10r
+end
+vueltas x1
+nota: Estirá sin rebotes, respirando lento.
+Estiramiento dorsal en pared | 30s
+Estiramiento pectorales en puerta | 30s
+Retracción cervical | 10r
+Respiración diafragmática | 60s
+end
+
+@CINTURA
+vueltas x1
+nota: Despertá el cuerpo: caminá, sacudite y abrí el pecho.
+Andar | 60s
+Shaking global | 30s
+Expansiones de tórax | 8r
+end
+vueltas x1
+nota: Movimientos lentos, sin dolor. La cintura se mueve; las rodillas, apenas.
+Basculaciones pélvicas | 10r
+Círculos de pelvis | 10r
+Circunducciones lumbares | 6r
+Rotaciones con inercia | 30s
+Balanceo global | 30s
+end
+vueltas x1
+Dinámico frontal de cadera | 10r
+Balanceo de piernas lateral | 10r
+Paso lateral y mini squat, brazos arriba | 30s
+end
+vueltas x1
+nota: Kettlebell liviana. La cadera quieta en el Around the world; en el Ocho, la espalda recta y el movimiento sale de la cadera.
+Around the world | 10r
+El ocho | 10r
+end
+vueltas x2 | entre 20
+nota: Apretá los glúteos al subir: es lo que se apaga de estar sentado.
+Sentadilla | 10r
+Desplante hacia atrás | 8r
+end
+vueltas x1
+nota: Estirá sin rebotes, respirando lento.
+Estiramiento de psoas de pie | 30s
+Estiramiento isquios | 30s
+Estiramiento pierna lateral | 30s
+Respiración diafragmática | 60s
+end
+
+@SUELO
+vueltas x1
+nota: Despertá el cuerpo: caminá, sacudite y abrí el pecho.
+Andar | 60s
+Shaking global | 30s
+Expansiones de tórax | 8r
+end
+vueltas x1
+nota: En cuadrupedia, lento y con la respiración.
+Vaca-gato | 8r
+Segmentaciones en gato | 5r
+Rotaciones torácicas con rodilla | 8r
+Estiramiento lateral torácico | 30s
+end
+vueltas x2 | entre 20
+nota: Extensión sin dolor: si molesta, subí menos.
+Mckenzie | 8r
+Pose del niño | 30s
+end
+vueltas x2 | entre 20
+nota: Apretá los glúteos arriba, sin arquear la cintura.
+El puente | 12r
+end
+vueltas x1
+nota: Estirá sin rebotes, respirando lento.
+Estiramiento flexores cadera | 30s
+Pose paloma | 30s
+Estiramiento en cuatro | 30s
+Giro de torso | 30s
+Respiración diafragmática | 60s
+end
+
+@COMPLETA
+vueltas x1
+nota: Despertá el cuerpo: caminá, sacudite y abrí el pecho.
+Andar | 60s
+Shaking global | 30s
+Expansiones de tórax | 8r
+end
+vueltas x1
+nota: Cuello y hombros, lento.
+Retracción cervical | 10r
+Ondas de cuello anteroposteriores | 8r
+Deslizamientos laterales de cuello | 8r
+Nadadores de deltoides | 10r
+Wall angels | 10r
+Retracción escapular | 12r
+end
+vueltas x1
+nota: Espalda alta y cintura.
+De pie, el gato | 8r
+Rotación torácica sentado | 8r
+Extensión torácica en silla | 8r
+Basculaciones pélvicas | 10r
+Círculos de pelvis | 10r
+end
+vueltas x1
+nota: Kettlebell liviana: el Halo cerca de la cabeza; en el Ocho, la espalda recta.
+Halo | 10r
+El ocho | 10r
+end
+vueltas x1
+Sentadilla | 10r
+Dinámico frontal de cadera | 10r
+Círculos de codos y muñecas | 10r
+end
+vueltas x1
+nota: Estirá sin rebotes, respirando lento.
+Estiramiento de trapecio | 30s
+Estiramiento pectorales en puerta | 30s
+Estiramiento de psoas de pie | 30s
+Estiramiento antebrazo | 30s
+Respiración diafragmática | 60s
+end
+
+@EXPRES
+vueltas x1
+nota: Cinco minutos: lo justo para cortar la postura.
+Andar | 30s
+Retracción cervical | 10r
+Nadadores de deltoides | 10r
+Retracción escapular | 10r
+De pie, el gato | 6r
+Rotación torácica sentado | 6r
+Basculaciones pélvicas | 10r
+Sentadilla | 10r
+Estiramiento de psoas de pie | 20s
+Estiramiento pectorales en puerta | 20s
+Respiración diafragmática | 30s
+end
+
+= 1 | Cuello y hombros | - CUELLO
+> De pie o en la silla. Hace falta el marco de una puerta y una kettlebell liviana.
+
+= 2 | Espalda alta | - ESPALDA
+> De pie, con una pared cerca, una silla de respaldo bajo y una kettlebell liviana.
+
+= 3 | Cintura y cadera | - CINTURA
+> De pie. Hace falta una pared o una silla para apoyarte y una kettlebell liviana.
+
+= 4 | Cintura en el suelo | - SUELO
+> Con lugar para acostarte y una pared. La más completa para la zona lumbar.
+
+= 5 | Completa | - COMPLETA
+> De pie o en la silla: cuello, espalda alta, cintura y cadera. Con una kettlebell liviana.
+
+= 6 | Exprés | - EXPRES
+> Unos cinco minutos, de pie y en la silla.

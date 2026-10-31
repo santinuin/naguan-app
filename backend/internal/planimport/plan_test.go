@@ -374,6 +374,23 @@ func TestIncludeUseApproachAndList(t *testing.T) {
 	}
 }
 
+// Una sesión sin entrenamiento: solo la plantilla de movilidad (una pausa
+// activa). Sus bloques van todos en fase mobility, así que no dan Mojones.
+func TestSessionOnlyPhases(t *testing.T) {
+	plan, err := parsePlan(strings.NewReader("@MOV\nvueltas x1\nFlexión | 10r\nend\n\n= 1 | Pausa | - MOV\n"), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	prog, err := Build("x", "X", plan, &CatalogExtras{}, testCatalog())
+	if err != nil {
+		t.Fatalf("Build: %v", err)
+	}
+	blocks := prog.Sessions[0].Blocks
+	if len(blocks) != 1 || blocks[0].Phase != mhimport.PhaseMobility {
+		t.Errorf("bloques = %+v", blocks)
+	}
+}
+
 func TestBuildUsesOtherPlansExercises(t *testing.T) {
 	plan, err := parsePlan(strings.NewReader("= 1 | X\nvueltas x1\nSwing | 10r\nend\n"), nil)
 	if err != nil {

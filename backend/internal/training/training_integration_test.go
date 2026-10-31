@@ -203,6 +203,27 @@ func TestRecordsAndStats(t *testing.T) {
 	}
 }
 
+// Una Fragua sin entrenamiento (solo movilidad: una pausa activa) se templa
+// y suma al total, pero no prende la Brasa.
+func TestBrasaIgnoresMobilityOnly(t *testing.T) {
+	svc, pool, user := setup(t)
+	ctx := context.Background()
+	pause, item := sessionAt(t, pool, "pausas-activas", 6)
+
+	if _, _, err := svc.RecordWorkout(ctx, user, workoutFor(pause, ItemResult{BlockItemID: item, Reps: ptr[int16](10)})); err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now()
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
+	stats, err := svc.Stats(ctx, user, today)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stats.TotalWorkouts != 1 || stats.Brasa.Days != 0 {
+		t.Errorf("stats = %+v", stats)
+	}
+}
+
 func TestListWorkoutsPages(t *testing.T) {
 	svc, pool, user := setup(t)
 	ctx := context.Background()

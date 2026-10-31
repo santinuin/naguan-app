@@ -7,6 +7,7 @@ import 'package:naguan_app/catalog/item_editor_sheet.dart';
 import 'package:naguan_app/catalog/session.dart';
 import 'package:naguan_app/catalog/session_edits.dart';
 import 'package:naguan_app/common/load_view.dart';
+import 'package:naguan_app/theme/forja_note.dart';
 import 'package:naguan_app/theme/forja_pill.dart';
 import 'package:naguan_app/theme/forja_theme.dart';
 import 'package:naguan_app/theme/forja_tokens.dart';
@@ -313,7 +314,7 @@ class _BlockCard extends StatelessWidget {
             ],
             if (block.note case final note?) ...[
               const SizedBox(height: ForjaSpace.s2),
-              Text(note, style: context.forja.bodyStrong),
+              ForjaNote(note),
             ],
             if (isAmrap) ...[
               const SizedBox(height: ForjaSpace.s2),

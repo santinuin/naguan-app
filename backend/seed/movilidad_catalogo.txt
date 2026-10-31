@@ -1,0 +1,71 @@
+# Ejercicios nuevos de las Sendas de movilidad: Pausas activas, Pádel y Fútbol.
+#
+# Estas tres Sendas no salen de un libro: son una reconstrucción propia con el
+# criterio de Fitness Revolucionario (ver el encabezado de cada plan), así que
+# tanto este archivo como los planes se versionan. Casi todo sale del índice de
+# Mammoth Hunters; acá van solo los que faltaban. Formato: ver
+# backend/internal/planimport/catalog.go.
+#
+#   + Nombre | MET [| unilateral] [| carga]
+#   Descripción en Markdown, hasta la próxima línea en blanco.
+#
+# No tienen video: la pantalla del ejercicio muestra solo CÓMO SE HACE.
+
+# ── Cuello y espalda alta (horas frente a la pantalla) ─────────────────────
+
++ Retracción cervical | 1.5
+Sentado o de pie, con la mirada al frente. Llevá la cabeza hacia atrás, como si
+quisieras hacerte papada, sin bajar ni subir el mentón. Aguantá 2 segundos y
+soltá. Es el gesto contrario a acercar la cara a la pantalla.
+
++ Retracción escapular | 2
+De pie, con los brazos al costado y los codos doblados a 90°. Juntá los
+omóplatos hacia atrás y hacia abajo, como si quisieras guardarlos en los
+bolsillos de atrás, sin subir los hombros. Aguantá 2 segundos y soltá.
+
++ Estiramiento de trapecio | 1.5 | unilateral
+Sentado, agarrá el borde de la silla con una mano para fijar ese hombro abajo.
+Incliná la cabeza hacia el lado contrario, oreja al hombro, y girá un poco la
+nariz hacia la axila. Con la otra mano sumá un peso suave sobre la cabeza, sin
+tirar. Respirá lento.
+
++ Rotación torácica sentado | 2 | unilateral
+Sentado en el borde de la silla, pies firmes y rodillas juntas, brazos cruzados
+sobre el pecho. Girá el tronco hacia un lado todo lo que puedas sin mover la
+cadera, exhalá al final y volvé. El giro sale de la espalda alta, no de la
+cintura.
+
++ Extensión torácica en silla | 2
+Sentado en una silla de respaldo bajo, con las manos detrás de la nuca.
+Apoyá la espalda alta en el borde del respaldo y abrí el pecho hacia el techo,
+mirando arriba, sin despegar la cadera ni arquear la cintura. Volvé despacio.
+
++ Estiramiento de psoas de pie | 2 | unilateral
+De pie, da un paso largo hacia adelante y flexioná un poco la rodilla de
+adelante. Apretá el glúteo de la pierna de atrás y llevá la cadera hacia
+adelante, con el abdomen firme, hasta sentir el estiramiento en la ingle. Sumá
+el brazo de ese lado estirado hacia arriba. Lo que se acorta de estar sentado.
+
++ Respiración diafragmática | 1.3
+Acostado boca arriba con las rodillas dobladas, o sentado derecho. Una mano en
+el pecho y otra en la panza. Inhalá por la nariz en 4 tiempos llevando el aire
+a la panza (la mano del pecho casi no se mueve) y exhalá por la boca en 6 u 8.
+La exhalación larga es la que baja las pulsaciones.
+
+# ── Deportes de raqueta y de equipo ────────────────────────────────────────
+
++ Split step | 4
+En el lugar, con los pies al ancho de los hombros. Da un saltito corto y caé
+sobre las puntas con las rodillas flexionadas, listo para salir hacia cualquier
+lado. Es el paso de preparación antes de cada golpe del rival: liviano y
+reactivo, no alto.
+
++ Golpes al aire | 3
+Con la pala, sin pelota y a media velocidad: drive, revés, volea de derecha y
+de revés, bandeja y remate. Movete como en el partido (paso, giro de hombros y
+recuperación al centro) y subí la intensidad en cada vuelta.
+
++ Cambios de dirección | 7
+Marcá dos puntos a 5 metros. Corré de uno al otro, frená bajando la cadera,
+tocá el piso y salí hacia el otro. Alterná hacia adelante, de costado y hacia
+atrás. Al principio suave; después, a buena velocidad.

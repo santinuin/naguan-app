@@ -1,0 +1,97 @@
+# Pádel: calentamiento antes del partido y vuelta a la calma después. Es una
+# reconstrucción propia (por eso se versiona), con ejercicios del índice
+# original y los de seed/movilidad_catalogo.txt.
+#
+# Criterio (Fitness Revolucionario):
+# - Antes: protocolo RAMP, nunca estiramiento estático (baja la fuerza y la
+#   reactividad justo antes de jugar).
+#   1. Elevar: trote suave, saltos y desplazamientos laterales.
+#   2. Movilizar: tobillos, rodillas, cadera, tronco (el pádel es rotación) y
+#      hombros, codos y muñecas, con la pala (el codo y el hombro son las
+#      lesiones típicas).
+#   3. Activar: piernas en todos los planos (desplantes adelante y de costado,
+#      zancadas con giro) y pantorrillas.
+#   4. Potenciar: lo que pide el partido, a intensidad creciente: split step,
+#      saltos laterales y golpes al aire.
+# - Después: bajar pulsaciones caminando y estirar sostenido lo que más carga
+#   el pádel (pantorrillas, cuádriceps, isquios, aductores, psoas, hombro,
+#   pecho y antebrazo). De pie: se hace en la cancha, con el vidrio o el
+#   alambrado como pared. Termina con respiración diafragmática.
+# - Calentamiento en fase warmup y vuelta a la calma en fase mobility: no dan
+#   Mojones.
+#
+# Formato: el de los planes transcriptos (ver internal/planimport/plan.go).
+
+> Para antes y después de jugar. **Antes del pádel** prepara el cuerpo para
+> arrancar fuerte desde el primer punto (unos 15 minutos); **Después del pádel**
+> baja las pulsaciones y estira lo que más carga el partido (unos 13 minutos).
+>
+> Las dos se hacen en la cancha, de pie, con la pala y el vidrio o el alambrado
+> como pared.
+
+@CAL
+vueltas x1
+nota: Elevá la temperatura de a poco, sin cansarte.
+Correr en el sitio | 60s
+Saltos de tijera | 30s
+Desplazamiento lateral | 30s
+end
+vueltas x1
+nota: Círculos amplios y controlados, de abajo hacia arriba.
+Círculos de tobillo | 10r
+Círculos de rodillas juntas | 10r
+Círculos de pelvis | 10r
+Rotaciones con inercia | 30s
+Círculos de deltoides | 10r
+Nadadores de deltoides | 10r
+Círculos de codos y muñecas | 10r
+end
+vueltas x1
+nota: Usá la pala como bastón.
+Supinación y pronación con bastón | 10r
+end
+vueltas x1
+Balanceo de piernas | 10r
+Balanceo de piernas lateral | 10r
+Desplante hacia delante | 8r
+Desplante lateral | 8r
+Zancada giros | 8r
+Sentadilla | 10r
+Elevación de talones | 15r
+end
+vueltas x2 | entre 30
+nota: Cada vuelta, un poco más rápido. La segunda, como en el partido.
+Split step | 20s
+Salto de skater | 10r
+Skipping | 15s
+Golpes al aire | 30s
+end
+
+@MOV
+vueltas x1
+nota: Caminá suelto hasta recuperar el aliento.
+Andar | 60s
+end
+vueltas x1
+nota: Estirá sostenido y sin rebotes, respirando lento.
+Estiramiento gemelos | 30s
+Estiramiento cuádriceps | 6r
+Estiramiento isquios | 30s
+Estiramiento pierna lateral | 30s
+Estiramiento de psoas de pie | 30s
+end
+vueltas x1
+Estiramiento hombro | 30s
+Estiramiento de tríceps | 30s
+Estiramiento pectorales en puerta | 30s
+Estiramiento dorsal en pared | 30s
+Estiramiento antebrazo | 30s
+De pie, el gato | 6r
+Respiración diafragmática | 60s
+end
+
+= 1 | Antes del pádel | CAL
+> Unos 15 minutos, en la cancha y con la pala.
+
+= 2 | Después del pádel | - MOV
+> Unos 13 minutos, de pie. El vidrio o el alambrado sirven de pared.

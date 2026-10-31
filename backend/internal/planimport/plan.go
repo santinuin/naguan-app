@@ -499,8 +499,11 @@ func (p *Plan) check() []error {
 			}
 			continue
 		}
-		if len(s.Blocks) == 0 {
-			fail("no tiene bloques")
+		// Una sesión puede ser solo un calentamiento o solo movilidad (las
+		// de antes y después de un deporte, las pausas activas): sin bloques
+		// propios, pero con alguna plantilla.
+		if len(s.Blocks) == 0 && s.Warmup == "" && s.Mobility == "" {
+			fail("no tiene bloques ni plantillas")
 		}
 		for _, t := range []string{s.Warmup, s.Mobility} {
 			if _, ok := p.Templates[t]; t != "" && !ok {

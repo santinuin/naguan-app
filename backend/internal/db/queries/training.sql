@@ -222,11 +222,14 @@ limit @max_rows;
 
 -- name: ListTrainingDays :many
 -- Los días (locales) en que el usuario entrenó, del más reciente al más
--- viejo: la materia prima de la Brasa.
-select distinct local_date
-from workout
-where user_id = @user_id and local_date <= @today
-order by local_date desc;
+-- viejo: la materia prima de la Brasa. Como en los Mojones, cuenta solo el
+-- entrenamiento: una Fragua que es solo calentamiento o movilidad (una pausa
+-- activa, el antes y el después de un deporte) no prende la Brasa.
+select distinct w.local_date
+from workout w
+where w.user_id = @user_id and w.local_date <= @today
+  and exists (select 1 from block b where b.session_id = w.session_id and b.phase = 'main')
+order by w.local_date desc;
 
 -- name: CountWorkouts :one
 select count(*) from workout where user_id = $1;

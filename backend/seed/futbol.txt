@@ -1,0 +1,85 @@
+# Fútbol: calentamiento antes del partido y vuelta a la calma después. Es una
+# reconstrucción propia (por eso se versiona), con ejercicios del índice
+# original y los de seed/movilidad_catalogo.txt.
+#
+# Criterio (Fitness Revolucionario, y la estructura del FIFA 11+):
+# - Antes: protocolo RAMP, nunca estiramiento estático.
+#   1. Elevar: trote suave.
+#   2. Movilizar: tobillos, cadera (las piernas en todos los planos) y tronco.
+#   3. Activar: skipping, talones a glúteos, desplantes adelante y de costado,
+#      sentadilla y pantorrillas. Escaleras para los isquios, que son los que
+#      más se lesionan.
+#   4. Potenciar: lo que pide el partido, a intensidad creciente: cambios de
+#      dirección, saltos laterales y piques cortos.
+# - Después: bajar pulsaciones caminando y estirar sostenido lo que más carga
+#   el fútbol: pantorrillas, isquios, aductores, flexores de la cadera,
+#   cuádriceps y glúteos. Una parte en el pasto (sentado y acostado). Termina
+#   con respiración diafragmática.
+# - Calentamiento en fase warmup y vuelta a la calma en fase mobility: no dan
+#   Mojones.
+#
+# Formato: el de los planes transcriptos (ver internal/planimport/plan.go).
+
+> Para antes y después de jugar. **Antes del fútbol** prepara el cuerpo para
+> los piques y los cambios de ritmo (unos 13 minutos); **Después del fútbol**
+> baja las pulsaciones y estira lo que más carga el partido (unos 12 minutos).
+>
+> Las dos se hacen en la cancha. Para la segunda conviene tener pasto o una
+> colchoneta.
+
+@CAL
+vueltas x1
+nota: Trotá suave, sin cansarte.
+Carrera corta | 120s
+end
+vueltas x1
+nota: Círculos amplios y balanceos de a poco más altos.
+Círculos de tobillo | 10r
+Círculos de pelvis | 10r
+Balanceo de piernas | 10r
+Balanceo de piernas lateral | 10r
+Rotaciones con inercia | 30s
+end
+vueltas x1
+Skipping | 20s
+Talones a glúteos | 20s
+Escaleras | 5r
+Desplante hacia delante | 8r
+Desplante lateral | 8r
+Zancada giros | 8r
+Sentadilla | 10r
+Elevación de talones | 15r
+end
+vueltas x3 | entre 30
+nota: Cada vuelta, más rápido. La última, a fondo.
+Cambios de dirección | 15s
+Salto de skater | 8r
+Sprint | 6s
+end
+
+@MOV
+vueltas x1
+nota: Caminá suelto hasta recuperar el aliento.
+Andar | 120s
+end
+vueltas x1
+nota: De pie. Estirá sostenido y sin rebotes, respirando lento.
+Estiramiento gemelos | 30s
+Estiramiento isquios | 30s
+Estiramiento pierna lateral | 30s
+end
+vueltas x1
+nota: En el suelo.
+Estiramiento flexores cadera | 30s
+Pose paloma | 30s
+Estiramiento isquios en v | 45s
+Giro de torso | 30s
+Pose del niño | 45s
+Respiración diafragmática | 60s
+end
+
+= 1 | Antes del fútbol | CAL
+> Unos 13 minutos, en la cancha.
+
+= 2 | Después del fútbol | - MOV
+> Unos 12 minutos: una parte de pie y otra en el pasto.

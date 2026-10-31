@@ -275,6 +275,13 @@ migración ni API ni APK nuevos: es el paso 3 solo. El dry-run tiene que
 listar únicamente el archivo nuevo (si lista otro con «hash update», el mismo truco
 de `sql_paths`). El script aborta si el programa ya existe.
 
+Las Sendas de movilidad (2026-10-31) se sumaron en las posiciones 10 a 12, antes
+de Elite, Primal y Aurum: `program.position` es única, así que primero va la
+migración que corre esos tres al final (`20261031100000_program_position_movilidad.sql`,
+`supabase db push`) y después los tres seeds (`seed_pausas_activas.sql`,
+`seed_padel.sql`, `seed_futbol.sql`) con el truco de `sql_paths`: `seed.sql` se
+regeneró con las posiciones nuevas y el dry-run lo va a listar con «hash update».
+
 **Completar campos nuevos del plan en lo ya cargado** (`seed_<programa>_detalles.sql`,
 de `go run ./cmd/seed plans-update <slug>`): primero la migración que agrega las columnas
 (`supabase db push`), después los seeds de detalles con el truco de `sql_paths` (solo
