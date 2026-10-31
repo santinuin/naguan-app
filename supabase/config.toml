@@ -73,10 +73,9 @@ enabled = true
 # después: modifican sesiones que carga seed.sql. Después, los programas
 # transcriptos a mano (seed_<programa>.sql), que usan ejercicios de los
 # anteriores. Ver backend/README.md.
-# TEMPORAL (push de las notas de aproximación a producción): restaurar la lista completa.
-sql_paths = ["./seed_barra_libre_1_aproximacion.sql", "./seed_barra_libre_1_intermedio_aproximacion.sql",
-  "./seed_barra_libre_2_aproximacion.sql", "./seed_barra_libre_3_aproximacion.sql",
-  "./seed_barra_libre_4_aproximacion.sql"]
+sql_paths = ["./seed.sql", "./seed_phases.sql", "./seed_phases_ring_master.sql", "./seed_desencadenado.sql", "./seed_efecto_kettlebell.sql",
+  "./seed_barra_libre_1.sql", "./seed_barra_libre_1_intermedio.sql", "./seed_barra_libre_2.sql",
+  "./seed_barra_libre_3.sql", "./seed_barra_libre_4.sql"]
 
 [db.network_restrictions]
 # Enable management of network restrictions.
