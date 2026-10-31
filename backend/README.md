@@ -132,7 +132,8 @@ Cada plan tiene dos archivos (ver `plans` en `cmd/seed/main.go`):
 
 - **La transcripción**, en `docs/source/` (no versionada: es contenido del libro).
   Hoy: `Programas/Desencadenado /desencadenado.txt`,
-  `Programas/Efecto Kettlebell/efecto_kettlebell.txt` y `Programas/Barra Libre/`
+  `Programas/Efecto Kettlebell/efecto_kettlebell.txt`,
+  `Programas/Efecto Kettlebell/sinergia.txt` y `Programas/Barra Libre/`
   (`barra_libre_1.txt`, `_1_intermedio`, `_2`, `_3`, `_4` y el común). Su encabezado anota las
   decisiones de carga (rangos, pirámides, niveles), que siguen a
   `/docs/limitaciones-del-modelo.md`.
@@ -142,6 +143,8 @@ Cada plan tiene dos archivos (ver `plans` en `cmd/seed/main.go`):
   del libro). Desencadenado suma 26 ejercicios, sin video; Efecto Kettlebell, 22
   movimientos con kettlebell, 15 de ellos con el video del libro; Barra Libre, 17
   movimientos con barra (11 con video), en un archivo que comparten sus cinco Sendas.
+  Sinergia no suma nada (junta Desencadenado y Efecto Kettlebell): su catálogo
+  está vacío.
 
 **Las Sendas de movilidad** (Pausas activas, Pádel y Fútbol) usan el mismo
 importador, pero no salen de un libro: son propias, así que también el plan se
@@ -151,7 +154,7 @@ criterio en el encabezado de cada uno), y comparten `seed/movilidad_catalogo.txt
 el después del deporte, en fase `mobility`; el antes, en `warmup`.
 
 Un plan puede usar los ejercicios nuevos de otro (los HIIT de Barra Libre usan los
-swings de Efecto Kettlebell): los conoce, pero no los inserta, así que su seed va
+swings de Efecto Kettlebell; Sinergia, los de Desencadenado y Efecto Kettlebell): los conoce, pero no los inserta, así que su seed va
 después en `sql_paths` (y en producción, se aplica después).
 
 Los nombres se resuelven contra el catálogo de `mhimport` (más «Colgarse», que crea

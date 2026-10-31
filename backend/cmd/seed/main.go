@@ -37,6 +37,7 @@ var programOrder = []string{
 	"ring-master",
 	"desencadenado",
 	"efecto-kettlebell",
+	"sinergia",
 	"barra-libre-1",
 	"barra-libre-1-intermedio",
 	"barra-libre-2",
@@ -300,6 +301,15 @@ var plans = []planSource{
 		"{source}/Programas/Efecto Kettlebell/efecto_kettlebell.txt",
 		"seed/efecto_kettlebell_catalogo.txt",
 		"seed_efecto_kettlebell.sql",
+	},
+	// Sinergia junta Desencadenado y Efecto Kettlebell: no suma ejercicios,
+	// usa los de los dos (su catálogo queda vacío), así que su seed va
+	// después de los de ellos.
+	{
+		"sinergia", "Sinergia",
+		"{source}/Programas/Efecto Kettlebell/sinergia.txt",
+		"seed/sinergia_catalogo.txt",
+		"seed_sinergia.sql",
 	},
 	// Barra Libre: una Senda por fase (más la Fase I para intermedios), con
 	// un catálogo propio compartido. Usa ejercicios de Efecto Kettlebell

@@ -282,6 +282,13 @@ migración que corre esos tres al final (`20261031100000_program_position_movili
 `seed_padel.sql`, `seed_futbol.sql`) con el truco de `sql_paths`: `seed.sql` se
 regeneró con las posiciones nuevas y el dry-run lo va a listar con «hash update».
 
+Sinergia (2026-10-31) va en la posición 5, justo después de Efecto Kettlebell: la
+migración `20261031200000_program_position_sinergia.sql` corre un lugar todas las
+Sendas desde la 5 (`supabase db push`) y después va `seed_sinergia.sql` con el truco
+de `sql_paths`. Los demás seeds se regeneraron con las posiciones nuevas (para que
+`supabase db reset` siga andando en local), así que el dry-run los va a listar con
+«hash update».
+
 **Completar campos nuevos del plan en lo ya cargado** (`seed_<programa>_detalles.sql`,
 de `go run ./cmd/seed plans-update <slug>`): primero la migración que agrega las columnas
 (`supabase db push`), después los seeds de detalles con el truco de `sql_paths` (solo

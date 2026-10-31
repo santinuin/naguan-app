@@ -1,0 +1,6 @@
+# Ejercicios nuevos de Sinergia (Fitness Revolucionario): ninguno. El
+# programa junta Desencadenado y Efecto Kettlebell y usa los ejercicios de
+# los dos (ver desencadenado_catalogo.txt y efecto_kettlebell_catalogo.txt).
+# El archivo existe porque cada plan tiene el suyo.
+#
+# Formato: ver backend/internal/planimport/catalog.go.

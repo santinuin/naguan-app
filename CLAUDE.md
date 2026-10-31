@@ -108,7 +108,8 @@ a la hora de asistir en el desarrollo:
      fase más la Fase I para intermedios; en producción desde el 2026-10-30), y las Sendas de
      movilidad propias (Pausas activas, Pádel y Fútbol: planes versionados en `backend/seed/`,
      sesiones sin entrenamiento, solo calentamiento o movilidad; ver `backend/README.md`).
-     Faltan Muscle Hunters, Sinergia y Guerrera Espartana. Se cargan con el modelo actual (las decisiones y
+     ~~Sinergia~~ (Desencadenado + Efecto Kettlebell, 4 semanas; posición 5, después de
+     Efecto Kettlebell; cargada el 2026-10-31). Faltan Muscle Hunters y Guerrera Espartana. Se cargan con el modelo actual (las decisiones y
      lo que queda pendiente para después: `docs/limitaciones-del-modelo.md`). Elite,
      Primal y Aurum tienen prioridad baja (no se usan): sus nombres de sesión y su
      calentamiento y estiramiento quedan para más adelante.

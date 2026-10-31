@@ -48,6 +48,18 @@ de Desencadenado y la de swings y thrusters ya son bloques `pyramid`, desde el
   descripción.
 - **Haría falta:** una pirámide cuyos peldaños suban solo uno de los ejercicios.
 
+### Cada minuto (EMOM)
+
+*Sinergia*, semana 3: «cada minuto, por 10 minutos», 15 swings y 10 flexiones hindúes
+al empezar cada minuto, y lo que sobra del minuto es el descanso. Si no llegás, una rep
+menos de cada uno en las vueltas que siguen.
+
+- **Hoy:** un bloque de 10 vueltas sin Enfriá fijo, con una nota; el minuto lo lleva el
+  usuario con su reloj.
+- **Haría falta:** un tipo de bloque `emom` (vueltas por intervalo fijo): la app
+  arranca cada vuelta al empezar el minuto y cuenta hacia atrás lo que queda como
+  Enfriá; si el minuto se termina antes, avisa.
+
 ### Alternativas que no son progresiones
 
 *Desencadenado*: «si no tenés cuerda, levantamientos de rodilla», «si no podés hacer
