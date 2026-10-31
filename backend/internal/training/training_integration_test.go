@@ -644,3 +644,74 @@ func TestPyramidPeakRecords(t *testing.T) {
 		t.Errorf("bloque que no es pirámide: err = %v", err)
 	}
 }
+
+func TestTimeRecordsAndCountedReps(t *testing.T) {
+	svc, pool, user := setup(t)
+	ctx := context.Background()
+
+	// Una sesión a tiempo y uno de sus ítems por reps del entrenamiento.
+	var sessionID, item int64
+	err := pool.QueryRow(ctx, `
+		select s.id, min(i.id)
+		from session s
+		join block b on b.session_id = s.id and b.phase = 'main'
+		join block_item i on i.block_id = b.id and i.kind = 'exercise' and i.reps is not null
+		where s.time_record
+		group by s.id order by s.id limit 1`).Scan(&sessionID, &item)
+	if errors.Is(err, pgx.ErrNoRows) {
+		t.Skip("la base no tiene sesiones a tiempo (faltan los seeds de detalles)")
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	n := 0
+	record := func(mainS int32, items ...ItemResult) []Record {
+		t.Helper()
+		w := workoutFor(sessionID, items...)
+		w.MainDurationS = ptr(mainS)
+		n++
+		w.FinishedAt = w.FinishedAt.Add(time.Duration(n-10) * time.Second)
+		out, _, err := svc.RecordWorkout(ctx, user, w)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return out.NewRecords
+	}
+
+	// La primera vez no hay Mojón; más lento, tampoco; más rápido, sí.
+	if got := record(600, ItemResult{BlockItemID: item, Reps: ptr[int16](10)}); len(got) != 0 {
+		t.Errorf("primera vez: %+v", got)
+	}
+	if got := record(650, ItemResult{BlockItemID: item, Reps: ptr[int16](10)}); len(got) != 0 {
+		t.Errorf("más lento: %+v", got)
+	}
+	got := record(540, ItemResult{BlockItemID: item, Reps: ptr[int16](10)})
+	if len(got) != 1 || got[0].Metric != "time_s" || got[0].Value != 540 || got[0].Previous != 600 || got[0].SessionID != sessionID {
+		t.Errorf("más rápido: %+v", got)
+	}
+
+	// Las reps contadas en un ítem por tiempo no compiten con las de una
+	// serie: 40 reps «en un minuto» no son un Mojón de reps.
+	record(700, ItemResult{BlockItemID: item, Reps: ptr[int16](40), DurationS: ptr[int32](60)})
+	records, err := svc.Records(ctx, user)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, r := range records {
+		if r.Metric == "reps" && r.Value != 10 {
+			t.Errorf("las reps de un ítem por tiempo cuentan como serie: %+v", r)
+		}
+		if r.Metric == "time_s" && r.Value != 540 {
+			t.Errorf("mojón de la sesión = %+v", r)
+		}
+	}
+
+	// Un tiempo de entrenamiento mayor que la Fragua se rechaza.
+	w := workoutFor(sessionID)
+	w.MainDurationS = ptr[int32](24 * 3600)
+	var verr *ValidationError
+	if _, _, err := svc.RecordWorkout(ctx, user, w); !errors.As(err, &verr) {
+		t.Errorf("main_duration_s imposible: err = %v", err)
+	}
+}

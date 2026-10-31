@@ -124,7 +124,10 @@ enum RecordMetric {
   e1rmKg,
 
   /// El pico de una pirámide: el peldaño más alto × el incremento.
-  peakReps;
+  peakReps,
+
+  /// El menor tiempo de una sesión a tiempo (cuanto menos, mejor).
+  timeS;
 
   /// El nombre que usa la API. Un switch sobre el propio enum ([this]):
   /// si se agrega un valor, el compilador avisa que falta su caso.
@@ -134,6 +137,7 @@ enum RecordMetric {
     loadKg => 'load_kg',
     e1rmKg => 'e1rm_kg',
     peakReps => 'peak_reps',
+    timeS => 'time_s',
   };
 
   /// La métrica de un nombre de la API, o null si no se conoce (una API
@@ -153,6 +157,7 @@ enum RecordMetric {
     loadKg => formatKg(value),
     e1rmKg => '1RM ${formatKg(value)}',
     peakReps => 'PICO ${formatReps(value.round())}',
+    timeS => 'TIEMPO ${formatDuration(value.round())}',
   };
 }
 
@@ -292,6 +297,15 @@ class ItemResult {
     this.loadKg,
   }) : reps = null;
 
+  /// Un ítem por tiempo que además contó las reps («swings en un minuto»).
+  const ItemResult.counted(
+    this.blockItemId,
+    int this.durationS,
+    int this.reps, {
+    this.exerciseSlug,
+    this.loadKg,
+  });
+
   final int blockItemId;
 
   /// El ejercicio que se hizo: puede no ser el del bloque, si antes de
@@ -318,6 +332,10 @@ class ItemResult {
     // traen. num, porque jsonDecode da int para 100 y double para 102.5.
     final load = (json['load_kg'] as num?)?.toDouble();
     return switch (json) {
+      // Primero el caso con las dos medidas: si no, el de reps lo tomaría y
+      // perdería los segundos.
+      {'block_item_id': int id, 'reps': int reps, 'duration_s': int s} =>
+        ItemResult.counted(id, s, reps, exerciseSlug: slug, loadKg: load),
       {'block_item_id': int id, 'reps': int reps} => ItemResult.reps(
         id,
         reps,
@@ -345,6 +363,7 @@ class NewWorkout {
     required this.items,
     this.amrapRounds = const {},
     this.pyramids = const {},
+    this.mainDurationS,
   });
 
   /// La clave de idempotencia: un UUID generado en el teléfono, uno por
@@ -361,6 +380,10 @@ class NewWorkout {
 
   /// Lo hecho en cada pirámide, por posición del bloque.
   final Map<int, PyramidResult> pyramids;
+
+  /// Cuánto duró el entrenamiento (sin calentamiento ni movilidad), en
+  /// segundos: la marca de una sesión a tiempo.
+  final int? mainDurationS;
 
   Duration get duration => finishedAt.difference(startedAt);
 
@@ -381,6 +404,7 @@ class NewWorkout {
       for (final MapEntry(key: position, value: p) in pyramids.entries)
         {'block_position': position, 'peak': p.peak, 'rung_sum': p.rungSum},
     ],
+    'main_duration_s': ?mainDurationS,
   };
 
   /// El inverso de toJson: la cola offline guarda las Fraguas como JSON y
@@ -420,6 +444,7 @@ class NewWorkout {
               })
                 position: (peak: peak, rungSum: rungSum),
           },
+          mainDurationS: json['main_duration_s'] as int?,
         ),
       _ => throw FormatException('Fragua guardada con formato inválido: $json'),
     };

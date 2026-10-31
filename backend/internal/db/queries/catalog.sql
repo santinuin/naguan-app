@@ -29,7 +29,7 @@ where ps.program_id = $1
 order by ps.position;
 
 -- name: GetSession :one
-select id, kind, title, description
+select id, kind, title, description, time_record
 from session
 where id = $1;
 
@@ -43,12 +43,17 @@ select i.id         as item_id,
        b.type       as block_type,
        b.phase      as block_phase,
        b.time_cap_s,
+       b.optional   as block_optional,
+       b.note       as block_note,
        i.round,
        i.position,
        i.kind,
        i.side,
        i.duration_s,
        i.reps,
+       i.reps_min,
+       i.open,
+       i.count_reps,
        e.slug       as exercise_slug,
        e.name       as exercise_name,
        e.loaded     as exercise_loaded

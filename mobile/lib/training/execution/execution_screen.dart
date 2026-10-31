@@ -391,45 +391,54 @@ class _StepView extends StatelessWidget {
               Expanded(
                 child: Text(_stepLabel(step), style: textTheme.labelSmall),
               ),
-              // Una Fragua retomada arranca pausada: que se note.
-              if (runner.isPaused) ...[
+              // Una Fragua retomada arranca pausada: que se note (la oferta
+              // de un opcional también pausa, pero ahí se ve sola).
+              if (runner.isPaused && !runner.isOfferingOptional) ...[
                 const SizedBox(width: ForjaSpace.s2),
                 const ForjaPill('en pausa'),
               ],
             ],
           ),
+          // La indicación del bloque, para el momento (el ritmo).
+          if (step.block.note case final note?) ...[
+            const SizedBox(height: ForjaSpace.s2),
+            Text(note, style: context.forja.bodyStrong),
+          ],
           // Expanded + Center: el contenido del paso ocupa el centro de la
           // pantalla, y los botones quedan abajo, al alcance del pulgar.
           Expanded(
             child: Center(
               child: SingleChildScrollView(
-                child: switch (step.kind) {
-                  StepKind.reps => _RepsStep(
-                    runner: runner,
-                    onOpenExercise: onOpenExercise,
-                  ),
-                  StepKind.timed => _TimedStep(
-                    runner: runner,
-                    onOpenExercise: onOpenExercise,
-                  ),
-                  StepKind.rest => _RestStep(runner: runner),
-                  StepKind.amrap => _AmrapStep(
-                    runner: runner,
-                    onOpenExercise: onOpenExercise,
-                  ),
-                  StepKind.pyramid => _PyramidStep(
-                    runner: runner,
-                    onOpenExercise: onOpenExercise,
-                  ),
-                },
+                child: runner.isOfferingOptional
+                    ? _OptionalOffer(runner: runner)
+                    : switch (step.kind) {
+                        StepKind.reps => _RepsStep(
+                          runner: runner,
+                          onOpenExercise: onOpenExercise,
+                        ),
+                        StepKind.timed => _TimedStep(
+                          runner: runner,
+                          onOpenExercise: onOpenExercise,
+                        ),
+                        StepKind.rest => _RestStep(runner: runner),
+                        StepKind.amrap => _AmrapStep(
+                          runner: runner,
+                          onOpenExercise: onOpenExercise,
+                        ),
+                        StepKind.pyramid => _PyramidStep(
+                          runner: runner,
+                          onOpenExercise: onOpenExercise,
+                        ),
+                      },
               ),
             ),
           ),
-          if (runner.next case final next?) ...[
+          if (runner.next case final next? when !runner.isOfferingOptional) ...[
             _NextStep(step: next, onOpenExercise: onOpenExercise),
             const SizedBox(height: ForjaSpace.s4),
           ],
-          _Controls(runner: runner),
+          // Mientras se ofrece el opcional, los botones son los de la oferta.
+          if (!runner.isOfferingOptional) _Controls(runner: runner),
         ],
       ),
     );
@@ -492,9 +501,7 @@ String _describe(WorkoutStep step) {
     return '$kind ${formatDuration(step.block.timeCapS!)}';
   }
   if (item.isRest) return 'Enfriá ${formatDuration(item.durationS!)}';
-  final metric = item.reps != null
-      ? formatReps(item.reps!)
-      : formatDuration(item.durationS!);
+  final metric = formatTarget(item);
   final side = item.side != null ? ' (${item.side!.label.toLowerCase()})' : '';
   return '${item.exercise!.name}$side $metric';
 }
@@ -569,7 +576,9 @@ class _StepClock extends StatelessWidget {
     return Column(
       children: [
         _Countdown(
-          remaining: preparation ?? runner.remaining!,
+          // Un ítem del máximo tiempo posible no tiene "lo que queda": en la
+          // preparación se muestra la cuenta, después lo transcurrido.
+          remaining: preparation ?? runner.remaining ?? runner.elapsedInStep,
           color: preparation != null ? context.forja.palette.accent : null,
         ),
         const SizedBox(height: ForjaSpace.s2),
@@ -626,7 +635,10 @@ class _RepsStep extends StatelessWidget {
           ],
         ),
         const SizedBox(height: ForjaSpace.s2),
-        Text('REPS', style: Theme.of(context).textTheme.labelSmall),
+        Text(
+          _repsLabel(runner.current.item!),
+          style: Theme.of(context).textTheme.labelSmall,
+        ),
         const SizedBox(height: ForjaSpace.s6),
         _LoadControl(runner: runner),
       ],
@@ -766,6 +778,61 @@ class _LoadDialogState extends State<_LoadDialog> {
   }
 }
 
+/// Qué se cuenta: «REPS», un rango («REPS · DE 5 A 8») o «TODAS LAS QUE
+/// PUEDAS» (el número es una referencia).
+String _repsLabel(Item item) => switch (item) {
+  Item(open: true) => 'TODAS LAS QUE PUEDAS',
+  Item(:final repsMin?, :final reps?) => 'REPS · DE $repsMin A $reps',
+  _ => 'REPS',
+};
+
+/// Un bloque opcional (el «ejercicio extra»): antes de empezarlo, hacerlo o
+/// terminar ahí. La Fragua queda en pausa mientras tanto.
+class _OptionalOffer extends StatelessWidget {
+  const _OptionalOffer({required this.runner});
+
+  final WorkoutRunner runner;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    return Column(
+      children: [
+        ForjaHeadline('EXTRA', style: textTheme.displayLarge),
+        const SizedBox(height: ForjaSpace.s2),
+        const Text(
+          'Hacelo solo si te quedan fuerzas.',
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: ForjaSpace.s4),
+        // Lo que tiene el bloque: así se decide sabiendo qué es.
+        for (final step in runner.steps)
+          if (identical(step.block, runner.current.block) &&
+              step.round == 1 &&
+              step.item != null &&
+              !step.item!.isRest)
+            Text(_describe(step), style: textTheme.bodyLarge),
+        const SizedBox(height: ForjaSpace.s6),
+        SizedBox(
+          width: double.infinity,
+          child: FilledButton(
+            onPressed: runner.acceptOptional,
+            child: const OneLineText('HACERLO'),
+          ),
+        ),
+        const SizedBox(height: ForjaSpace.s2),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton(
+            onPressed: runner.skipOptional,
+            child: const OneLineText('TERMINAR ACÁ'),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _TimedStep extends StatelessWidget {
   const _TimedStep({required this.runner, required this.onOpenExercise});
 
@@ -774,14 +841,48 @@ class _TimedStep extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final item = runner.current.item!;
+    final stat = context.forja.stat.copyWith(fontSize: 96, height: 1);
     return Column(
       children: [
-        _ExerciseHeader(
-          item: runner.current.item!,
-          onOpenExercise: onOpenExercise,
-        ),
+        _ExerciseHeader(item: item, onOpenExercise: onOpenExercise),
         const SizedBox(height: ForjaSpace.s8),
-        _StepClock(runner: runner),
+        if (runner.isAskingReps) ...[
+          // Terminó el tiempo de un ítem que cuenta las reps: cuántas.
+          Text(
+            '¿CUÁNTAS HICISTE?',
+            style: Theme.of(context).textTheme.labelSmall,
+          ),
+          const SizedBox(height: ForjaSpace.s2),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              IconButton.outlined(
+                onPressed: () => runner.adjustReps(-1),
+                icon: const Icon(Icons.remove),
+                tooltip: 'Una menos',
+              ),
+              const SizedBox(width: ForjaSpace.s4),
+              Text('${runner.repsDraft}', style: stat),
+              const SizedBox(width: ForjaSpace.s4),
+              IconButton.outlined(
+                onPressed: () => runner.adjustReps(1),
+                icon: const Icon(Icons.add),
+                tooltip: 'Una más',
+              ),
+            ],
+          ),
+        ] else if (item.open && !runner.isPreparing) ...[
+          // El máximo tiempo posible: el reloj cuenta hacia arriba, y se
+          // termina con TERMINÉ.
+          _Countdown(remaining: runner.elapsedInStep),
+          const SizedBox(height: ForjaSpace.s2),
+          Text(
+            'TODO EL TIEMPO QUE PUEDAS',
+            style: Theme.of(context).textTheme.labelSmall,
+          ),
+        ] else
+          _StepClock(runner: runner),
         const SizedBox(height: ForjaSpace.s6),
         _LoadControl(runner: runner),
       ],
@@ -1008,7 +1109,7 @@ class _Controls extends StatelessWidget {
             onPressed: runner.complete,
             child: OneLineText(switch (kind) {
               StepKind.reps => 'LISTO',
-              StepKind.timed => 'TERMINÉ',
+              StepKind.timed => runner.isAskingReps ? 'LISTO' : 'TERMINÉ',
               StepKind.rest => 'SEGUIR',
               StepKind.amrap => 'TERMINAR',
               // En la pirámide, el CTA es el peldaño (o cortar el descanso);

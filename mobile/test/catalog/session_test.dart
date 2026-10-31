@@ -292,4 +292,23 @@ void main() {
 
     expect(find.text('ENTRENAMIENTO'), findsNothing);
   });
+
+  test('la cifra de un ítem: rango, máximo y tiempo', () {
+    Item item(Map<String, Object> extra) => Item.fromJson({
+      'id': 1,
+      'round': 1,
+      'position': 1,
+      'kind': 'exercise',
+      'exercise': {'slug': 'x', 'name': 'X'},
+      ...extra,
+    });
+    expect(formatTarget(item({'reps': 10})), '×10');
+    expect(formatTarget(item({'reps': 8, 'reps_min': 5})), '×5-8');
+    expect(formatTarget(item({'reps': 15, 'open': true})), '×máx');
+    expect(formatTarget(item({'duration_s': 60, 'open': true})), 'máx');
+    expect(formatTarget(item({'duration_s': 45})), '45″');
+    // Ajustar las reps a mano deja un número fijo (sin el rango).
+    final ranged = item({'reps': 8, 'reps_min': 5});
+    expect(formatTarget(ranged.copyWith(reps: 6)), '×6');
+  });
 }

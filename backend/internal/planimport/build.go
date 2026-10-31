@@ -26,6 +26,7 @@ type Program struct {
 type Session struct {
 	Title, Description string
 	Blocks             []Block
+	TimeRecord         bool // su Mojón es el menor tiempo del entrenamiento
 }
 
 // Block es un bloque desplegado. Type es el block_type de la base y Phase
@@ -35,6 +36,8 @@ type Block struct {
 	Phase    mhimport.Phase
 	TimeCapS int
 	Items    []Item
+	Optional bool
+	Note     string
 }
 
 // Item es una fila de block_item: un ejercicio o, con Rest, un Enfriá (sin
@@ -45,6 +48,9 @@ type Item struct {
 	Side            mhimport.Side
 	DurationS, Reps int
 	Rest            bool
+	RepsMin         int  // mínimo de un rango (0: número fijo)
+	Open            bool // máximo posible: la medida es una referencia
+	CountReps       bool // por tiempo, y además cuenta las reps
 }
 
 const phaseMain mhimport.Phase = "main"
@@ -134,7 +140,9 @@ func Build(slug, name string, plan *Plan, extras *CatalogExtras, cat *mhimport.C
 		blocks = append(blocks, expand(mhimport.PhaseWarmup, plan.Templates[s.Warmup])...)
 		blocks = append(blocks, expand(phaseMain, s.Blocks)...)
 		blocks = append(blocks, expand(mhimport.PhaseMobility, plan.Templates[s.Mobility])...)
-		prog.Sessions = append(prog.Sessions, Session{Title: s.Title, Description: s.Description, Blocks: blocks})
+		prog.Sessions = append(prog.Sessions, Session{
+			Title: s.Title, Description: s.Description, Blocks: blocks, TimeRecord: s.TimeRecord,
+		})
 	}
 
 	errs := bad
@@ -152,7 +160,10 @@ func Build(slug, name string, plan *Plan, extras *CatalogExtras, cat *mhimport.C
 // bloque solo en un AMRAP o una pirámide con "después": el Enfriá va en un
 // bloque propio, porque sus ítems son lo que se repite.
 func expandBlock(phase mhimport.Phase, spec BlockSpec, resolve func(string) exerciseInfo) ([]Block, error) {
-	b := Block{Type: blockType(spec), Phase: phase, TimeCapS: spec.TimeCapS}
+	b := Block{
+		Type: blockType(spec), Phase: phase, TimeCapS: spec.TimeCapS,
+		Optional: spec.Optional, Note: spec.Note,
+	}
 	var errs []error
 	for round := 1; round <= spec.Rounds; round++ {
 		pos := 0
@@ -192,7 +203,10 @@ func expandBlock(phase mhimport.Phase, spec BlockSpec, resolve func(string) exer
 				sides = []mhimport.Side{mhimport.SideNone}
 			}
 			for _, side := range sides {
-				add(Item{ExerciseSlug: ex.slug, Side: side, Reps: reps, DurationS: dur})
+				add(Item{
+					ExerciseSlug: ex.slug, Side: side, Reps: reps, DurationS: dur,
+					RepsMin: it.RepsMin, Open: it.Open, CountReps: it.CountReps,
+				})
 			}
 		}
 		// El Enfriá del tabata va después de cada vuelta; el "entre", solo

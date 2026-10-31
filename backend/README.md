@@ -112,6 +112,11 @@ en su lugar. El formato está explicado en `internal/planimport/plan.go`:
   (`Nombre | 8r` o `| 60s`; sin medida en las escaleras fijas y los tabatas), o
   `Enfriá | 20s`, hasta `end`. Un unilateral se hace por los dos lados, salvo que
   la línea termine en `| der`, `| izq` o `| alternando` (un solo paso sin lado).
+- Detalles: un rango (`Flexión | 5-8r`), el máximo posible (`Dominada | 8r | máx`), un
+  ítem por tiempo que cuenta reps (`Swing | 60s | cuenta`; en un tabata, `Burpee |
+  cuenta`), un bloque opcional (`vueltas x2 | opcional`), una nota para el momento
+  (líneas `nota: ...` al principio del bloque) y una sesión a tiempo (`marca: tiempo`,
+  después de su encabezado).
 - `video: Nombre | url` da el video de un ejercicio nuevo del plan (va en la
   transcripción, no versionada, porque los links son de la fuente).
 - `aproximación [corta] Ejercicio`: las series de aproximación antes de las de trabajo
@@ -157,3 +162,22 @@ ya está, sin perder usuarios ni Fraguas:
 ```bash
 docker exec -i supabase_db_naguan-app psql -U postgres -v ON_ERROR_STOP=1 < ../supabase/seed_desencadenado.sql
 ```
+
+### Actualizar lo que ya está cargado (`plans-update`)
+
+Un seed se aplica una sola vez. Cuando el modelo suma un campo del plan (un rango, un
+bloque opcional...), los programas que ya están en producción no lo traen, y volver a
+cargarlos no se puede (las Fraguas templadas apuntan a sus ítems). Para eso:
+
+```bash
+go run ./cmd/seed plans-update desencadenado   # genera /supabase/seed_desencadenado_detalles.sql
+```
+
+El SQL no inserta ni borra nada: busca cada sesión por programa y posición, cada bloque
+por posición y cada ítem por vuelta y posición, y actualiza solo las columnas de los
+detalles. Antes verifica que la base tenga la misma estructura que la transcripción
+(cuántos bloques e ítems); si no, aborta sin cambiar nada. Correrlo dos veces deja lo
+mismo. Para producción se aplica como un seed nuevo (ver `docs/despliegue.md`). Cada
+actualización necesita un archivo con otro nombre (la CLI no vuelve a correr uno que
+ya aplicó): `-tag` cambia el sufijo, p. ej. `go run ./cmd/seed -tag aproximacion
+plans-update barra-libre-1` (las notas de las series de aproximación, 2026-10-31).

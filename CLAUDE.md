@@ -260,9 +260,16 @@ calistenia, pero también fuerza con barra (Barra Libre) y movilidad ("flexifuer
   (la app pide el peso; en los demás, lastre opcional). La app propone el peso de la
   serie anterior del mismo bloque o, en la primera, el último usado
   (`GET /v1/me/loads`, con caché en el teléfono), y se ajusta de a 2,5 kg o a mano.
+- **Detalles del plan:** rangos (`block_item.reps_min`), máximo posible (`open`), ítems
+  por tiempo que cuentan reps (`count_reps`), extras (`block.optional`, la app ofrece
+  TERMINAR ACÁ), notas para el momento (`block.note`) y sesiones a tiempo
+  (`session.time_record` + `workout.main_duration_s`). Para completar campos nuevos en
+  programas ya cargados: `go run ./cmd/seed plans-update` (SQL que actualiza por
+  posición, sin tocar ids).
 - **Mojones:** por ejercicio (ambos lados juntos): mejor reps (series sin carga), mejor
-  duración y, con carga, peso máximo y 1RM estimado (peso × reps × 0,0333 + peso); la
-  primera vez e igualar no cuentan. `POST /v1/me/workouts` devuelve `new_records`.
+  duración, con carga peso máximo y 1RM estimado (peso × reps × 0,0333 + peso), y el pico
+  de una pirámide; por sesión a tiempo, el menor tiempo del entrenamiento. La primera vez
+  e igualar no cuentan. `POST /v1/me/workouts` devuelve `new_records`.
 - Lo que el modelo todavía no soporta (rangos de reps, progresión de carga, niveles por
   test...): `docs/limitaciones-del-modelo.md`.
 - Nombres de los programas: se mantienen los originales por ahora.

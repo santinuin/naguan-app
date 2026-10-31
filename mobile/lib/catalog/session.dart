@@ -6,12 +6,17 @@ class Session {
     required this.title,
     required this.blocks,
     this.description,
+    this.timeRecord = false,
   });
 
   final int id;
   final String title;
   final String? description;
   final List<Block> blocks;
+
+  /// Se hace lo más rápido posible: su Mojón es el menor tiempo del
+  /// entrenamiento.
+  final bool timeRecord;
 
   /// Una copia con otros bloques. Los modelos son inmutables (todos sus
   /// campos son final): "editar" una sesión es armar otra. Ver
@@ -20,6 +25,7 @@ class Session {
     id: id,
     title: title,
     description: description,
+    timeRecord: timeRecord,
     blocks: blocks ?? this.blocks,
   );
 
@@ -30,6 +36,7 @@ class Session {
     'kind': 'workout',
     'title': title,
     'description': description,
+    'time_record': timeRecord,
     'blocks': [for (final b in blocks) b.toJson()],
   };
 
@@ -45,6 +52,9 @@ class Session {
           id: id,
           title: title,
           description: description,
+          // Opcional: una API anterior (o una sesión guardada por una
+          // versión anterior de la app) no lo trae.
+          timeRecord: json['time_record'] == true,
           blocks: [
             for (final b in blocks) Block.fromJson(b as Map<String, dynamic>),
           ],
@@ -126,6 +136,8 @@ class Block {
     required this.items,
     this.phase = BlockPhase.main,
     this.timeCapS,
+    this.optional = false,
+    this.note,
   });
 
   final int position;
@@ -138,11 +150,20 @@ class Block {
   /// Todos los ítems del bloque, ordenados por vuelta y posición.
   final List<Item> items;
 
+  /// Un extra: se hace solo si quedan fuerzas (antes de empezarlo, la
+  /// Fragua ofrece terminar ahí).
+  final bool optional;
+
+  /// Una indicación para el momento («2 s de subida y 2 de bajada»).
+  final String? note;
+
   Block copyWith({List<Item>? items}) => Block(
     position: position,
     phase: phase,
     type: type,
     timeCapS: timeCapS,
+    optional: optional,
+    note: note,
     items: items ?? this.items,
   );
 
@@ -192,6 +213,8 @@ class Block {
     'phase': phase.apiValue,
     'type': type.apiValue,
     'time_cap_s': ?timeCapS,
+    'optional': optional,
+    'note': ?note,
     'items': [for (final i in items) i.toJson()],
   };
 
@@ -206,6 +229,8 @@ class Block {
           // map pattern exige que la clave exista, así que los campos
           // opcionales se leen aparte con un cast nullable.
           timeCapS: json['time_cap_s'] as int?,
+          optional: json['optional'] == true,
+          note: json['note'] as String?,
           items: [
             for (final i in items) Item.fromJson(i as Map<String, dynamic>),
           ],
@@ -255,6 +280,9 @@ class Item {
     this.side,
     this.durationS,
     this.reps,
+    this.repsMin,
+    this.open = false,
+    this.countReps = false,
   });
 
   /// Identifica el ítem: se manda de vuelta al registrar la Fragua, para
@@ -269,6 +297,16 @@ class Item {
   final int? durationS;
   final int? reps;
 
+  /// El mínimo de un rango («5-8»: [reps] es 8 y [repsMin] 5).
+  final int? repsMin;
+
+  /// Máximo posible («todas las que puedas»): [reps] o [durationS] son una
+  /// referencia. Por tiempo, la Fragua cuenta hacia arriba.
+  final bool open;
+
+  /// Por tiempo, y además cuenta las reps: al terminar, la Fragua las pide.
+  final bool countReps;
+
   bool get isRest => exercise == null;
 
   /// Una copia con otro ejercicio o con otro objetivo. El `??` deja el valor
@@ -282,6 +320,11 @@ class Item {
     side: side,
     durationS: durationS ?? this.durationS,
     reps: reps ?? this.reps,
+    // Ajustar las reps a mano reemplaza el rango por un número fijo (un
+    // mínimo por encima del nuevo máximo no tendría sentido).
+    repsMin: reps == null ? repsMin : null,
+    open: open,
+    countReps: countReps,
   );
 
   /// Lo que define a un ítem dentro de su vuelta, sin la vuelta ni la
@@ -304,6 +347,9 @@ class Item {
     'side': ?side?.name,
     'duration_s': ?durationS,
     'reps': ?reps,
+    'reps_min': ?repsMin,
+    'open': open,
+    'count_reps': countReps,
   };
 
   factory Item.fromJson(Map<String, dynamic> json) {
@@ -333,6 +379,9 @@ class Item {
           },
           durationS: json['duration_s'] as int?,
           reps: json['reps'] as int?,
+          repsMin: json['reps_min'] as int?,
+          open: json['open'] == true,
+          countReps: json['count_reps'] == true,
         ),
       _ => throw FormatException('Ítem con formato inválido: $json'),
     };

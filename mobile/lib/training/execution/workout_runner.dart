@@ -56,6 +56,8 @@ class WorkoutStep {
   /// La duración del paso, si tiene: el tiempo del ejercicio o del
   /// descanso, o el tope del AMRAP. Null en los pasos por reps.
   Duration? get duration => switch (kind) {
+    // El máximo tiempo posible no tiene fin: se cuenta hacia arriba.
+    StepKind.timed when item!.open => null,
     StepKind.timed || StepKind.rest => Duration(seconds: item!.durationS!),
     StepKind.amrap || StepKind.pyramid => Duration(seconds: block.timeCapS!),
     StepKind.reps => null,
@@ -142,7 +144,19 @@ class WorkoutRunner extends ChangeNotifier {
       .._repsDraft = snapshot['reps_draft'] as int
       // Opcional: un snapshot de una versión anterior no lo trae.
       .._loadDraft = (snapshot['load_draft'] as num?)?.toDouble()
-      .._amrapRounds = snapshot['amrap_rounds'] as int;
+      .._amrapRounds = snapshot['amrap_rounds'] as int
+      // Opcionales: un snapshot de una versión anterior no los trae.
+      .._askingReps = snapshot['asking_reps'] == true
+      .._countedS = (snapshot['counted_s'] as int?) ?? 0
+      .._offeringOptional = snapshot['offering_optional'] == true
+      .._mainStartedAt = switch (snapshot['main_started_at']) {
+        final String t => DateTime.parse(t),
+        _ => null,
+      }
+      .._mainEndedAt = switch (snapshot['main_ended_at']) {
+        final String t => DateTime.parse(t),
+        _ => null,
+      };
     for (final r in snapshot['results'] as List) {
       final result = ItemResult.fromJson(r as Map<String, dynamic>);
       runner._results[result.blockItemId] = result;
@@ -222,6 +236,20 @@ class WorkoutRunner extends ChangeNotifier {
   /// Vueltas completadas en el AMRAP actual.
   int _amrapRounds = 0;
 
+  /// Un ítem por tiempo que cuenta reps terminó su tiempo y espera que el
+  /// usuario diga cuántas hizo ([_countedS] es el tiempo hecho).
+  bool _askingReps = false;
+  int _countedS = 0;
+
+  /// Se llegó a un bloque opcional y se ofrece hacerlo o terminar ahí. La
+  /// Fragua queda en pausa mientras tanto.
+  bool _offeringOptional = false;
+
+  /// Cuándo empezó y terminó el entrenamiento (la fase main): su duración
+  /// es la marca de una sesión a tiempo.
+  DateTime? _mainStartedAt;
+  DateTime? _mainEndedAt;
+
   /// Vueltas de los AMRAP ya terminados, por posición del bloque.
   final Map<int, int> _amrapsDone = {};
 
@@ -277,6 +305,17 @@ class WorkoutRunner extends ChangeNotifier {
   double get progress => steps.isEmpty ? 1 : _index / steps.length;
 
   int get repsDraft => _repsDraft;
+
+  /// Si el paso actual espera las reps de un ítem por tiempo.
+  bool get isAskingReps => _askingReps;
+
+  /// Si se está ofreciendo hacer un bloque opcional o terminar ahí.
+  bool get isOfferingOptional => _offeringOptional;
+
+  /// Cuánto lleva el paso actual, sin la preparación (para el máximo tiempo
+  /// posible, que se cuenta hacia arriba).
+  Duration get elapsedInStep =>
+      stepElapsed.isNegative ? Duration.zero : stepElapsed;
 
   int get rung => _rung;
   bool get isDescending => _descending;
@@ -387,6 +426,26 @@ class WorkoutRunner extends ChangeNotifier {
     _advance();
   }
 
+  /// HACERLO: se hace el bloque opcional; la Fragua sigue.
+  void acceptOptional() {
+    if (!_offeringOptional) return;
+    _offeringOptional = false;
+    resume();
+  }
+
+  /// TERMINAR ACÁ: se saltea el bloque opcional entero (y los opcionales
+  /// que le sigan) sin registrar nada.
+  void skipOptional() {
+    if (!_offeringOptional) return;
+    var j = _index;
+    while (j < steps.length && steps[j].block.optional) {
+      j++;
+    }
+    _offeringOptional = false;
+    _enterStep(j);
+    _changed();
+  }
+
   void addAmrapRound() {
     _amrapRounds++;
     _changed();
@@ -404,9 +463,26 @@ class WorkoutRunner extends ChangeNotifier {
           exerciseSlug: item.exercise!.slug,
           loadKg: _loadDraft,
         );
+      case StepKind.timed when _askingReps:
+        // Las reps de un ítem por tiempo que las cuenta.
+        _results[item!.id] = ItemResult.counted(
+          item.id,
+          _countedS,
+          _repsDraft,
+          exerciseSlug: item.exercise!.slug,
+          loadKg: _loadDraft,
+        );
       case StepKind.timed:
-        // Terminó antes de tiempo: se registra lo que hizo.
-        final done = min(stepElapsed.inSeconds, step.duration!.inSeconds);
+        // Terminó antes de tiempo (o es el máximo tiempo posible, sin
+        // fin): se registra lo que hizo.
+        final total = step.duration;
+        final done = total == null
+            ? elapsedInStep.inSeconds
+            : min(stepElapsed.inSeconds, total.inSeconds);
+        if (done > 0 && item!.countReps) {
+          _askReps(done);
+          return;
+        }
         if (done > 0) {
           _results[item!.id] = ItemResult.duration(
             item.id,
@@ -527,9 +603,13 @@ class WorkoutRunner extends ChangeNotifier {
   /// un tiempo), y [Cue.go] al llegar a 0 (arranca el ejercicio, o terminó un
   /// tiempo y se avanzó).
   Cue? tick() {
-    if (!isStarted || isFinished || isPaused) return null;
+    if (!isStarted || isFinished || isPaused || _askingReps) return null;
     if (remaining == Duration.zero) {
       switch (current.kind) {
+        case StepKind.timed when current.item!.countReps:
+          // Terminó el tiempo: antes de seguir, cuántas reps hizo.
+          _askReps(current.item!.durationS!);
+          return Cue.go;
         case StepKind.timed:
           final item = current.item!;
           _results[item.id] = ItemResult.duration(
@@ -610,6 +690,23 @@ class WorkoutRunner extends ChangeNotifier {
     return null;
   }
 
+  /// Deja el paso esperando las reps de un ítem por tiempo que las cuenta.
+  void _askReps(int doneS) {
+    _askingReps = true;
+    _countedS = doneS;
+    _repsDraft = 0;
+    _changed();
+  }
+
+  /// Cuánto duró el entrenamiento (la fase main), en segundos; null si no
+  /// se llegó a hacer.
+  int? get mainDurationS {
+    final (start, end) = (_mainStartedAt, _mainEndedAt);
+    if (start == null || end == null) return null;
+    final s = end.difference(start).inSeconds;
+    return s > 0 ? s : null;
+  }
+
   /// El peso que se propone para el paso [i]: el de la serie anterior del
   /// mismo ejercicio en el mismo bloque (las series de aproximación suben
   /// de a una; las de trabajo repiten); si es la primera del bloque, el
@@ -652,6 +749,7 @@ class WorkoutRunner extends ChangeNotifier {
       items: _results.values.toList(),
       amrapRounds: Map.of(_amrapsDone),
       pyramids: Map.of(_pyramidsDone),
+      mainDurationS: mainDurationS,
     );
   }
 
@@ -666,6 +764,11 @@ class WorkoutRunner extends ChangeNotifier {
     'paused_at': _pausedAt?.toIso8601String(),
     'saved_at': _now().toIso8601String(),
     'reps_draft': _repsDraft,
+    'asking_reps': _askingReps,
+    'counted_s': _countedS,
+    'offering_optional': _offeringOptional,
+    'main_started_at': _mainStartedAt?.toIso8601String(),
+    'main_ended_at': _mainEndedAt?.toIso8601String(),
     'load_draft': _loadDraft,
     'amrap_rounds': _amrapRounds,
     // Las claves de un objeto JSON son siempre strings.
@@ -699,6 +802,15 @@ class WorkoutRunner extends ChangeNotifier {
   /// Entra al paso [i]. Si tiene tiempo y [withLeadIn], con preparación: el
   /// paso "empieza" [leadIn] más tarde.
   void _enterStep(int i, {bool withLeadIn = true}) {
+    // Al salir de un paso del entrenamiento se anota la hora: la última vez
+    // que se sale de uno es el final del entrenamiento.
+    if (isStarted &&
+        _index < steps.length &&
+        steps[_index].block.phase == BlockPhase.main) {
+      _mainEndedAt = _now();
+    }
+    _askingReps = false;
+    _offeringOptional = false;
     _index = i;
     _stepStartedAt = _now();
     _pausedInStep = Duration.zero;
@@ -722,6 +834,14 @@ class WorkoutRunner extends ChangeNotifier {
     _lastRung = 0;
     _rungStart = Duration.zero;
     _restEnd = null;
+    if (step.block.phase == BlockPhase.main) _mainStartedAt ??= _now();
+    // El primer paso de un bloque opcional: se ofrece hacerlo o terminar
+    // ahí, con la Fragua en pausa.
+    if (step.block.optional &&
+        (i == 0 || !identical(steps[i - 1].block, step.block))) {
+      _offeringOptional = true;
+      _pausedAt = _now();
+    }
     _repsDraft = step.item?.reps ?? 0;
     _loadDraft = _proposedLoad(i);
     _amrapRounds = 0;

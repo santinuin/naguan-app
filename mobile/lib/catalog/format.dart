@@ -1,3 +1,5 @@
+import 'package:naguan_app/catalog/session.dart';
+
 /// Formatea una duración en segundos como se lee en la app: "45″", "90″",
 /// "5′", "2′30″".
 ///
@@ -35,3 +37,14 @@ String formatKgNumber(double kg) {
   text = text.replaceFirst(RegExp(r'\.?0+$'), '');
   return text.replaceAll('.', ',');
 }
+
+/// La cifra de un ítem como se lee en la app: "×10", "×5-8" (un rango),
+/// "×máx" (todas las que puedas), "45″", "máx" (el máximo tiempo posible).
+String formatTarget(Item item) => switch (item) {
+  Item(open: true, reps: _?) => '×máx',
+  Item(open: true, durationS: _?) => 'máx',
+  Item(:final reps?, :final repsMin?) => '×$repsMin-$reps',
+  Item(:final reps?) => formatReps(reps),
+  Item(:final durationS?) => formatDuration(durationS),
+  _ => '',
+};

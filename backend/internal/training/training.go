@@ -114,11 +114,16 @@ type Workout struct {
 
 // Record es un Mojón: la mejor marca en un ejercicio.
 type Record struct {
-	Exercise     string `json:"exercise"`
-	ExerciseSlug string `json:"exercise_slug"`
+	Exercise string `json:"exercise"`
+	// ExerciseSlug, vacío (y fuera del JSON) en el Mojón de una sesión.
+	ExerciseSlug string `json:"exercise_slug,omitempty"`
+	// SessionID, solo en el Mojón de una sesión a tiempo (metric "time_s"):
+	// Exercise es entonces el título de la sesión.
+	SessionID int64 `json:"session_id,omitempty"`
 	// Metric es "reps" (series sin carga), "duration_s", "load_kg" (el peso
 	// más alto), "e1rm_kg" (el 1RM estimado: ver e1rm) o "peak_reps" (el
-	// pico de una pirámide: el peldaño más alto × el incremento).
+	// pico de una pirámide: el peldaño más alto × el incremento) o "time_s"
+	// (el menor tiempo de una sesión a tiempo: ahí, cuanto menos, mejor).
 	Metric string `json:"metric"`
 	// Value es float64 porque los kilos tienen decimales (102,5); las reps y
 	// los segundos salen igual como enteros en el JSON (12, no 12.0).
@@ -264,6 +269,10 @@ type NewWorkout struct {
 	Items      []ItemResult `json:"items"`
 	// Amraps son las vueltas completadas en cada bloque AMRAP.
 	Amraps []AmrapResult `json:"amraps"`
+	// MainDurationS es cuánto duró el entrenamiento (la fase main, sin
+	// calentamiento ni movilidad), en segundos. Opcional (una app vieja no
+	// lo manda); en una sesión a tiempo, es su marca.
+	MainDurationS *int32 `json:"main_duration_s"`
 	// Pyramids es lo hecho en cada pirámide con tope. Sus ejercicios van
 	// además en Items, con las reps totales (para saber cuál se hizo, si se
 	// cambió por una progresión).
@@ -377,6 +386,9 @@ func (w NewWorkout) validate(now time.Time) (localDate time.Time, err error) {
 		seen[it.BlockItemID] = true
 	}
 
+	if m := w.MainDurationS; m != nil && (*m <= 0 || time.Duration(*m)*time.Second > w.FinishedAt.Sub(w.StartedAt)+time.Minute) {
+		return time.Time{}, invalid("main_duration_s tiene que estar entre 0 y la duración de la fragua")
+	}
 	if w.ClientID != nil && !uuidPattern.MatchString(*w.ClientID) {
 		return time.Time{}, invalid("client_id tiene que ser un UUID")
 	}
@@ -520,10 +532,16 @@ func (s *Service) RecordWorkout(ctx context.Context, userID string, w NewWorkout
 		if err != nil {
 			return err
 		}
+		if r, err := newTimeRecord(ctx, q, userID, w); err != nil {
+			return err
+		} else if r != nil {
+			records = append(records, *r)
+		}
 
 		id, err = q.CreateWorkout(ctx, db.CreateWorkoutParams{
 			UserID: userID, SessionID: w.SessionID, ClientID: w.ClientID,
 			StartedAt: w.StartedAt, FinishedAt: w.FinishedAt, LocalDate: localDate,
+			MainDurationS: w.MainDurationS,
 		})
 		if isUniqueViolation(err, "workout_client_id_per_user") {
 			// Otro request con el mismo client_id ganó la carrera entre
@@ -691,6 +709,9 @@ func newRecords(
 			// Las reps de una pirámide son las totales del bloque, no una
 			// serie: su marca es el pico.
 			b.peakReps = max(b.peakReps, float64(it.peakReps))
+		case it.DurationS != nil:
+			// Un ítem por tiempo que además contó las reps («swings en un
+			// minuto»): esas reps no son una serie.
 		case it.LoadKg != nil:
 			if it.Reps != nil && *it.Reps > 0 {
 				b.e1rmKg = max(b.e1rmKg, e1rm(*it.LoadKg, *it.Reps))
@@ -749,6 +770,27 @@ func newRecords(
 	return out, nil
 }
 
+// newTimeRecord devuelve el Mojón de una sesión a tiempo, si esta Fragua bajó
+// la marca (y había una: la primera vez no cuenta).
+func newTimeRecord(ctx context.Context, q *db.Queries, userID string, w NewWorkout) (*Record, error) {
+	if w.MainDurationS == nil {
+		return nil, nil
+	}
+	// Se lee ANTES de insertar la Fragua, como las demás marcas previas.
+	sr, err := q.GetSessionTimeRecord(ctx, db.GetSessionTimeRecordParams{UserID: userID, SessionID: w.SessionID})
+	if err != nil {
+		return nil, fmt.Errorf("leyendo la marca de la sesión: %w", err)
+	}
+	cur := *w.MainDurationS
+	if !sr.TimeRecord || sr.BestTimeS == 0 || cur >= sr.BestTimeS {
+		return nil, nil
+	}
+	return &Record{
+		Exercise: sr.Title, SessionID: w.SessionID, Metric: "time_s",
+		Value: float64(cur), Previous: float64(sr.BestTimeS), AchievedOn: w.LocalDate,
+	}, nil
+}
+
 // ListWorkouts devuelve una página del historial: hasta limit Fraguas
 // templadas, de la más reciente a la más vieja. before es el id de la última
 // Fragua de la página anterior (0 = la primera página): ver la consulta.
@@ -797,6 +839,17 @@ func (s *Service) Records(ctx context.Context, userID string) ([]Record, error) 
 		out = append(out, Record{
 			Exercise: r.Name, ExerciseSlug: r.Slug, Metric: r.Metric, Value: r.Value,
 			AchievedOn: r.LocalDate.Format(time.DateOnly),
+		})
+	}
+	// Los de las sesiones a tiempo, después de los de los ejercicios.
+	times, err := s.q.ListSessionTimeRecords(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("leyendo los mojones de las sesiones: %w", err)
+	}
+	for _, t := range times {
+		out = append(out, Record{
+			Exercise: t.Title, SessionID: t.SessionID, Metric: "time_s", Value: float64(t.TimeS),
+			AchievedOn: t.LocalDate.Format(time.DateOnly),
 		})
 	}
 	return out, nil

@@ -203,6 +203,15 @@ class _SessionDetail extends StatelessWidget {
           // Markdown mínimo que en la pantalla de un ejercicio.
           MarkdownText(description),
         ],
+        if (session.timeRecord) ...[
+          const SizedBox(height: ForjaSpace.s4),
+          const ForjaPill('a tiempo'),
+          const SizedBox(height: ForjaSpace.s2),
+          Text(
+            'Lo más rápido que puedas: tu marca es el tiempo del entrenamiento.',
+            style: textTheme.bodyLarge,
+          ),
+        ],
         const SizedBox(height: ForjaSpace.s4),
         Text(
           'Tocá un ejercicio para ajustar las reps o cambiarlo.',
@@ -285,10 +294,27 @@ class _BlockCard extends StatelessWidget {
                 runSpacing: ForjaSpace.s2,
                 children: [
                   Text('BLOQUE ${block.position}', style: textTheme.titleLarge),
-                  ForjaPill(typeLabel),
+                  // Wrap otra vez: el tipo y OPCIONAL pueden no entrar
+                  // juntos junto al título.
+                  Wrap(
+                    spacing: ForjaSpace.s2,
+                    runSpacing: ForjaSpace.s2,
+                    children: [
+                      if (block.optional) const ForjaPill('opcional'),
+                      ForjaPill(typeLabel),
+                    ],
+                  ),
                 ],
               ),
             ),
+            if (block.optional) ...[
+              const SizedBox(height: ForjaSpace.s2),
+              const Text('Un extra: hacelo solo si te quedan fuerzas.'),
+            ],
+            if (block.note case final note?) ...[
+              const SizedBox(height: ForjaSpace.s2),
+              Text(note, style: context.forja.bodyStrong),
+            ],
             if (isAmrap) ...[
               const SizedBox(height: ForjaSpace.s2),
               const Text('Repetí la vuelta hasta que se acabe el tiempo.'),
@@ -419,12 +445,8 @@ class _ItemRow extends StatelessWidget {
 TextStyle _metricStyle(BuildContext context) =>
     context.forja.stat.copyWith(fontSize: 18, height: 1.3);
 
-/// La cifra de un ítem: "×10", "45″".
-String _metric(Item item) => switch (item) {
-  Item(:final reps?) => formatReps(reps),
-  Item(:final durationS?) => formatDuration(durationS),
-  _ => '',
-};
+/// La cifra de un ítem: "×10", "×5-8", "45″" (ver formatTarget).
+String _metric(Item item) => formatTarget(item);
 
 /// Cuánto ocupa [text] dibujado con [style]: lo mide como lo va a dibujar
 /// Flutter, con el tamaño de letra que eligió el usuario en el teléfono

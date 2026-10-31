@@ -51,7 +51,10 @@ type Session struct {
 	Kind        string  `json:"kind"`
 	Title       string  `json:"title"`
 	Description *string `json:"description"`
-	Blocks      []Block `json:"blocks"`
+	// TimeRecord: se hace lo más rápido posible; su Mojón es el menor
+	// tiempo del entrenamiento.
+	TimeRecord bool    `json:"time_record"`
+	Blocks     []Block `json:"blocks"`
 }
 
 type Block struct {
@@ -60,7 +63,11 @@ type Block struct {
 	Phase    string `json:"phase"`
 	Type     string `json:"type"`
 	TimeCapS *int32 `json:"time_cap_s,omitempty"`
-	Items    []Item `json:"items"`
+	// Optional: un extra, que se hace solo si quedan fuerzas.
+	Optional bool `json:"optional"`
+	// Note: una indicación para el momento (el ritmo, por ejemplo).
+	Note  *string `json:"note,omitempty"`
+	Items []Item  `json:"items"`
 }
 
 type Item struct {
@@ -74,6 +81,12 @@ type Item struct {
 	Side      *string      `json:"side,omitempty"`
 	DurationS *int32       `json:"duration_s,omitempty"`
 	Reps      *int16       `json:"reps,omitempty"`
+	// RepsMin es el mínimo de un rango (Reps es el máximo).
+	RepsMin *int16 `json:"reps_min,omitempty"`
+	// Open: máximo posible; Reps o DurationS son una referencia.
+	Open bool `json:"open"`
+	// CountReps: un ítem por tiempo que además cuenta las reps.
+	CountReps bool `json:"count_reps"`
 }
 
 type ExerciseRef struct {
@@ -181,7 +194,7 @@ func (s *Service) GetSession(ctx context.Context, id int64) (Session, error) {
 	}
 	return Session{
 		ID: row.ID, Kind: string(row.Kind), Title: row.Title, Description: row.Description,
-		Blocks: groupBlocks(items),
+		TimeRecord: row.TimeRecord, Blocks: groupBlocks(items),
 	}, nil
 }
 
@@ -269,6 +282,7 @@ func groupBlocks(rows []db.ListSessionItemsRow) []Block {
 			blocks = append(blocks, Block{
 				Position: r.BlockPosition, Phase: string(r.BlockPhase),
 				Type: string(r.BlockType), TimeCapS: r.TimeCapS,
+				Optional: r.BlockOptional, Note: r.BlockNote,
 			})
 		}
 		// Puntero al último bloque para modificarlo en el slice. Ojo: un
@@ -280,6 +294,7 @@ func groupBlocks(rows []db.ListSessionItemsRow) []Block {
 			ID:    r.ItemID,
 			Round: r.Round, Position: r.Position, Kind: string(r.Kind),
 			DurationS: r.DurationS, Reps: r.Reps,
+			RepsMin: r.RepsMin, Open: r.Open, CountReps: r.CountReps,
 		}
 		if r.ExerciseSlug != nil {
 			// Con el left join, las columnas del ejercicio vienen como

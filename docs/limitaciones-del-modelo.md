@@ -12,30 +12,6 @@ cambiarlo es corregir la transcripción y volver a generar el seed, no tocar el 
 
 ## Cómo se mide un ejercicio
 
-### Rangos de repeticiones
-
-*Desencadenado* («3 tandas de 5-8»), *Barra Libre* («3x3-5», «4x8-10») y *Guerrera
-Espartana* (`4x15-20`). En Barra Libre el rango es además la regla de progreso:
-mantenés el peso hasta llegar al máximo en todas las series, y entonces lo subís.
-
-- **Hoy:** se carga el máximo del rango (5-8 → 8). Es la meta: si no llegás, bajás las
-  reps antes de empezar o durante la Fragua. Los Mojones salen de lo que registrás, así
-  que no se inflan.
-- **Haría falta:** `reps_min` y `reps_max` en `block_item` (o un `reps` y un
-  `reps_max` opcional), y que la app muestre el rango y proponga el máximo.
-
-### Máximo posible (mrp / mtp)
-
-*Desencadenado*, semana 9: «máximas repeticiones posibles» y «máximo tiempo posible».
-*Barra Libre*: dominadas y fondos «3xF» (al fallo) en todas las fases.
-
-- **Hoy:** un valor de referencia (por ejemplo 15 reps o 60 s; 8 o 10 en los «al
-  fallo» de Barra Libre), y se registra lo que hiciste de verdad.
-- **Haría falta:** una medida "abierta": el ítem dice si va por reps o por tiempo, pero
-  sin objetivo. La app cuenta hacia arriba (cronómetro, no cuenta regresiva) y pide el
-  número al terminar. Hoy el `check` de `block_item` exige que haya exactamente uno de
-  los dos valores.
-
 ### Progresión de carga y porcentajes
 
 *Barra Libre* receta la carga, no solo las reps:
@@ -72,17 +48,6 @@ de Desencadenado y la de swings y thrusters ya son bloques `pyramid`, desde el
   descripción.
 - **Haría falta:** una pirámide cuyos peldaños suban solo uno de los ejercicios.
 
-### Ejercicios opcionales
-
-*Desencadenado*: cada sesión termina con un «ejercicio extra», que se hace solo si te
-quedan fuerzas. *Barra Libre*: el extra (fase II) u opcional (fase III), «si
-terminaste en menos de 45 minutos».
-
-- **Hoy:** es el último bloque de la Fragua. Si no lo hacés, salteás sus pasos uno por
-  uno.
-- **Haría falta:** un bloque marcado como opcional, con un "terminar acá" antes de
-  empezarlo. No debería contar en contra de la Fragua templada.
-
 ### Alternativas que no son progresiones
 
 *Desencadenado*: «si no tenés cuerda, levantamientos de rodilla», «si no podés hacer
@@ -112,16 +77,6 @@ ejercicios cambian si tenés una o dos kettlebells.
 - **Haría falta:** variantes de una sesión (o de un bloque) por nivel, elegibles antes
   de empezar.
 
-### Indicaciones de ejecución
-
-*Desencadenado*: «2 segundos de subida y 2 de bajada» (fuerza), «fase concéntrica lo más
-rápido posible» (potencia), «30 s de descanso entre tandas» (semana 9).
-
-- **Hoy:** van en la descripción de la sesión (`session.description`). Los descansos sí
-  se cargan como Enfriá.
-- **Haría falta:** una descripción (o cadencia) por bloque, para mostrarla en el
-  momento.
-
 ## El usuario
 
 ### Nivel del usuario por ejercicio
@@ -145,26 +100,6 @@ o «máximo + 1». *Muscle Hunters* también tiene niveles según un test.
 - **Haría falta:** el nivel del usuario por cadena de progresión (persistente, con
   historia), ítems que digan "nivel máximo ± n" en vez de un ejercicio fijo, y sesiones de
   test que lo actualicen.
-
-### Números de un ítem por tiempo
-
-*Efecto Kettlebell*: «todos los swings que puedas en un minuto», «anotá el total de
-burpees de los 4 minutos».
-
-- **Hoy:** el ítem es por tiempo (60 s, o intervalos de 30/30) y se registra la
-  duración, no las reps. Las vueltas de un AMRAP sí se registran.
-- **Haría falta:** que un ítem por tiempo pueda registrar también las reps (y que
-  cuenten para los Mojones).
-
-### Mojón de una sesión entera
-
-*Desencadenado*, semana 10 (HIIT): «anotá el tiempo que tardás en completar las 2 rondas,
-es tu tiempo a batir». *Barra Libre*: el tiempo de cada HIIT, y el total de reps de
-cada bloque de densidad (fase IV), que es la regla para subir el peso.
-
-- **Hoy:** la duración de la Fragua queda en el historial, pero no es un Mojón.
-- **Haría falta:** Mojones por sesión (menor tiempo), además de los Mojones por
-  ejercicio.
 
 ## Programas
 

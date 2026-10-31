@@ -275,6 +275,12 @@ migración ni API ni APK nuevos: es el paso 3 solo. El dry-run tiene que
 listar únicamente el archivo nuevo (si lista otro con «hash update», el mismo truco
 de `sql_paths`). El script aborta si el programa ya existe.
 
+**Completar campos nuevos del plan en lo ya cargado** (`seed_<programa>_detalles.sql`,
+de `go run ./cmd/seed plans-update <slug>`): primero la migración que agrega las columnas
+(`supabase db push`), después los seeds de detalles con el truco de `sql_paths` (solo
+esos archivos, `--include-seed`, y restaurar la lista), después la API y la app. Así
+se cargaron los rangos, máximos, extras, notas y sesiones a tiempo (2026-10-31).
+
 **Corregir contenido ya cargado.** Un seed que ya se aplicó no sirve para corregir:
 la CLI no lo vuelve a correr como un archivo nuevo, y el de fases además aborta si el
 programa ya tiene calentamiento. Una corrección sobre lo que ya está en producción va

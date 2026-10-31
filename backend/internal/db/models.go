@@ -235,6 +235,8 @@ type Block struct {
 	Type      BlockType
 	TimeCapS  *int32
 	Phase     BlockPhase
+	Optional  bool
+	Note      *string
 }
 
 type BlockItem struct {
@@ -247,6 +249,9 @@ type BlockItem struct {
 	Side       *Side
 	DurationS  *int32
 	Reps       *int16
+	RepsMin    *int16
+	Open       bool
+	CountReps  bool
 }
 
 type Exercise struct {
@@ -317,16 +322,18 @@ type Session struct {
 	Kind        SessionKind
 	Title       string
 	Description *string
+	TimeRecord  bool
 }
 
 type Workout struct {
-	ID         int64
-	UserID     string
-	SessionID  int64
-	StartedAt  time.Time
-	FinishedAt time.Time
-	LocalDate  time.Time
-	ClientID   *string
+	ID            int64
+	UserID        string
+	SessionID     int64
+	StartedAt     time.Time
+	FinishedAt    time.Time
+	LocalDate     time.Time
+	ClientID      *string
+	MainDurationS *int32
 }
 
 type WorkoutAmrap struct {

@@ -58,8 +58,8 @@ func RenderSQL(out io.Writer, p *Program) error {
 
 	for i, s := range p.Sessions {
 		w.printf("\n  -- Sesión %d: %s\n", i+1, s.Title)
-		w.printf("  insert into session (title, description) values (%s, %s) returning id into s;\n",
-			str(s.Title), nullStr(s.Description))
+		w.printf("  insert into session (title, description, time_record) values (%s, %s, %t) returning id into s;\n",
+			str(s.Title), nullStr(s.Description), s.TimeRecord)
 		w.printf("  insert into program_session (program_id, position, session_id) values (p, %d, s);\n", i+1)
 		for j, b := range s.Blocks {
 			w.block(j+1, b)
@@ -70,18 +70,19 @@ func RenderSQL(out io.Writer, p *Program) error {
 }
 
 func (w *writer) block(position int, b Block) {
-	w.printf("  insert into block (session_id, position, type, phase, time_cap_s)\n")
-	w.printf("    values (s, %d, '%s', '%s', %s) returning id into b;\n", position, b.Type, b.Phase, optInt(b.TimeCapS))
-	w.printf("  insert into block_item (block_id, round, position, kind, exercise_id, side, duration_s, reps) values\n")
+	w.printf("  insert into block (session_id, position, type, phase, time_cap_s, optional, note)\n")
+	w.printf("    values (s, %d, '%s', '%s', %s, %t, %s) returning id into b;\n",
+		position, b.Type, b.Phase, optInt(b.TimeCapS), b.Optional, nullStr(b.Note))
+	w.printf("  insert into block_item (block_id, round, position, kind, exercise_id, side, duration_s, reps, reps_min, open, count_reps) values\n")
 	for i, it := range b.Items {
 		end := sep(i, len(b.Items), ";")
 		if it.Rest {
-			w.printf("    (b, %d, %d, 'rest', null, null, %d, null)%s\n", it.Round, it.Position, it.DurationS, end)
+			w.printf("    (b, %d, %d, 'rest', null, null, %d, null, null, false, false)%s\n", it.Round, it.Position, it.DurationS, end)
 			continue
 		}
-		w.printf("    (b, %d, %d, 'exercise', %s, %s, %s, %s)%s\n",
+		w.printf("    (b, %d, %d, 'exercise', %s, %s, %s, %s, %s, %t, %t)%s\n",
 			it.Round, it.Position, exerciseID(it.ExerciseSlug), side(it.Side),
-			optInt(it.DurationS), optInt(it.Reps), end)
+			optInt(it.DurationS), optInt(it.Reps), optInt(it.RepsMin), it.Open, it.CountReps, end)
 	}
 }
 

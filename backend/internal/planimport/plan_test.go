@@ -209,9 +209,9 @@ func TestRenderSQL(t *testing.T) {
 		"raise exception 'prueba ya está cargado'",
 		"insert into program (slug, name, description, position)\n    values ('prueba', 'Prueba', 'Programa de prueba.', null)",
 		"insert into program_session (program_id, position, session_id) values (p, 3, s);",
-		"values (s, 2, 'ladder', 'main', null) returning id into b;",
-		"(b, 1, 1, 'exercise', (select id from exercise where slug = 'sentadilla-bulgara'), 'right', null, 1),",
-		"(b, 5, 3, 'rest', null, null, 60, null);",
+		"values (s, 2, 'ladder', 'main', null, false, null) returning id into b;",
+		"(b, 1, 1, 'exercise', (select id from exercise where slug = 'sentadilla-bulgara'), 'right', null, 1, null, false, false),",
+		"(b, 5, 3, 'rest', null, null, 60, null, null, false, false);",
 	} {
 		if !strings.Contains(sql, want) {
 			t.Errorf("falta en el SQL: %s", want)
@@ -296,7 +296,7 @@ func TestBuildSidesAMRAPAndAlternation(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, s := range []string{
-		"values (s, 1, 'amrap', 'main', 300) returning id into b;",
+		"values (s, 1, 'amrap', 'main', 300, false, null) returning id into b;",
 		"insert into exercise_video (exercise_id, side, url)\n  values ((select id from exercise where slug = 'swing-a-una-mano'), null, 'https://youtu.be/x')",
 	} {
 		if !strings.Contains(buf.String(), s) {
@@ -356,6 +356,9 @@ func TestIncludeUseApproachAndList(t *testing.T) {
 	want := []string{"5right", "5left", "30s", "3right", "3left", "60s", "2right", "2left", "120s"}
 	if !slices.Equal(got, want) {
 		t.Errorf("aproximación = %v, quiero %v", got, want)
+	}
+	if !strings.HasPrefix(blocks[0].Note, "Aproximación corta") {
+		t.Errorf("nota de la aproximación = %q", blocks[0].Note)
 	}
 
 	// La plantilla incluida, con su pirámide en lista.
@@ -431,5 +434,127 @@ end
 		if _, err := parsePlan(strings.NewReader(text), nil); err == nil {
 			t.Errorf("%s: quería un error", name)
 		}
+	}
+}
+
+func TestPlanDetails(t *testing.T) {
+	plan, err := parsePlan(strings.NewReader(`= 1 | X
+marca: tiempo
+vueltas x2 | entre 60 | opcional
+nota: 2 s de subida
+nota: y 2 de bajada.
+Flexión | 5-8r
+Dominada | 8r | máx
+Sprint | 60s | cuenta
+end
+`), nil)
+	if err != nil {
+		t.Fatalf("parsePlan: %v", err)
+	}
+	prog, err := Build("x", "X", plan, &CatalogExtras{}, testCatalog())
+	if err != nil {
+		t.Fatalf("Build: %v", err)
+	}
+	s := prog.Sessions[0]
+	b := s.Blocks[0]
+	if !s.TimeRecord || !b.Optional || b.Note != "2 s de subida y 2 de bajada." {
+		t.Errorf("sesión %v, bloque opcional %v, nota %q", s.TimeRecord, b.Optional, b.Note)
+	}
+	want := []Item{
+		{Round: 1, Position: 1, ExerciseSlug: "flexion", Reps: 8, RepsMin: 5},
+		{Round: 1, Position: 2, ExerciseSlug: "dominada", Reps: 8, Open: true},
+		{Round: 1, Position: 3, ExerciseSlug: "sprint", DurationS: 60, CountReps: true},
+	}
+	if !slices.Equal(b.Items[:3], want) {
+		t.Errorf("ítems = %+v", b.Items[:3])
+	}
+
+	var buf bytes.Buffer
+	if err := RenderSQL(&buf, prog); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		"insert into session (title, description, time_record) values ('X', null, true)",
+		"values (s, 1, 'rounds_with_rest', 'main', null, true, '2 s de subida y 2 de bajada.')",
+		"(select id from exercise where slug = 'flexion'), null, null, 8, 5, false, false)",
+	} {
+		if !strings.Contains(buf.String(), want) {
+			t.Errorf("falta en el SQL: %s", want)
+		}
+	}
+
+	for name, text := range map[string]string{
+		"rango al revés":    "= 1 | X\nvueltas x1\nFlexión | 8-5r\nend",
+		"rango en segundos": "= 1 | X\nvueltas x1\nPlancha | 30-60s\nend",
+		"cuenta sin tiempo": "= 1 | X\nvueltas x1\nFlexión | 8r | cuenta\nend",
+		"rango y máx":       "= 1 | X\nvueltas x1\nFlexión | 5-8r | máx\nend",
+		"nota tarde":        "= 1 | X\nvueltas x1\nFlexión | 8r\nnota: tarde\nend",
+		"marca con bloques": "= 1 | X\nvueltas x1\nFlexión | 8r\nend\nmarca: tiempo",
+	} {
+		if _, err := parsePlan(strings.NewReader(text), nil); err == nil {
+			t.Errorf("%s: quería un error", name)
+		}
+	}
+}
+
+func TestRenderUpdateSQL(t *testing.T) {
+	plan, err := parsePlan(strings.NewReader(`= 1 | X
+marca: tiempo
+vueltas x1 | opcional
+nota: lento.
+Flexión | 5-8r
+Dominada | 8r
+end
+`), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	prog, err := Build("x", "X", plan, &CatalogExtras{}, testCatalog())
+	if err != nil {
+		t.Fatal(err)
+	}
+	var buf bytes.Buffer
+	if err := RenderUpdateSQL(&buf, prog); err != nil {
+		t.Fatal(err)
+	}
+	sql := buf.String()
+	for _, want := range []string{
+		"where p.slug = 'x' and ps.position = 1;",
+		"if n <> 1 then raise exception 'sesión 1: la base tiene % bloques y la transcripción 1', n; end if;",
+		"update session set time_record = true where id = s;",
+		"if n <> 2 then raise exception",
+		"update block set optional = true, note = 'lento.' where id = b;",
+		"update block_item set reps_min = 5, open = false, count_reps = false\n    where block_id = b and round = 1 and position = 1;",
+	} {
+		if !strings.Contains(sql, want) {
+			t.Errorf("falta en el SQL: %s", want)
+		}
+	}
+	// Solo actualiza lo que tiene algo distinto del valor por defecto: la
+	// dominada no aparece.
+	if strings.Contains(sql, "position = 2;") {
+		t.Errorf("actualiza un ítem sin detalles:\n%s", sql)
+	}
+	// No inserta ni borra nada.
+	if strings.Contains(sql, "insert") || strings.Contains(sql, "delete") {
+		t.Errorf("el SQL de actualización inserta o borra:\n%s", sql)
+	}
+}
+
+func TestCountRepsInTabata(t *testing.T) {
+	plan, err := parsePlan(strings.NewReader("= 1 | X\ntabata x2 30/30\nBurpee | cuenta\nend\n"), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	prog, err := Build("x", "X", plan, &CatalogExtras{}, &mhimport.Catalog{Exercises: []*mhimport.Exercise{{Slug: "burpee"}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if it := prog.Sessions[0].Blocks[0].Items[0]; !it.CountReps || it.DurationS != 30 {
+		t.Errorf("burpee del tabata = %+v", it)
+	}
+	// Fuera de un tabata, «cuenta» necesita su tiempo.
+	if _, err := parsePlan(strings.NewReader("= 1 | X\nvueltas x1\nFlexión | cuenta\nend\n"), nil); err == nil {
+		t.Error("cuenta sin medida fuera de un tabata: quería un error")
 	}
 }

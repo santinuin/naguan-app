@@ -66,7 +66,7 @@ func (q *Queries) GetProgramBySlug(ctx context.Context, slug string) (GetProgram
 }
 
 const getSession = `-- name: GetSession :one
-select id, kind, title, description
+select id, kind, title, description, time_record
 from session
 where id = $1
 `
@@ -79,6 +79,7 @@ func (q *Queries) GetSession(ctx context.Context, id int64) (Session, error) {
 		&i.Kind,
 		&i.Title,
 		&i.Description,
+		&i.TimeRecord,
 	)
 	return i, err
 }
@@ -331,12 +332,17 @@ select i.id         as item_id,
        b.type       as block_type,
        b.phase      as block_phase,
        b.time_cap_s,
+       b.optional   as block_optional,
+       b.note       as block_note,
        i.round,
        i.position,
        i.kind,
        i.side,
        i.duration_s,
        i.reps,
+       i.reps_min,
+       i.open,
+       i.count_reps,
        e.slug       as exercise_slug,
        e.name       as exercise_name,
        e.loaded     as exercise_loaded
@@ -353,12 +359,17 @@ type ListSessionItemsRow struct {
 	BlockType      BlockType
 	BlockPhase     BlockPhase
 	TimeCapS       *int32
+	BlockOptional  bool
+	BlockNote      *string
 	Round          int16
 	Position       int16
 	Kind           ItemKind
 	Side           *Side
 	DurationS      *int32
 	Reps           *int16
+	RepsMin        *int16
+	Open           bool
+	CountReps      bool
 	ExerciseSlug   *string
 	ExerciseName   *string
 	ExerciseLoaded *bool
@@ -383,12 +394,17 @@ func (q *Queries) ListSessionItems(ctx context.Context, sessionID int64) ([]List
 			&i.BlockType,
 			&i.BlockPhase,
 			&i.TimeCapS,
+			&i.BlockOptional,
+			&i.BlockNote,
 			&i.Round,
 			&i.Position,
 			&i.Kind,
 			&i.Side,
 			&i.DurationS,
 			&i.Reps,
+			&i.RepsMin,
+			&i.Open,
+			&i.CountReps,
 			&i.ExerciseSlug,
 			&i.ExerciseName,
 			&i.ExerciseLoaded,

@@ -8,6 +8,8 @@
 //	go run ./cmd/seed titles  # imprime el UPDATE de los títulos de las sesiones
 //	go run ./cmd/seed plans   # genera el SQL de los programas transcriptos a mano
 //	go run ./cmd/seed plans efecto-kettlebell   # … solo de esos programas
+//	go run ./cmd/seed plans-update desencadenado # SQL que completa lo nuevo del modelo en lo ya cargado
+//	go run ./cmd/seed -tag aproximacion plans-update barra-libre-1   # … con otro nombre de archivo
 //
 // El CSV de nombres se versiona (solo tiene nombres); el SQL no, porque
 // incluye descripciones y videos de la fuente.
@@ -67,8 +69,9 @@ func main() {
 	titlesPath := flag.String("titles", "seed/session_titles.csv", "CSV de títulos de las sesiones")
 	outPath := flag.String("out", "../supabase/seed.sql", "archivo SQL a generar (sql)")
 	phasesDir := flag.String("phases-dir", "../supabase", "carpeta de los SQL a generar (phases y plans)")
+	tag := flag.String("tag", "detalles", "plans-update: sufijo del archivo (seed_<programa>_<tag>.sql); uno nuevo por cada actualización")
 	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "uso: seed [flags] names|sql|phases|titles|plans [programa...]\n")
+		fmt.Fprintf(os.Stderr, "uso: seed [flags] names|sql|phases|titles|plans|plans-update [programa...]\n")
 		flag.PrintDefaults()
 	}
 	flag.Parse()
@@ -84,7 +87,9 @@ func main() {
 	case "phases":
 		err = runPhases(*source, *namesPath, *phasesDir)
 	case "plans":
-		err = runPlans(*source, *namesPath, *phasesDir, flag.Args()[1:])
+		err = runPlans(*source, *namesPath, *phasesDir, flag.Args()[1:], "")
+	case "plans-update":
+		err = runPlans(*source, *namesPath, *phasesDir, flag.Args()[1:], *tag)
 	default:
 		flag.Usage()
 		os.Exit(2)
@@ -337,7 +342,13 @@ var plans = []planSource{
 // Supabase reconoce cada seed por su hash, y regenerar un archivo ya
 // aplicado (por un cambio en el importador, aunque dé los mismos datos) le
 // cambia el hash sin que haga falta.
-func runPlans(source, namesPath, outDir string, only []string) error {
+//
+// Con un updateTag, en vez del seed que crea el programa escribe el que
+// completa los detalles en uno ya cargado (planimport.RenderUpdateSQL), en
+// seed_<programa>_<updateTag>.sql. Cada actualización necesita un tag nuevo:
+// la CLI de Supabase no vuelve a correr un seed que ya aplicó.
+func runPlans(source, namesPath, outDir string, only []string, updateTag string) error {
+	update := updateTag != ""
 	selected := plans
 	if len(only) > 0 {
 		selected = nil
@@ -386,8 +397,12 @@ func runPlans(source, namesPath, outDir string, only []string) error {
 				others = append(others, ex)
 			}
 		}
+		out := p.out
+		if update {
+			out = strings.TrimSuffix(out, ".sql") + "_" + updateTag + ".sql"
+		}
 		if err := writePlan(cat, p, strings.Replace(p.plan, "{source}", source, 1),
-			extras[p.extras], others, filepath.Join(outDir, p.out)); err != nil {
+			extras[p.extras], others, filepath.Join(outDir, out), update); err != nil {
 			errs = append(errs, fmt.Errorf("%s: %w", p.slug, err))
 		}
 	}
@@ -395,7 +410,7 @@ func runPlans(source, namesPath, outDir string, only []string) error {
 }
 
 func writePlan(cat *mhimport.Catalog, p planSource, planPath string, extras *planimport.CatalogExtras,
-	others []*planimport.CatalogExtras, outPath string) error {
+	others []*planimport.CatalogExtras, outPath string, update bool) error {
 	plan, err := planimport.ReadPlan(planPath)
 	if err != nil {
 		return err
@@ -410,7 +425,11 @@ func writePlan(cat *mhimport.Catalog, p planSource, planPath string, extras *pla
 	if err != nil {
 		return err
 	}
-	if err := errors.Join(planimport.RenderSQL(f, prog), f.Close()); err != nil {
+	render := planimport.RenderSQL
+	if update {
+		render = planimport.RenderUpdateSQL
+	}
+	if err := errors.Join(render(f, prog), f.Close()); err != nil {
 		return err
 	}
 	fmt.Printf("%s: %s\n", outPath, prog)

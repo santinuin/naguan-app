@@ -69,6 +69,22 @@ exercise ──< exercise_video                      │           │  (Fragua 
   `pyramid`, son el peldaño modelo, con el incremento como reps: el peldaño n pide n ×
   reps de cada ejercicio, se sube hasta el máximo, se baja a 1 y se vuelve a subir hasta
   el tope; entre peldaños, la app descansa lo que se tardó.
+- **Detalles del plan** (migración `20261031000000_plan_details.sql`):
+  - `block_item.reps_min`: el mínimo de un **rango** («5-8»: `reps` es 8, el máximo, y
+    `reps_min` 5). La app muestra «×5-8» y propone el máximo.
+  - `block_item.open`: **máximo posible** («todas las que puedas», «al fallo», «el
+    máximo tiempo posible»); `reps` o `duration_s` son una referencia, y por tiempo la
+    app cuenta hacia arriba.
+  - `block_item.count_reps`: un ítem **por tiempo que además cuenta las reps** («los
+    swings que puedas en un minuto»): al terminar el tiempo la app las pide, y se
+    registran las dos medidas (no compiten como serie por los Mojones de reps).
+  - `block.optional`: un **extra** («si te quedan fuerzas»); antes de empezarlo, la
+    app ofrece HACERLO o TERMINAR ACÁ.
+  - `block.note`: una **indicación para el momento** (el ritmo), que la app muestra
+    durante el bloque.
+  - `session.time_record`: una sesión **a tiempo** («anotá el tiempo: es tu marca a
+    batir»). La app manda `workout.main_duration_s`, cuánto duró el entrenamiento (sin
+    calentamiento ni movilidad), y el Mojón de la sesión es el menor (`time_s`).
 - **`block.phase`: calentamiento, entrenamiento o movilidad** (`warmup` | `main` |
   `mobility`). Las tres partes son bloques de la **misma** sesión: se templan juntas, en
   una sola Fragua, y la app las titula por separado. Se descartó modelarlas como sesiones

@@ -12,11 +12,13 @@ import (
 
 const bestResults = `-- name: BestResults :many
 select wi.exercise_id,
-       coalesce(max(wi.reps) filter (where wi.load_kg is null and b.type <> 'pyramid'), 0)::int as best_reps,
+       coalesce(max(wi.reps) filter (where wi.load_kg is null and b.type <> 'pyramid'
+                                     and wi.duration_s is null), 0)::int as best_reps,
        coalesce(max(wi.duration_s), 0)::int as best_duration_s,
        coalesce(max(wi.load_kg), 0)::float8 as best_load_kg,
        coalesce(max(round(wi.load_kg * (1 + wi.reps * 0.0333), 1))
-                filter (where wi.reps > 0 and b.type <> 'pyramid'), 0)::float8 as best_e1rm_kg,
+                filter (where wi.reps > 0 and b.type <> 'pyramid'
+                                and wi.duration_s is null), 0)::float8 as best_e1rm_kg,
        coalesce(max(wp.peak * bi.reps), 0)::int as best_peak_reps
 from workout_item wi
 join workout w     on w.id = wi.workout_id
@@ -95,18 +97,19 @@ func (q *Queries) CountWorkouts(ctx context.Context, userID string) (int64, erro
 }
 
 const createWorkout = `-- name: CreateWorkout :one
-insert into workout (user_id, session_id, started_at, finished_at, local_date, client_id)
-values ($1, $2, $3, $4, $5, $6)
+insert into workout (user_id, session_id, started_at, finished_at, local_date, client_id, main_duration_s)
+values ($1, $2, $3, $4, $5, $6, $7)
 returning id
 `
 
 type CreateWorkoutParams struct {
-	UserID     string
-	SessionID  int64
-	StartedAt  time.Time
-	FinishedAt time.Time
-	LocalDate  time.Time
-	ClientID   *string
+	UserID        string
+	SessionID     int64
+	StartedAt     time.Time
+	FinishedAt    time.Time
+	LocalDate     time.Time
+	ClientID      *string
+	MainDurationS *int32
 }
 
 func (q *Queries) CreateWorkout(ctx context.Context, arg CreateWorkoutParams) (int64, error) {
@@ -117,6 +120,7 @@ func (q *Queries) CreateWorkout(ctx context.Context, arg CreateWorkoutParams) (i
 		arg.FinishedAt,
 		arg.LocalDate,
 		arg.ClientID,
+		arg.MainDurationS,
 	)
 	var id int64
 	err := row.Scan(&id)
@@ -143,6 +147,34 @@ type CreateWorkoutPyramidsParams struct {
 	BlockPosition int16
 	Peak          int16
 	RungSum       int32
+}
+
+const getSessionTimeRecord = `-- name: GetSessionTimeRecord :one
+select s.title, s.time_record,
+       coalesce((select min(w.main_duration_s) from workout w
+                 where w.user_id = $1 and w.session_id = s.id), 0)::int as best_time_s
+from session s
+where s.id = $2
+`
+
+type GetSessionTimeRecordParams struct {
+	UserID    string
+	SessionID int64
+}
+
+type GetSessionTimeRecordRow struct {
+	Title      string
+	TimeRecord bool
+	BestTimeS  int32
+}
+
+// El título de la sesión y si su Mojón es el menor tiempo, con la mejor
+// marca previa del usuario (0 = sin marca).
+func (q *Queries) GetSessionTimeRecord(ctx context.Context, arg GetSessionTimeRecordParams) (GetSessionTimeRecordRow, error) {
+	row := q.db.QueryRow(ctx, getSessionTimeRecord, arg.UserID, arg.SessionID)
+	var i GetSessionTimeRecordRow
+	err := row.Scan(&i.Title, &i.TimeRecord, &i.BestTimeS)
+	return i, err
 }
 
 const getWorkout = `-- name: GetWorkout :one
@@ -421,9 +453,12 @@ func (q *Queries) ListProgramProgress(ctx context.Context, arg ListProgramProgre
 const listRecords = `-- name: ListRecords :many
 with result as (
   select wi.exercise_id,
-         case when b.type <> 'pyramid' then wi.reps end as reps,
+         -- Una serie: ni las reps totales de una pirámide ni las contadas en
+         -- un ítem por tiempo («swings en 1 minuto»).
+         case when b.type <> 'pyramid' and wi.duration_s is null then wi.reps end as reps,
          wi.duration_s, wi.load_kg,
-         case when b.type <> 'pyramid' then round(wi.load_kg * (1 + wi.reps * 0.0333), 1) end as e1rm_kg,
+         case when b.type <> 'pyramid' and wi.duration_s is null
+              then round(wi.load_kg * (1 + wi.reps * 0.0333), 1) end as e1rm_kg,
          wp.peak * bi.reps as peak_reps,
          w.local_date, w.finished_at
   from workout_item wi
@@ -628,6 +663,49 @@ func (q *Queries) ListSessionPyramidPositions(ctx context.Context, sessionID int
 			return nil, err
 		}
 		items = append(items, position)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listSessionTimeRecords = `-- name: ListSessionTimeRecords :many
+select distinct on (w.session_id)
+       s.id as session_id, s.title, w.main_duration_s::int as time_s, w.local_date
+from workout w
+join session s on s.id = w.session_id
+where w.user_id = $1 and s.time_record and w.main_duration_s is not null
+order by w.session_id, w.main_duration_s, w.finished_at
+`
+
+type ListSessionTimeRecordsRow struct {
+	SessionID int64
+	Title     string
+	TimeS     int32
+	LocalDate time.Time
+}
+
+// Los Mojones de las sesiones a tiempo: el menor tiempo del entrenamiento en
+// cada una, con el día en que se logró (la primera vez, si se igualó).
+func (q *Queries) ListSessionTimeRecords(ctx context.Context, userID string) ([]ListSessionTimeRecordsRow, error) {
+	rows, err := q.db.Query(ctx, listSessionTimeRecords, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListSessionTimeRecordsRow
+	for rows.Next() {
+		var i ListSessionTimeRecordsRow
+		if err := rows.Scan(
+			&i.SessionID,
+			&i.Title,
+			&i.TimeS,
+			&i.LocalDate,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err

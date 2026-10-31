@@ -73,6 +73,15 @@ import (
 //
 //	video: Swing | https://youtu.be/…   ← video de un ejercicio nuevo del plan
 //
+//	= 9 | Fuerza: empujar | CAL MOV
+//	marca: tiempo                ← su Mojón es el menor tiempo (va lo más rápido posible)
+//	vueltas x3 | entre 60 | opcional   ← un extra: la app ofrece terminar antes
+//	nota: 2 s de subida y 2 de bajada.  ← indicación para el momento
+//	Flexión | 5-8r               ← rango: de 5 a 8
+//	Dominada | 8r | máx          ← todas las que puedas (8 de referencia)
+//	Swing | 60s | cuenta         ← por tiempo, y al final pide las reps
+//	end
+//
 //	incluir barra_libre_comun.txt       ← plantillas y videos de otro archivo
 //
 //	= 6 | Fuerza A | CAL MOV
@@ -123,6 +132,12 @@ type ItemSpec struct {
 	// solo paso sin lado. Sin ninguno de los dos, se hacen ambos lados.
 	Side        mhimport.Side
 	Alternating bool
+	// RepsMin es el mínimo de un rango («5-8r»: Reps 8, RepsMin 5).
+	RepsMin int
+	// Open: máximo posible («| máx»); la medida es una referencia.
+	Open bool
+	// CountReps: un ítem por tiempo que además cuenta las reps («| cuenta»).
+	CountReps bool
 }
 
 // BlockSpec es un bloque tal como está escrito.
@@ -143,6 +158,10 @@ type BlockSpec struct {
 	// Enfriá entre vueltas y al terminar el bloque (0 = ninguno).
 	BetweenS, AfterS int
 	Items            []ItemSpec
+	// Optional: un bloque que se hace solo si quedan fuerzas («| opcional»).
+	Optional bool
+	// Note es una indicación para el momento (líneas «nota:» del bloque).
+	Note string
 }
 
 // SessionSpec es una sesión del programa. Una copia (CopyOf > 0) repite
@@ -155,6 +174,9 @@ type SessionSpec struct {
 	Warmup, Mobility string
 	Blocks           []BlockSpec
 	CopyOf           int
+	// TimeRecord: se hace lo más rápido posible y su Mojón es el menor
+	// tiempo del entrenamiento («marca: tiempo»).
+	TimeRecord bool
 }
 
 // Plan es la transcripción leída.
@@ -184,7 +206,9 @@ var (
 	amrapArg    = regexp.MustCompile(`^(\d+)$`)
 	restArg     = regexp.MustCompile(`^(entre|después)\s+(\d+)$`)
 	// Nombre, medida opcional y lado opcional: «Swing | 30s | der».
-	itemLine     = regexp.MustCompile(`^(.+?)(?:\s*\|\s*(\d+)([sr]))?(?:\s*\|\s*(der|izq|alternando))?$`)
+	// Nombre, medida opcional (con rango: «5-8r») y modificadores:
+	// «Swing | 30s | der», «Dominada | 8r | máx», «Swing | 60s | cuenta».
+	itemLine     = regexp.MustCompile(`^(.+?)(?:\s*\|\s*(?:(\d+)-)?(\d+)([sr]))?((?:\s*\|\s*(?:der|izq|alternando|máx|cuenta))*)$`)
 	videoLine    = regexp.MustCompile(`^video:\s*(.+?)\s*\|\s*(\S+)$`)
 	includeLine  = regexp.MustCompile(`^incluir\s+(\S+)$`)
 	useLine      = regexp.MustCompile(`^usar\s+(\S+)$`)
@@ -274,6 +298,13 @@ func parsePlan(r io.Reader, open opener) (*Plan, error) {
 			*target = append(*target, *block)
 			block = nil
 
+		case block != nil && strings.HasPrefix(text, "nota:"):
+			if len(block.Items) > 0 {
+				fail("la nota va antes de los ejercicios del bloque")
+			}
+			line := strings.TrimSpace(strings.TrimPrefix(text, "nota:"))
+			block.Note = strings.TrimSpace(block.Note + " " + line)
+
 		case block != nil:
 			it, err := parseItem(text, block.Kind)
 			if err != nil {
@@ -306,6 +337,13 @@ func parsePlan(r io.Reader, open opener) (*Plan, error) {
 				session.Title = ""
 				target = nil // una copia no lleva bloques propios
 			}
+
+		case text == "marca: tiempo":
+			if session == nil || target == nil || len(session.Blocks) > 0 {
+				fail("«marca: tiempo» va en una sesión, antes de sus bloques")
+				continue
+			}
+			session.TimeRecord = true
 
 		case videoLine.MatchString(text):
 			m := videoLine.FindStringSubmatch(text)
@@ -424,7 +462,16 @@ func approachBlock(name string, short bool) BlockSpec {
 	if short {
 		reps = []int{5, 3, 2}
 	}
-	b := BlockSpec{Kind: KindRounds, Rounds: 1, AfterS: 120}
+	// La nota explica el bloque en el momento: sin ella se ve como "el mismo
+	// ejercicio otra vez, con menos reps", y la app propone en la primera
+	// serie el último peso usado (el de trabajo).
+	note := "Aproximación, para llegar de a poco al peso de trabajo: 2 × 5 con la " +
+		"barra vacía, 5 con el 40-50 %, 3 con el 60 % y 2 con el 80-85 %."
+	if short {
+		note = "Aproximación corta (el grupo muscular ya está caliente): 5 con el " +
+			"40-50 % del peso de trabajo, 3 con el 60 % y 2 con el 80-85 %."
+	}
+	b := BlockSpec{Kind: KindRounds, Rounds: 1, AfterS: 120, Note: note}
 	for i, r := range reps {
 		b.Items = append(b.Items, ItemSpec{Name: name, Reps: r})
 		if i < len(reps)-1 {
@@ -548,9 +595,13 @@ func parseBlockHeader(text string) (BlockSpec, error) {
 	}
 
 	for _, p := range parts[1:] {
+		if strings.TrimSpace(p) == "opcional" {
+			b.Optional = true
+			continue
+		}
 		a := restArg.FindStringSubmatch(strings.TrimSpace(p))
 		if a == nil {
-			return b, fmt.Errorf("se esperaba «entre S» o «después S», no %q", p)
+			return b, fmt.Errorf("se esperaba «entre S», «después S» u «opcional», no %q", p)
 		}
 		if a[1] == "entre" {
 			b.BetweenS = atoi(a[2])
@@ -571,37 +622,69 @@ func parseItem(text string, kind BlockKind) (ItemSpec, error) {
 	measured := kind != KindLadder && kind != KindTabata
 	m := itemLine.FindStringSubmatch(text)
 	it := ItemSpec{Name: m[1]}
-	switch m[4] {
-	case "der":
-		it.Side = mhimport.SideRight
-	case "izq":
-		it.Side = mhimport.SideLeft
-	case "alternando":
-		it.Alternating = true
+	// Los modificadores, en cualquier orden: «| der | máx».
+	var mods []string
+	for _, mod := range strings.Split(m[5], "|") {
+		if mod = strings.TrimSpace(mod); mod != "" {
+			mods = append(mods, mod)
+		}
 	}
-	hasMeasure := m[2] != ""
+	for _, mod := range mods {
+		switch mod {
+		case "der":
+			it.Side = mhimport.SideRight
+		case "izq":
+			it.Side = mhimport.SideLeft
+		case "alternando":
+			it.Alternating = true
+		case "máx":
+			it.Open = true
+		case "cuenta":
+			it.CountReps = true
+		}
+	}
+	hasMeasure := m[3] != ""
 	switch {
 	case !hasMeasure && measured:
 		return ItemSpec{}, fmt.Errorf("%q: falta la medida (| 8r o | 60s)", text)
 	case hasMeasure && !measured:
 		return ItemSpec{}, fmt.Errorf("%q: en una %s la medida la pone el bloque", text, kind)
-	case it.Name == RestName && (!hasMeasure || m[3] == "r"):
+	case it.Name == RestName && (!hasMeasure || m[4] == "r"):
 		return ItemSpec{}, fmt.Errorf("un Enfriá necesita su duración en segundos")
-	case it.Name == RestName && m[4] != "":
-		return ItemSpec{}, fmt.Errorf("un Enfriá no tiene lado")
+	case it.Name == RestName && len(mods) > 0:
+		return ItemSpec{}, fmt.Errorf("un Enfriá no lleva modificadores")
+	case it.Open && !hasMeasure:
+		return ItemSpec{}, fmt.Errorf("%q: «máx» necesita una medida de referencia", text)
+	case it.CountReps && !hasMeasure && kind != KindTabata:
+		// En un tabata el tiempo lo pone el bloque: «Burpee | cuenta» vale.
+		return ItemSpec{}, fmt.Errorf("%q: «cuenta» es para un ítem por tiempo", text)
 	}
 	if !hasMeasure {
 		return it, nil
 	}
 
-	v, _ := strconv.Atoi(m[2])
+	v, _ := strconv.Atoi(m[3])
 	if v < 1 {
 		return ItemSpec{}, fmt.Errorf("%q: la medida tiene que ser mayor que cero", text)
 	}
-	if m[3] == "s" {
+	if m[4] == "s" {
 		it.DurationS = v
 	} else {
 		it.Reps = v
+	}
+	if m[2] != "" {
+		// Un rango: «5-8r» es de 5 a 8 (las reps del ítem son el máximo).
+		lo, _ := strconv.Atoi(m[2])
+		if it.Reps == 0 || lo < 1 || lo >= it.Reps {
+			return ItemSpec{}, fmt.Errorf("%q: un rango va en reps, de menor a mayor (5-8r)", text)
+		}
+		it.RepsMin = lo
+	}
+	switch {
+	case it.CountReps && it.DurationS == 0:
+		return ItemSpec{}, fmt.Errorf("%q: «cuenta» es para un ítem por tiempo", text)
+	case it.Open && it.RepsMin > 0:
+		return ItemSpec{}, fmt.Errorf("%q: un rango no puede ser además «máx»", text)
 	}
 	if it.Name == RestName {
 		it.Rest, it.Name = true, ""
